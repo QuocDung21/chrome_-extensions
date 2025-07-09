@@ -147,7 +147,6 @@ function NavigationSection({ title, items }: NavigationSectionProps): ReactEleme
             <List sx={{ py: 0 }}>
                 {items.map(item => {
                     const isActive = location.pathname === item.path;
-
                     return (
                         <ListItem key={item.id} disablePadding>
                             <ListItemButton

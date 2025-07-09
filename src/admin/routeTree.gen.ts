@@ -15,6 +15,7 @@ import { Route as rootRouteImport } from './routes/__root'
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
 const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
 const OcrIndexLazyRouteImport = createFileRoute('/ocr/')()
+const InfoIndexLazyRouteImport = createFileRoute('/info/')()
 const ExtensionIndexLazyRouteImport = createFileRoute('/extension/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
@@ -40,6 +41,11 @@ const OcrIndexLazyRoute = OcrIndexLazyRouteImport.update({
   path: '/ocr/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ocr/index.lazy').then((d) => d.Route))
+const InfoIndexLazyRoute = InfoIndexLazyRouteImport.update({
+  id: '/info/',
+  path: '/info/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/info/index.lazy').then((d) => d.Route))
 const ExtensionIndexLazyRoute = ExtensionIndexLazyRouteImport.update({
   id: '/extension/',
   path: '/extension/',
@@ -75,6 +81,7 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/extension': typeof ExtensionIndexLazyRoute
+  '/info': typeof InfoIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
@@ -84,6 +91,7 @@ export interface FileRoutesByTo {
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/extension': typeof ExtensionIndexLazyRoute
+  '/info': typeof InfoIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
@@ -94,6 +102,7 @@ export interface FileRoutesById {
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
   '/extension/': typeof ExtensionIndexLazyRoute
+  '/info/': typeof InfoIndexLazyRoute
   '/ocr/': typeof OcrIndexLazyRoute
   '/products/': typeof ProductsIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
@@ -105,6 +114,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/extension'
+    | '/info'
     | '/ocr'
     | '/products'
     | '/settings'
@@ -114,6 +124,7 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/extension'
+    | '/info'
     | '/ocr'
     | '/products'
     | '/settings'
@@ -123,6 +134,7 @@ export interface FileRouteTypes {
     | '/analytics/'
     | '/dashboard/'
     | '/extension/'
+    | '/info/'
     | '/ocr/'
     | '/products/'
     | '/settings/'
@@ -133,6 +145,7 @@ export interface RootRouteChildren {
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
   ExtensionIndexLazyRoute: typeof ExtensionIndexLazyRoute
+  InfoIndexLazyRoute: typeof InfoIndexLazyRoute
   OcrIndexLazyRoute: typeof OcrIndexLazyRoute
   ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
@@ -159,6 +172,13 @@ declare module '@tanstack/react-router' {
       path: '/ocr'
       fullPath: '/ocr'
       preLoaderRoute: typeof OcrIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/info/': {
+      id: '/info/'
+      path: '/info'
+      fullPath: '/info'
+      preLoaderRoute: typeof InfoIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/extension/': {
@@ -197,6 +217,7 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
   ExtensionIndexLazyRoute: ExtensionIndexLazyRoute,
+  InfoIndexLazyRoute: InfoIndexLazyRoute,
   OcrIndexLazyRoute: OcrIndexLazyRoute,
   ProductsIndexLazyRoute: ProductsIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
