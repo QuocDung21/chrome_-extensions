@@ -117,6 +117,12 @@ const systemItems: NavigationItem[] = [
         label: 'Thông tin ứng dụng',
         icon: <InfoIcon />,
         path: '/info'
+    },
+    {
+        id: 'product-package',
+        label: 'Gói dịch vụ',
+        icon: <InfoIcon />,
+        path: '/product-package'
     }
 ];
 

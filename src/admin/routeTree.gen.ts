@@ -14,6 +14,8 @@ import { Route as rootRouteImport } from './routes/__root'
 
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
 const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
+const ProductPackageIndexLazyRouteImport =
+  createFileRoute('/product-package/')()
 const OcrIndexLazyRouteImport = createFileRoute('/ocr/')()
 const ExtensionIndexLazyRouteImport = createFileRoute('/extension/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
@@ -34,6 +36,13 @@ const ProductsIndexLazyRoute = ProductsIndexLazyRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
   import('./routes/products/index.lazy').then((d) => d.Route),
+)
+const ProductPackageIndexLazyRoute = ProductPackageIndexLazyRouteImport.update({
+  id: '/product-package/',
+  path: '/product-package/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/product-package/index.lazy').then((d) => d.Route),
 )
 const OcrIndexLazyRoute = OcrIndexLazyRouteImport.update({
   id: '/ocr/',
@@ -76,6 +85,7 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof DashboardIndexLazyRoute
   '/extension': typeof ExtensionIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
+  '/product-package': typeof ProductPackageIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
 }
@@ -85,6 +95,7 @@ export interface FileRoutesByTo {
   '/dashboard': typeof DashboardIndexLazyRoute
   '/extension': typeof ExtensionIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
+  '/product-package': typeof ProductPackageIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
 }
@@ -95,6 +106,7 @@ export interface FileRoutesById {
   '/dashboard/': typeof DashboardIndexLazyRoute
   '/extension/': typeof ExtensionIndexLazyRoute
   '/ocr/': typeof OcrIndexLazyRoute
+  '/product-package/': typeof ProductPackageIndexLazyRoute
   '/products/': typeof ProductsIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
 }
@@ -106,6 +118,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/extension'
     | '/ocr'
+    | '/product-package'
     | '/products'
     | '/settings'
   fileRoutesByTo: FileRoutesByTo
@@ -115,6 +128,7 @@ export interface FileRouteTypes {
     | '/dashboard'
     | '/extension'
     | '/ocr'
+    | '/product-package'
     | '/products'
     | '/settings'
   id:
@@ -124,6 +138,7 @@ export interface FileRouteTypes {
     | '/dashboard/'
     | '/extension/'
     | '/ocr/'
+    | '/product-package/'
     | '/products/'
     | '/settings/'
   fileRoutesById: FileRoutesById
@@ -134,6 +149,7 @@ export interface RootRouteChildren {
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
   ExtensionIndexLazyRoute: typeof ExtensionIndexLazyRoute
   OcrIndexLazyRoute: typeof OcrIndexLazyRoute
+  ProductPackageIndexLazyRoute: typeof ProductPackageIndexLazyRoute
   ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
 }
@@ -152,6 +168,13 @@ declare module '@tanstack/react-router' {
       path: '/products'
       fullPath: '/products'
       preLoaderRoute: typeof ProductsIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/product-package/': {
+      id: '/product-package/'
+      path: '/product-package'
+      fullPath: '/product-package'
+      preLoaderRoute: typeof ProductPackageIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/ocr/': {
@@ -198,6 +221,7 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
   ExtensionIndexLazyRoute: ExtensionIndexLazyRoute,
   OcrIndexLazyRoute: OcrIndexLazyRoute,
+  ProductPackageIndexLazyRoute: ProductPackageIndexLazyRoute,
   ProductsIndexLazyRoute: ProductsIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
 }
