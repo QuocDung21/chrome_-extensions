@@ -37,6 +37,7 @@ export default defineConfig({
             '@shared': path.join(__dirname, './src/shared')
         }
     },
+    base: './',
     build: {
         outDir: 'dist',
         emptyOutDir: true,

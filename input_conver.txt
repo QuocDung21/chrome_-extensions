@@ -1,0 +1,305 @@
+Kết quả phân tích đường dẫn
+=== PHÂN TÍCH CHI TIẾT 1 ĐƯỜNG DẪN ===
+
+1. http://laptrinhqlda.qlns.vn/QuanLy/GiaiNganThongQuaHopDongGDTH
+==================================================
+📄 Tiêu đề: HỆ THỐNG QUẢN LÝ NGÂN SÁCH DỰ ÁN ĐẦU TƯ
+📝 Mô tả: HỆ THỐNG QUẢN LÝ NGÂN SÁCH DỰ ÁN ĐẦU TƯ
+
+📊 THỐNG KÊ ELEMENTS:
+• Forms: 0
+• Input fields: 21
+• Buttons: 25
+• Links: 142
+• Images: 4
+• Scripts: 30
+• Stylesheets: 13
+
+📋 HEADINGS:
+• H1: 0
+• H2: 0
+• H3: 1
+• H4: 0
+• H5: 6
+• H6: 0
+
+🔗 CHI TIẾT LINKS (Hiển thị 10 đầu tiên):
+  1. Không có text → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  2. Hệ thống → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  3. Danh mục → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  4. Chuẩn bị đầu tư → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  5. Thực hiện đầu tư → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  6. Kế hoạch vốn đầu tư công → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  7. Kết thúc đầu tư → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  8. Số hóa → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  9. Báo cáo → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  10. 0 → chrome-extension://libngoajhiadilbiejpoebjmfdhgibbb/src/admin/index.html#
+  ... và 132 links khác
+
+📝 CHI TIẾT INPUT ELEMENTS (35):
+  1. INPUT [hidden]
+    • ID: hdfWidthNTS
+    • Value: 0
+    • XPath: //*[@id="hdfWidthNTS"]
+    • CSS Selector: #hdfWidthNTS
+    • Element Index: 1
+
+  2. INPUT [hidden]
+    • Name: __RequestVerificationToken
+    • Value: AIsPJx66_KTFY54lw1SNYF7zP4FUV18y333MH5aGmUFL6uhNdx5SfeSwLiVmE9mAmXRZ_IZQLRs1dpMGYp_VbMRNKP-nsLVHpzJ7vh7_vFU1
+    • XPath: /html[1]/body[1]/input[2]
+    • CSS Selector: html > body.layout-footer-fixed.layout-fixed > input
+    • Element Index: 2
+
+  3. INPUT [hidden]
+    • ID: hdf_GiaiDoanDuAnID
+    • Value: 5E1E0E80-4712-4A9F-A591-CEB87062C04E
+    • XPath: //*[@id="hdf_GiaiDoanDuAnID"]
+    • CSS Selector: #hdf_GiaiDoanDuAnID
+    • Element Index: 3
+
+  4. INPUT [hidden]
+    • ID: hdf_GiaiDoanDuAnID_congviec
+    • Value: 00000000-0000-0000-0000-000000000000
+    • XPath: //*[@id="hdf_GiaiDoanDuAnID_congviec"]
+    • CSS Selector: #hdf_GiaiDoanDuAnID_congviec
+    • Element Index: 4
+
+  5. INPUT [hidden]
+    • ID: hdf_GiaiDoanDuAnID_loaivanban
+    • Value: 00000000-0000-0000-0000-000000000000
+    • XPath: //*[@id="hdf_GiaiDoanDuAnID_loaivanban"]
+    • CSS Selector: #hdf_GiaiDoanDuAnID_loaivanban
+    • Element Index: 5
+
+  6. INPUT [hidden]
+    • ID: hdf_GiaiDoanDuAnID_goithau
+    • Value: 00000000-0000-0000-0000-000000000000
+    • XPath: //*[@id="hdf_GiaiDoanDuAnID_goithau"]
+    • CSS Selector: #hdf_GiaiDoanDuAnID_goithau
+    • Element Index: 6
+
+  7. INPUT [text]
+    • Label: Từ ngày
+    • ID: Nav_NgayDauKy
+    • Placeholder: dd/mm/yyyy
+    • Value: 01/01/2023
+    • XPath: //*[@id="Nav_NgayDauKy"]
+    • CSS Selector: #Nav_NgayDauKy
+    • Element Index: 7
+
+  8. INPUT [text]
+    • Label: Đến ngày
+    • ID: Nav_NgayCuoiKy
+    • Placeholder: dd/mm/yyyy
+    • Value: 31/12/2023
+    • XPath: //*[@id="Nav_NgayCuoiKy"]
+    • CSS Selector: #Nav_NgayCuoiKy
+    • Element Index: 8
+
+  9. INPUT [search]
+    • Label: Search
+    • Placeholder: Tìm kiếm...
+    • XPath: /html[1]/body[1]/div[2]/aside[1]/div[1]/nav[1]/ul[1]/div[1]/div[1]/input[1]
+    • CSS Selector: ul.nav.nav-pills.nav-sidebar.flex-column.nav-child-indent.nav-compact.text-sm > div.form-inline > div.input-group > input.form-control.form-control-sidebar.form-control-sm
+    • Element Index: 9
+
+  10. INPUT [hidden]
+    • ID: hdf_DuAnID
+    • XPath: //*[@id="hdf_DuAnID"]
+    • CSS Selector: #hdf_DuAnID
+    • Element Index: 10
+
+  11. INPUT [text]
+    • Label: [Placeholder: Nội dung tìm kiếm ...]
+    • ID: timKiemGridDuAnLamViec
+    • Placeholder: Nội dung tìm kiếm ...
+    • Attributes: in-modal
+    • XPath: //*[@id="timKiemGridDuAnLamViec"]
+    • CSS Selector: #timKiemGridDuAnLamViec
+    • Element Index: 11
+
+  12. INPUT [text]
+    • Label: [Placeholder: Nhập nội dung tìm kiếm...]
+    • ID: txtTimKiem
+    • Placeholder: Nhập nội dung tìm kiếm...
+    • XPath: //*[@id="txtTimKiem"]
+    • CSS Selector: #txtTimKiem
+    • Element Index: 12
+
+  13. INPUT [text]
+    • Label: Từ ngày
+    • ID: TuNgay
+    • Placeholder: dd/mm/yyyy
+    • XPath: //*[@id="TuNgay"]
+    • CSS Selector: #TuNgay
+    • Element Index: 13
+
+  14. INPUT [text]
+    • Label: Đến ngày
+    • ID: DenNgay
+    • Placeholder: dd/mm/yyyy
+    • XPath: //*[@id="DenNgay"]
+    • CSS Selector: #DenNgay
+    • Element Index: 14
+
+  15. INPUT [text]
+    • Label: Số chứng từ
+    • ID: SoChungTu
+    • Attributes: required, in-modal
+    • XPath: //*[@id="SoChungTu"]
+    • CSS Selector: #SoChungTu
+    • Element Index: 15
+
+  16. INPUT [text]
+    • Label: Ngày chứng từ
+    • ID: NgayChungTu
+    • Placeholder: dd/mm/yyyy
+    • Attributes: required, in-modal
+    • XPath: //*[@id="NgayChungTu"]
+    • CSS Selector: #NgayChungTu
+    • Element Index: 16
+
+  17. INPUT [text]
+    • Label: Nội dung thanh toán
+    • ID: NoiDungThanhToan
+    • Attributes: in-modal
+    • XPath: //*[@id="NoiDungThanhToan"]
+    • CSS Selector: #NoiDungThanhToan
+    • Element Index: 17
+
+  18. INPUT [file]
+    • ID: input-file
+    • Attributes: in-modal
+    • XPath: //*[@id="input-file"]
+    • CSS Selector: #input-file
+    • Element Index: 18
+
+  19. INPUT [hidden]
+    • ID: txtDinhKem_VanBan
+    • Attributes: in-modal
+    • XPath: //*[@id="txtDinhKem_VanBan"]
+    • CSS Selector: #txtDinhKem_VanBan
+    • Element Index: 19
+
+  20. INPUT [text]
+    • Label: [Placeholder: Nội dung tìm kiếm ...]
+    • ID: timKiemChonKMCP
+    • Placeholder: Nội dung tìm kiếm ...
+    • Attributes: in-modal
+    • XPath: //*[@id="timKiemChonKMCP"]
+    • CSS Selector: #timKiemChonKMCP
+    • Element Index: 20
+
+  21. INPUT [hidden]
+    • ID: hdf_ChungTuChiID
+    • XPath: //*[@id="hdf_ChungTuChiID"]
+    • CSS Selector: #hdf_ChungTuChiID
+    • Element Index: 21
+
+  22. SELECT
+    • ID: Nav_GiaiDoanTrungHan
+    • XPath: //*[@id="Nav_GiaiDoanTrungHan"]
+    • CSS Selector: #Nav_GiaiDoanTrungHan
+    • Element Index: 22
+
+  23. SELECT
+    • ID: Nav_KyBaoCao
+    • XPath: //*[@id="Nav_KyBaoCao"]
+    • CSS Selector: #Nav_KyBaoCao
+    • Element Index: 23
+
+  24. SELECT
+    • ID: Nav_DuAnID
+    • XPath: //*[@id="Nav_DuAnID"]
+    • CSS Selector: #Nav_DuAnID
+    • Element Index: 24
+
+  25. SELECT
+    • Label: Đơn vị thụ hưởng
+    • ID: ToChucID_TimKiem
+    • XPath: //*[@id="ToChucID_TimKiem"]
+    • CSS Selector: #ToChucID_TimKiem
+    • Element Index: 25
+
+  26. SELECT
+    • Label: Hợp đồng
+    • ID: HopDongID_TimKiem
+    • XPath: //*[@id="HopDongID_TimKiem"]
+    • CSS Selector: #HopDongID_TimKiem
+    • Element Index: 26
+
+  27. SELECT
+    • Label: Kế hoạch vốn
+    • ID: KeHoachVonID_TimKiem
+    • XPath: //*[@id="KeHoachVonID_TimKiem"]
+    • CSS Selector: #KeHoachVonID_TimKiem
+    • Element Index: 27
+
+  28. SELECT
+    • Label: Niên độ
+    • ID: NienDo_TimKiem
+    • XPath: //*[@id="NienDo_TimKiem"]
+    • CSS Selector: #NienDo_TimKiem
+    • Element Index: 28
+
+  29. SELECT
+    • Label: Gói thầu
+    • ID: DauThauID
+    • Attributes: required, in-modal
+    • XPath: //*[@id="DauThauID"]
+    • CSS Selector: #DauThauID
+    • Element Index: 29
+
+  30. SELECT
+    • Label: Số hợp đồng
+    • ID: HopDongID
+    • Attributes: required, in-modal
+    • XPath: //*[@id="HopDongID"]
+    • CSS Selector: #HopDongID
+    • Element Index: 30
+
+  31. SELECT
+    • Label: Nhà thầu
+    • ID: DonViID_NhaThau
+    • Attributes: required, in-modal
+    • XPath: //*[@id="DonViID_NhaThau"]
+    • CSS Selector: #DonViID_NhaThau
+    • Element Index: 31
+
+  32. SELECT
+    • Label: Niên độ
+    • ID: NienDo
+    • Attributes: required, in-modal
+    • XPath: //*[@id="NienDo"]
+    • CSS Selector: #NienDo
+    • Element Index: 32
+
+  33. SELECT
+    • Label: Kế hoạch vốn
+    • ID: KeHoachVon
+    • Attributes: required, in-modal
+    • XPath: //*[@id="KeHoachVon"]
+    • CSS Selector: #KeHoachVon
+    • Element Index: 33
+
+  34. SELECT
+    • Label: Nghiệp vụ
+    • ID: NghiepVu
+    • Attributes: required, in-modal
+    • XPath: //*[@id="NghiepVu"]
+    • CSS Selector: #NghiepVu
+    • Element Index: 34
+
+  35. SELECT
+    • Label: Khoản thanh toán
+    • ID: KhoanThanhToan
+    • Attributes: required, in-modal
+    • XPath: //*[@id="KhoanThanhToan"]
+    • CSS Selector: #KhoanThanhToan
+    • Element Index: 35
+
+
+==================================================
+
+Đóng

@@ -23,10 +23,7 @@ interface AdminLayoutProps {
     title?: string;
 }
 
-export default function AdminLayout({
-    children,
-    title = 'Dashboard'
-}: AdminLayoutProps): ReactElement {
+export default function AdminLayout({ children, title = '' }: AdminLayoutProps): ReactElement {
     const theme = useTheme();
     const isMobile = useMediaQuery(theme.breakpoints.down('md'));
     const [mobileOpen, setMobileOpen] = useState(false);
