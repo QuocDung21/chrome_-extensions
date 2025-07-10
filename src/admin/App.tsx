@@ -8,7 +8,6 @@ import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react
 
 import AlertSnackbar from './components/common/AlertSnackbar';
 import LoadingSpinner from './components/common/LoadingSpinner';
-import AdminLayout from './components/layout/AdminLayout';
 import { routeTree } from './routeTree.gen';
 
 // Create hash history for Chrome extension compatibility

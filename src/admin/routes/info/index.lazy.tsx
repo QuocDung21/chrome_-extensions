@@ -29,6 +29,7 @@ import {
 import { createLazyFileRoute } from '@tanstack/react-router';
 
 import checkUrlExists from '@/utils/checkUrlExists';
+import { getXPath } from '@/utils/getXPath';
 
 interface ServiceInfo {
     name: string;
@@ -60,6 +61,7 @@ interface InputElementInfo {
     inModal: boolean;
     xpath: string;
     cssSelector: string;
+    vueAttributes?: Record<string, string>; // Vue.js specific attributes
 }
 
 interface FormInputInfo {
@@ -114,34 +116,37 @@ function findLabel(element: Element): string {
         if (labelElement) return labelElement.textContent?.trim() || '';
     }
 
+    // Vue.js specific label patterns
+    // Try to find label in Vue component wrapper
+    const vueWrapper = element.closest('.v-input, .v-text-field, .el-form-item, .ant-form-item');
+    if (vueWrapper) {
+        const vueLabel = vueWrapper.querySelector(
+            'label, .v-label, .el-form-item__label, .ant-form-item-label'
+        );
+        if (vueLabel) return vueLabel.textContent?.trim() || '';
+    }
+
+    // Try to find preceding label sibling
+    let sibling = element.previousElementSibling;
+    while (sibling) {
+        if (sibling.tagName.toLowerCase() === 'label') {
+            return sibling.textContent?.trim() || '';
+        }
+        sibling = sibling.previousElementSibling;
+    }
+
+    // Try to find label in parent container
+    const parent = element.parentElement;
+    if (parent) {
+        const siblingLabel = parent.querySelector('label');
+        if (siblingLabel) return siblingLabel.textContent?.trim() || '';
+    }
+
     // Try to find placeholder as fallback
     const placeholder = element.getAttribute('placeholder');
     if (placeholder) return `[Placeholder: ${placeholder}]`;
 
     return '';
-}
-
-function getXPath(element: Element): string {
-    if (element.id) return `//*[@id="${element.id}"]`;
-
-    const parts = [];
-    let current: Element | null = element;
-
-    while (current && current.nodeType === Node.ELEMENT_NODE) {
-        let index = 1;
-        let sibling = current.previousElementSibling;
-
-        while (sibling) {
-            if (sibling.tagName === current.tagName) index++;
-            sibling = sibling.previousElementSibling;
-        }
-
-        const tagName = current.tagName.toLowerCase();
-        parts.unshift(`${tagName}[${index}]`);
-        current = current.parentElement;
-    }
-
-    return '/' + parts.join('/');
 }
 
 function getCssSelector(element: Element): string {
@@ -169,25 +174,113 @@ function getCssSelector(element: Element): string {
     return parts.join(' > ');
 }
 
+// Helper function to get Vue.js specific attributes
+function getVueAttributes(element: Element): Record<string, string> {
+    const vueAttrs: Record<string, string> = {};
+
+    // Get all attributes
+    for (let i = 0; i < element.attributes.length; i++) {
+        const attr = element.attributes[i];
+        const name = attr.name;
+        const value = attr.value;
+
+        // Check for Vue.js directives and data attributes
+        if (
+            name.startsWith('v-') ||
+            name.startsWith('@') ||
+            name.startsWith(':') ||
+            name.startsWith('data-v-') ||
+            name === 'v-model' ||
+            name.includes('vue')
+        ) {
+            vueAttrs[name] = value;
+        }
+    }
+
+    return vueAttrs;
+}
+
+// Helper function to get current value including Vue.js reactive values
+function getCurrentValue(element: Element): string {
+    // Try to get the current value from the element
+    const htmlElement = element as HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement;
+
+    // For input/textarea/select elements, get the current value
+    if (htmlElement.value !== undefined) {
+        return htmlElement.value;
+    }
+
+    // Fallback to attribute value
+    return element.getAttribute('value') || '';
+}
+
 function analyzeInputElements(doc: Document): InputElementInfo[] {
     const inputs: InputElementInfo[] = [];
     const inputSelectors = [
+        // Standard HTML input elements
         'input',
         'textarea',
         'select',
+
+        // Accessibility and role-based selectors
         '[contenteditable="true"]',
         '[role="textbox"]',
         '[role="combobox"]',
         '[role="searchbox"]',
+        '[role="spinbutton"]',
+        '[role="slider"]',
+
+        // Test ID selectors
         '[data-testid*="input"]',
-        '[data-testid*="field"]'
+        '[data-testid*="field"]',
+        '[data-testid*="form"]',
+
+        // Vue.js specific selectors
+        '[v-model]',
+        '[data-v-model]',
+        '[v-bind\\:value]',
+        '[\\:value]',
+        '[data-v-*][type]',
+
+        // Vue component patterns
+        '.v-input input',
+        '.v-text-field input',
+        '.v-textarea textarea',
+        '.v-select input',
+        '.el-input input',
+        '.el-textarea textarea',
+        '.ant-input',
+        '.ant-select',
+
+        // Common Vue UI library patterns
+        '[class*="input"]',
+        '[class*="field"]',
+        '[class*="form-control"]',
+
+        // Custom input patterns
+        '[data-input]',
+        '[data-field]',
+        '[data-form-field]',
+
+        // Vue directive patterns (escaped for CSS selector)
+        '[v-on\\:input]',
+        '[\\@input]',
+        '[v-on\\:change]',
+        '[\\@change]'
     ];
 
     const allElements: Element[] = [];
+    const foundElements = new Set<Element>(); // Prevent duplicates
+
     inputSelectors.forEach(selector => {
         try {
             const elements = doc.querySelectorAll(selector);
-            elements.forEach(el => allElements.push(el));
+            elements.forEach(el => {
+                if (!foundElements.has(el)) {
+                    foundElements.add(el);
+                    allElements.push(el);
+                }
+            });
         } catch (e) {
             console.warn(`Error with selector ${selector}:`, e);
         }
@@ -205,12 +298,20 @@ function analyzeInputElements(doc: Document): InputElementInfo[] {
 
     uniqueElements.forEach((element, index) => {
         try {
-            // Check if element is in modal (simplified for parsed HTML)
+            // Check if element is in modal (including Vue.js modal patterns)
             const isInModal =
-                element.closest('.modal, .popup, .overlay, .dialog, [role="dialog"]') !== null;
+                element.closest(
+                    '.modal, .popup, .overlay, .dialog, [role="dialog"], .v-dialog, .el-dialog, .ant-modal'
+                ) !== null;
 
             // Find label
             const label = findLabel(element);
+
+            // Get Vue.js specific attributes
+            const vueAttributes = getVueAttributes(element);
+
+            // Get current value (including Vue.js reactive value)
+            const currentValue = getCurrentValue(element);
 
             inputs.push({
                 index: index + 1,
@@ -218,16 +319,17 @@ function analyzeInputElements(doc: Document): InputElementInfo[] {
                 id: (element as HTMLElement).id || '',
                 name: element.getAttribute('name') || '',
                 placeholder: element.getAttribute('placeholder') || '',
-                value: element.getAttribute('value') || '',
+                value: currentValue,
                 label: label,
                 type: element.getAttribute('type') || '',
                 className: element.className || '',
-                disabled: element.hasAttribute('disabled'),
-                readonly: element.hasAttribute('readonly'),
-                required: element.hasAttribute('required'),
+                disabled: element.hasAttribute('disabled') || element.hasAttribute('aria-disabled'),
+                readonly: element.hasAttribute('readonly') || element.hasAttribute('aria-readonly'),
+                required: element.hasAttribute('required') || element.hasAttribute('aria-required'),
                 inModal: isInModal,
                 xpath: getXPath(element),
-                cssSelector: getCssSelector(element)
+                cssSelector: getCssSelector(element),
+                vueAttributes: Object.keys(vueAttributes).length > 0 ? vueAttributes : undefined
             });
         } catch (e) {
             console.warn(`Error processing element ${index}:`, e);
@@ -519,6 +621,14 @@ function InfoPage() {
                         analysis += `    • Attributes: ${attributes.join(', ')}\n`;
                     }
 
+                    // Add Vue.js specific attributes if present
+                    if (input.vueAttributes && Object.keys(input.vueAttributes).length > 0) {
+                        analysis += `    • Vue.js Attributes:\n`;
+                        Object.entries(input.vueAttributes).forEach(([key, value]) => {
+                            analysis += `      - ${key}: ${value}\n`;
+                        });
+                    }
+
                     analysis += `    • XPath: ${input.xpath}\n`;
                     analysis += `    • CSS Selector: ${input.cssSelector}\n`;
                     analysis += `    • Element Index: ${input.index}\n`;
@@ -588,7 +698,7 @@ function InfoPage() {
     };
 
     return (
-        <Box sx={{ flexGrow: 1, p: 3 }}>
+        <Box>
             {/* CSS for spinner animation */}
             <style>
                 {`
@@ -600,14 +710,14 @@ function InfoPage() {
             </style>
 
             {/* Header */}
-            <Box sx={{ mb: 4 }}>
+            {/* <Box sx={{ mb: 4 }}>
                 <Typography variant="h4" component="h1" sx={{ fontWeight: 600, mb: 1 }}>
                     Thông tin ứng dụng
                 </Typography>
                 <Typography variant="body1" color="text.secondary">
                     Quản lý và theo dõi thông tin dịch vụ công trực tuyến
                 </Typography>
-            </Box>
+            </Box> */}
 
             <Grid container spacing={3}>
                 {/* Service Information Section */}
@@ -995,10 +1105,17 @@ function InfoPage() {
                         variant="contained"
                         size="large"
                         color="success"
-                        sx={{ px: 4, display: 'flex', gap: 1, alignContent: 'center' }}
+                        sx={{
+                            px: 4,
+                            display: 'flex',
+                            gap: 1,
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 'bold'
+                        }}
                     >
                         Hoàn thành
-                        <SaveIcon />
+                        <SaveIcon sx={{ fontSize: '1.3rem' }} />
                     </Button>
                 </Box>
             </Grid>

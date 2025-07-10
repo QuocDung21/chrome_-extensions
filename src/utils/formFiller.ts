@@ -37,14 +37,49 @@ export class FormFiller {
     }
 
     /**
-     * Get all fillable input elements on the page
+     * Get all fillable input elements on the page (including Vue.js elements)
      */
     public getFormElements(): (HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)[] {
-        const allInputs = Array.from(document.querySelectorAll('input, textarea, select')) as (
-            | HTMLInputElement
-            | HTMLTextAreaElement
-            | HTMLSelectElement
-        )[];
+        // Enhanced selectors to include Vue.js patterns
+        const selectors = [
+            'input',
+            'textarea',
+            'select',
+            // Vue.js component selectors
+            '.v-input input',
+            '.v-text-field input',
+            '.v-textarea textarea',
+            '.v-select input',
+            '.el-input input',
+            '.el-textarea textarea',
+            '.ant-input',
+            '.ant-select',
+            // Vue.js directive patterns
+            '[v-model]',
+            '[data-v-model]'
+        ];
+
+        const allInputs: (HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)[] = [];
+        const foundElements = new Set<Element>();
+
+        selectors.forEach(selector => {
+            try {
+                const elements = document.querySelectorAll(selector);
+                elements.forEach(el => {
+                    if (
+                        !foundElements.has(el) &&
+                        (el instanceof HTMLInputElement ||
+                            el instanceof HTMLTextAreaElement ||
+                            el instanceof HTMLSelectElement)
+                    ) {
+                        foundElements.add(el);
+                        allInputs.push(el);
+                    }
+                });
+            } catch (e) {
+                console.warn(`Error with selector ${selector}:`, e);
+            }
+        });
 
         return allInputs.filter(input => this.isElementFillable(input));
     }
@@ -114,25 +149,52 @@ export class FormFiller {
     }
 
     /**
-     * Fill a single element with value
+     * Fill a single element with value (enhanced for Vue.js)
      */
     public fillElement(
         element: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
         value: string
     ): boolean {
         try {
+            // Focus the element first (important for Vue.js)
+            element.focus();
+
             // Set the value
             element.value = value;
 
             if (this.options.triggerEvents) {
-                // Trigger multiple events to ensure compatibility
-                element.dispatchEvent(new Event('input', { bubbles: true }));
-                element.dispatchEvent(new Event('change', { bubbles: true }));
-                element.dispatchEvent(new Event('blur', { bubbles: true }));
+                // Enhanced event triggering for Vue.js compatibility
+                const events = ['focus', 'input', 'change', 'keydown', 'keyup', 'blur'];
 
-                // For some frameworks, trigger focus first
-                element.focus();
-                element.dispatchEvent(new Event('focus', { bubbles: true }));
+                events.forEach(eventType => {
+                    let event;
+                    if (eventType === 'keydown' || eventType === 'keyup') {
+                        event = new KeyboardEvent(eventType, {
+                            bubbles: true,
+                            cancelable: true,
+                            key: 'Unidentified'
+                        });
+                    } else {
+                        event = new Event(eventType, {
+                            bubbles: true,
+                            cancelable: true
+                        });
+                    }
+                    element.dispatchEvent(event);
+                });
+
+                // Additional Vue.js specific events
+                try {
+                    // Trigger Vue.js v-model update
+                    element.dispatchEvent(
+                        new CustomEvent('vue:update', {
+                            bubbles: true,
+                            detail: { value }
+                        })
+                    );
+                } catch (e) {
+                    // Ignore if custom events are not supported
+                }
             }
 
             return true;
