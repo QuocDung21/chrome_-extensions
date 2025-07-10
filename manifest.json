@@ -9,7 +9,6 @@
     },
     "action": {
         "default_title": "Chrome Extension React",
-        "default_popup": "src/popup/index.html",
         "default_icon": "assets/icons/icon-34.png"
     },
     "options_page": "src/admin/index.html",

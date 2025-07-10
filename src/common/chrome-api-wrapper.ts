@@ -1,6 +1,7 @@
 export enum ChromeMessageType {
     SCRAPER_COMMAND,
-    SCRAPING_RESULTS
+    SCRAPING_RESULTS,
+    FILL_FORM_DATA
 }
 
 export class ChromeMessage<T> {
