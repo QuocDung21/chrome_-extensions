@@ -10,6 +10,7 @@ import {
     Link as LinkIcon,
     Settings as SettingsIcon
 } from '@mui/icons-material';
+import SaveIcon from '@mui/icons-material/Save';
 import {
     Box,
     Button,
@@ -986,20 +987,20 @@ function InfoPage() {
                                     </Typography>
                                 </Box>
                             </Stack>
-
-                            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
-                                <Button
-                                    variant="contained"
-                                    size="large"
-                                    color="success"
-                                    sx={{ px: 4 }}
-                                >
-                                    Hoàn thành
-                                </Button>
-                            </Box>
                         </CardContent>
                     </Card>
                 </Grid>
+                <Box sx={{ display: 'flex', justifyContent: 'flex-end', width: '100%' }}>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        color="success"
+                        sx={{ px: 4, display: 'flex', gap: 1, alignContent: 'center' }}
+                    >
+                        Hoàn thành
+                        <SaveIcon />
+                    </Button>
+                </Box>
             </Grid>
         </Box>
     );

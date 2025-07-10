@@ -1,29 +1,31 @@
 import { ReactElement, useEffect, useState } from 'react';
-import { createLazyFileRoute } from '@tanstack/react-router';
+
+import { useSnackbar } from 'notistack';
+
+import { Refresh, ShoppingCart } from '@mui/icons-material';
 import {
+    Alert,
     Box,
+    Button,
     Card,
     CardContent,
     CardMedia,
-    Typography,
     Chip,
-    Rating,
-    Button,
     CircularProgress,
-    Alert,
-    Stack,
     IconButton,
+    Rating,
+    Stack,
+    Typography
 } from '@mui/material';
-import { Refresh, ShoppingCart, ArrowBack } from '@mui/icons-material';
-import { useSnackbar } from 'notistack';
+import { createLazyFileRoute } from '@tanstack/react-router';
 
-import { Product } from '@/shared/types/api';
-import { apiService } from '@/shared/services/api';
 import PopupContent from '@/popup/modules/core/components/PopupContent/PopupContent';
 import PopupHeader from '@/popup/modules/core/components/PopupHeader/PopupHeader';
+import { apiService } from '@/shared/services/api';
+import { Product } from '@/shared/types/api';
 
 export const Route = createLazyFileRoute('/products/')({
-    component: Products,
+    component: Products
 });
 
 function Products(): ReactElement {
@@ -74,15 +76,18 @@ function Products(): ReactElement {
             <PopupContent>
                 <Box sx={{ p: 2 }}>
                     {/* Header */}
-                    <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            mb: 2
+                        }}
+                    >
                         <Typography variant="h6" sx={{ fontWeight: 600 }}>
                             Featured Products
                         </Typography>
-                        <IconButton
-                            size="small"
-                            onClick={loadProducts}
-                            disabled={loading}
-                        >
+                        <IconButton size="small" onClick={loadProducts} disabled={loading}>
                             <Refresh />
                         </IconButton>
                     </Box>
@@ -104,7 +109,7 @@ function Products(): ReactElement {
                     {/* Products */}
                     {!loading && !error && (
                         <Stack spacing={2}>
-                            {products.map((product) => (
+                            {products.map(product => (
                                 <Card key={product.id} sx={{ display: 'flex', height: 120 }}>
                                     <CardMedia
                                         component="img"
@@ -113,36 +118,54 @@ function Products(): ReactElement {
                                         alt={product.title}
                                     />
                                     <CardContent sx={{ flex: 1, p: 1, '&:last-child': { pb: 1 } }}>
-                                        <Typography 
-                                            variant="subtitle2" 
-                                            component="h3" 
-                                            sx={{ 
+                                        <Typography
+                                            variant="subtitle2"
+                                            component="h3"
+                                            sx={{
                                                 fontWeight: 600,
                                                 display: '-webkit-box',
                                                 WebkitLineClamp: 2,
                                                 WebkitBoxOrient: 'vertical',
                                                 overflow: 'hidden',
                                                 mb: 0.5,
-                                                lineHeight: 1.2,
+                                                lineHeight: 1.2
                                             }}
                                         >
                                             {product.title}
                                         </Typography>
-                                        
-                                        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 0.5 }}>
-                                            <Typography variant="h6" color="primary" sx={{ fontWeight: 600, fontSize: '1rem' }}>
+
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                justifyContent: 'space-between',
+                                                alignItems: 'center',
+                                                mb: 0.5
+                                            }}
+                                        >
+                                            <Typography
+                                                variant="h6"
+                                                color="primary"
+                                                sx={{ fontWeight: 600, fontSize: '1rem' }}
+                                            >
                                                 ${product.price}
                                             </Typography>
-                                            <Chip 
-                                                label={product.category} 
-                                                size="small" 
+                                            <Chip
+                                                label={product.category}
+                                                size="small"
                                                 variant="outlined"
                                                 sx={{ fontSize: '0.7rem', height: 20 }}
                                             />
                                         </Box>
 
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-                                            <Rating value={product.rating.rate} precision={0.1} readOnly size="small" />
+                                        <Box
+                                            sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
+                                        >
+                                            <Rating
+                                                value={product.rating.rate}
+                                                precision={0.1}
+                                                readOnly
+                                                size="small"
+                                            />
                                             <Typography variant="caption" color="text.secondary">
                                                 ({product.rating.count})
                                             </Typography>
