@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Demo Test Click Functionality - Chrome Extension</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        h1, h2 {
+            color: #333;
+        }
+        
+        .section {
+            margin-bottom: 30px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        /* Table styles */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 20px;
+        }
+        
+        th, td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        th {
+            background-color: #f8f9fa;
+            font-weight: bold;
+        }
+        
+        tr:hover {
+            background-color: #f5f5f5;
+        }
+        
+        /* List styles */
+        .list-container {
+            display: flex;
+            gap: 20px;
+        }
+        
+        .list-column {
+            flex: 1;
+        }
+        
+        ul, ol {
+            list-style-position: inside;
+        }
+        
+        li {
+            padding: 8px;
+            margin: 5px 0;
+            background: #f8f9fa;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        li:hover {
+            background: #e9ecef;
+        }
+        
+        /* Grid styles */
+        .grid-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 15px;
+        }
+        
+        .grid-item, .card {
+            padding: 15px;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .grid-item:hover, .card:hover {
+            background: #e9ecef;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+        }
+        
+        /* Vue.js style classes */
+        .vue-grid-item {
+            padding: 10px;
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 4px;
+            margin: 5px;
+            cursor: pointer;
+        }
+        
+        .data-row {
+            padding: 10px;
+            background: #fff3e0;
+            border-left: 4px solid #ff9800;
+            margin: 5px 0;
+            cursor: pointer;
+        }
+        
+        .list-row {
+            padding: 8px 12px;
+            background: #f3e5f5;
+            border: 1px solid #9c27b0;
+            border-radius: 4px;
+            margin: 3px 0;
+            cursor: pointer;
+        }
+        
+        /* Instructions */
+        .instructions {
+            background: #e8f5e8;
+            border: 1px solid #4caf50;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h3 {
+            color: #2e7d32;
+            margin-top: 0;
+        }
+        
+        .instructions ol {
+            color: #2e7d32;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🖱️ Demo Test Click Functionality - Chrome Extension</h1>
+        
+        <div class="instructions">
+            <h3>📋 Hướng dẫn sử dụng:</h3>
+            <ol>
+                <li>Mở Chrome Extension (floating button ở góc dưới bên phải)</li>
+                <li>Click vào button <strong>"🖱️ Hiển thị danh sách Click Elements"</strong> để xem tất cả elements có thể click</li>
+                <li>Click vào button <strong>"⚡ Bật chế độ Click"</strong> để enable click mode</li>
+                <li>Hover và click vào các elements bên dưới để test functionality</li>
+                <li>Xem console để thấy thông tin chi tiết về elements được click</li>
+            </ol>
+        </div>
+
+        <!-- Table Section -->
+        <div class="section">
+            <h2>📊 Table Elements</h2>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Tên</th>
+                        <th>Email</th>
+                        <th>Chức vụ</th>
+                        <th>Phòng ban</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>001</td>
+                        <td>Nguyễn Văn A</td>
+                        <td>nguyenvana@company.com</td>
+                        <td>Giám đốc</td>
+                        <td>Điều hành</td>
+                    </tr>
+                    <tr>
+                        <td>002</td>
+                        <td>Trần Thị B</td>
+                        <td>tranthib@company.com</td>
+                        <td>Trưởng phòng</td>
+                        <td>Kỹ thuật</td>
+                    </tr>
+                    <tr>
+                        <td>003</td>
+                        <td>Lê Văn C</td>
+                        <td>levanc@company.com</td>
+                        <td>Nhân viên</td>
+                        <td>Marketing</td>
+                    </tr>
+                    <tr>
+                        <td>004</td>
+                        <td>Phạm Thị D</td>
+                        <td>phamthid@company.com</td>
+                        <td>Nhân viên</td>
+                        <td>Nhân sự</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- List Section -->
+        <div class="section">
+            <h2>📝 List Elements</h2>
+            <div class="list-container">
+                <div class="list-column">
+                    <h3>Unordered List</h3>
+                    <ul>
+                        <li>Task 1: Hoàn thành báo cáo tháng</li>
+                        <li>Task 2: Họp với khách hàng</li>
+                        <li>Task 3: Review code mới</li>
+                        <li>Task 4: Cập nhật tài liệu</li>
+                        <li>Task 5: Training team mới</li>
+                    </ul>
+                </div>
+                <div class="list-column">
+                    <h3>Ordered List</h3>
+                    <ol>
+                        <li>Bước 1: Phân tích yêu cầu</li>
+                        <li>Bước 2: Thiết kế hệ thống</li>
+                        <li>Bước 3: Implement code</li>
+                        <li>Bước 4: Testing</li>
+                        <li>Bước 5: Deploy production</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+
+        <!-- Grid Section -->
+        <div class="section">
+            <h2>🎯 Grid & Card Elements</h2>
+            <div class="grid-container">
+                <div class="card">
+                    <h4>Project Alpha</h4>
+                    <p>Dự án phát triển ứng dụng mobile cho khách hàng A</p>
+                    <small>Deadline: 15/08/2025</small>
+                </div>
+                <div class="card">
+                    <h4>Project Beta</h4>
+                    <p>Nâng cấp hệ thống quản lý nội bộ</p>
+                    <small>Deadline: 30/08/2025</small>
+                </div>
+                <div class="card">
+                    <h4>Project Gamma</h4>
+                    <p>Tích hợp API thanh toán mới</p>
+                    <small>Deadline: 10/09/2025</small>
+                </div>
+                <div class="grid-item">
+                    <h4>Feature Request</h4>
+                    <p>Thêm chức năng xuất báo cáo Excel</p>
+                    <small>Priority: High</small>
+                </div>
+                <div class="grid-item">
+                    <h4>Bug Fix</h4>
+                    <p>Sửa lỗi hiển thị trên mobile</p>
+                    <small>Priority: Critical</small>
+                </div>
+                <div class="grid-item">
+                    <h4>Enhancement</h4>
+                    <p>Cải thiện performance trang chủ</p>
+                    <small>Priority: Medium</small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Vue.js Style Elements -->
+        <div class="section">
+            <h2>🔧 Vue.js Style Elements</h2>
+            <div class="vue-grid-item">Vue Grid Item 1 - Component tương tự Vue.js</div>
+            <div class="vue-grid-item">Vue Grid Item 2 - Reactive data binding</div>
+            <div class="vue-grid-item">Vue Grid Item 3 - Event handling</div>
+            
+            <div class="data-row">Data Row 1 - Dữ liệu từ API</div>
+            <div class="data-row">Data Row 2 - Computed properties</div>
+            <div class="data-row">Data Row 3 - Watchers và lifecycle</div>
+            
+            <div class="list-row">List Row 1 - v-for directive</div>
+            <div class="list-row">List Row 2 - v-if conditional</div>
+            <div class="list-row">List Row 3 - v-model binding</div>
+            <div class="list-row">List Row 4 - Custom components</div>
+        </div>
+
+        <!-- Additional Test Elements -->
+        <div class="section">
+            <h2>🧪 Additional Test Elements</h2>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap;">
+                <div class="item" style="padding: 10px; background: #ffebee; border: 1px solid #f44336; border-radius: 4px; cursor: pointer;">
+                    Item với class "item"
+                </div>
+                <div class="row" style="padding: 10px; background: #e8f5e8; border: 1px solid #4caf50; border-radius: 4px; cursor: pointer;">
+                    Element với class "row"
+                </div>
+                <div role="row" style="padding: 10px; background: #fff3e0; border: 1px solid #ff9800; border-radius: 4px; cursor: pointer;">
+                    Element với role="row"
+                </div>
+                <div role="gridcell" style="padding: 10px; background: #f3e5f5; border: 1px solid #9c27b0; border-radius: 4px; cursor: pointer;">
+                    Element với role="gridcell"
+                </div>
+                <div role="option" style="padding: 10px; background: #e3f2fd; border: 1px solid #2196f3; border-radius: 4px; cursor: pointer;">
+                    Element với role="option"
+                </div>
+            </div>
+        </div>
+
+        <!-- Editor Click Test Elements -->
+        <div class="section">
+            <h2>✏️ Editor Click Test Elements</h2>
+            <div style="display: flex; gap: 15px; flex-wrap: wrap; margin-bottom: 15px;">
+                <div class="editor-click" style="padding: 15px; background: #fff8e1; border: 2px solid #ffc107; border-radius: 6px; cursor: pointer; min-width: 200px;">
+                    <h4 style="margin: 0 0 8px 0; color: #f57c00;">Editor Click Element 1</h4>
+                    <p style="margin: 0; color: #ef6c00;">Click để test tính năng editor-click</p>
+                </div>
+                <div class="editor-click" style="padding: 15px; background: #fce4ec; border: 2px solid #e91e63; border-radius: 6px; cursor: pointer; min-width: 200px;">
+                    <h4 style="margin: 0 0 8px 0; color: #c2185b;">Editor Click Element 2</h4>
+                    <p style="margin: 0; color: #ad1457;">Element với class editor-click</p>
+                </div>
+                <div class="editor-click" style="padding: 15px; background: #e8f5e8; border: 2px solid #4caf50; border-radius: 6px; cursor: pointer; min-width: 200px;">
+                    <h4 style="margin: 0 0 8px 0; color: #388e3c;">Editor Click Element 3</h4>
+                    <p style="margin: 0; color: #2e7d32;">Test click functionality</p>
+                </div>
+            </div>
+
+            <div style="background: #f5f5f5; padding: 15px; border-radius: 5px; border-left: 4px solid #ffc107;">
+                <h4 style="margin: 0 0 10px 0; color: #f57c00;">📝 Hướng dẫn test class editor-click:</h4>
+                <ol style="margin: 0; color: #666;">
+                    <li>Bật chế độ Click trong extension</li>
+                    <li>Hover vào các elements có class "editor-click" ở trên</li>
+                    <li>Click vào chúng để xem thông tin trong console và notification</li>
+                    <li>Kiểm tra xem extension có detect được class "editor-click" không</li>
+                </ol>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Add some basic interactivity to test normal click vs extension click
+        document.addEventListener('click', function(e) {
+            if (e.target.tagName === 'TD' || e.target.tagName === 'LI' || e.target.classList.contains('card') || e.target.classList.contains('grid-item')) {
+                console.log('🔍 Normal click detected on:', e.target);
+            }
+        });
+        
+        // Simulate some dynamic content
+        setTimeout(() => {
+            const newRow = document.createElement('tr');
+            newRow.innerHTML = `
+                <td>005</td>
+                <td>Hoàng Văn E</td>
+                <td>hoangvane@company.com</td>
+                <td>Intern</td>
+                <td>IT</td>
+            `;
+            document.querySelector('tbody').appendChild(newRow);
+            console.log('✅ Dynamic row added to table');
+        }, 2000);
+    </script>
+</body>
+</html>

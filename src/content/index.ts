@@ -1,6 +1,13 @@
 import { ChromeMessage, ChromeMessageType } from '@/common/chrome-api-wrapper';
 import { FormFillData, ScraperCommand, ScraperMessage } from '@/common/types/scraper';
-import { FormFiller, getElementsWithIndices, showNotification } from '@/utils/formFiller';
+import {
+    FormFiller,
+    RowClickOptions,
+    enableRowClickHandler,
+    getClickableElements,
+    getElementsWithIndices,
+    showNotification
+} from '@/utils/formFiller';
 
 async function handleScrapeCommand() {
     const pageTitle = document.title;
@@ -189,6 +196,64 @@ function createFloatingUI() {
             <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
 
             <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Click Mode: Chọn class để click</h3>
+                <div style="margin-bottom: 12px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Class name để click:</label>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <input id="target-class-input" type="text" placeholder="Nhập class name (vd: editor-click)" style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                        <button id="enable-class-click-btn" style="padding: 8px 16px; background: #ff5722; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Bật Click</button>
+                    </div>
+                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                        <button id="show-clickable-btn" style="padding: 6px 12px; background: #607d8b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                            🖱️ Hiển thị danh sách Click Elements
+                        </button>
+                        <button id="enable-click-mode-btn" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                            ⚡ Bật chế độ Click tổng quát
+                        </button>
+                    </div>
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Sequential Click - Click theo trình tự:</label>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input id="sequence-delay-input" type="number" placeholder="Delay (ms)" value="1000" style="width: 100px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
+                            <button id="start-sequence-btn" style="padding: 8px 16px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
+                                ▶️ Bắt đầu Click theo trình tự
+                            </button>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <button id="stop-sequence-btn" style="padding: 6px 12px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
+                                ⏹️ Dừng
+                            </button>
+                            <button id="pause-sequence-btn" style="padding: 6px 12px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
+                                ⏸️ Tạm dừng
+                            </button>
+                            <button id="resume-sequence-btn" style="padding: 6px 12px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
+                                ▶️ Tiếp tục
+                            </button>
+                        </div>
+                        <div style="margin-bottom: 8px;">
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 12px;">Interactive Mode - Dừng và điền dữ liệu:</label>
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                <input type="checkbox" id="interactive-mode-checkbox" style="margin-right: 8px;">
+                                <label for="interactive-mode-checkbox" style="font-size: 12px;">Dừng tại mỗi element để điền dữ liệu</label>
+                            </div>
+                            <textarea id="sequence-data-input" placeholder='Dữ liệu JSON cho sequence:
+{"data": ["Giá trị 1", "Giá trị 2", "Giá trị 3"]}' style="width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button id="next-step-btn" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
+                                ➡️ Tiếp tục bước tiếp theo
+                            </button>
+                            <button id="fill-current-btn" style="padding: 6px 12px; background: #673ab7; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
+                                📝 Điền dữ liệu hiện tại
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
+
+            <div style="margin-bottom: 20px;">
                 <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Test chức năng: Điền dữ liệu vào Form</h3>
                 <div style="margin-bottom: 12px;">
                     <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Dữ liệu JSON:</label>
@@ -232,6 +297,18 @@ function createFloatingUI() {
     // State management
     let urls: string[] = [];
     let isOverlayOpen = false;
+    let clickModeEnabled = false;
+    let clickModeCleanup: (() => void) | null = null;
+
+    // Sequential click state
+    let sequenceRunning = false;
+    let sequencePaused = false;
+    let sequenceTimeouts: number[] = [];
+    let currentSequenceIndex = 0;
+    let sequenceElements: Element[] = [];
+    let interactiveMode = false;
+    let sequenceData: string[] = [];
+    let currentElement: Element | null = null;
 
     // Load saved URLs
     chrome.storage.local.get(['urls'], result => {
@@ -267,6 +344,26 @@ function createFloatingUI() {
     document.getElementById('fill-form-btn')?.addEventListener('click', fillFormData);
     document.getElementById('clear-form-btn')?.addEventListener('click', clearFormData);
     document.getElementById('show-inputs-btn')?.addEventListener('click', showInputsList);
+    document
+        .getElementById('show-clickable-btn')
+        ?.addEventListener('click', showClickableElementsList);
+    document.getElementById('enable-click-mode-btn')?.addEventListener('click', toggleClickMode);
+    document.getElementById('enable-class-click-btn')?.addEventListener('click', enableClassClick);
+    document.getElementById('target-class-input')?.addEventListener('keypress', e => {
+        if (e.key === 'Enter') enableClassClick();
+    });
+
+    // Sequential click event listeners
+    document.getElementById('start-sequence-btn')?.addEventListener('click', startSequentialClick);
+    document.getElementById('stop-sequence-btn')?.addEventListener('click', stopSequentialClick);
+    document.getElementById('pause-sequence-btn')?.addEventListener('click', pauseSequentialClick);
+    document
+        .getElementById('resume-sequence-btn')
+        ?.addEventListener('click', resumeSequentialClick);
+
+    // Interactive mode event listeners
+    document.getElementById('next-step-btn')?.addEventListener('click', nextSequenceStep);
+    document.getElementById('fill-current-btn')?.addEventListener('click', fillCurrentElement);
 
     document.getElementById('analyze-btn')?.addEventListener('click', analyzeUrls);
     document.getElementById('dashboard-btn')?.addEventListener('click', openDashboard);
@@ -592,6 +689,582 @@ function createFloatingUI() {
                 }
             }
         });
+    }
+
+    function showClickableElementsList() {
+        // Use the new clickable elements function
+        const clickableElements = getClickableElements({
+            includeTableRows: true,
+            includeListItems: true,
+            includeGridItems: true,
+            includeCustomSelectors: ['.vue-grid-item', '.data-row', '.list-row', '.editor-click']
+        });
+
+        // Create a detailed list
+        let elementsList = `🖱️ DANH SÁCH CLICKABLE ELEMENTS (${clickableElements.length} elements):\n\n`;
+
+        clickableElements.forEach(({ index, info, xpath, cssSelector }) => {
+            elementsList += `[${index}] ${info}\n`;
+            elementsList += `    XPath: ${xpath}\n`;
+            elementsList += `    CSS: ${cssSelector}\n\n`;
+        });
+
+        // Show in console
+        console.log(elementsList);
+
+        // Show notification
+        showNotification(
+            `Đã tìm thấy ${clickableElements.length} clickable elements. Xem console để biết chi tiết.`,
+            'success'
+        );
+
+        // Also create a modal to show the list
+        showClickableElementsModal(clickableElements);
+    }
+
+    function showClickableElementsModal(
+        clickableElements: ReturnType<typeof getClickableElements>
+    ) {
+        // Create modal overlay
+        const modal = document.createElement('div');
+        modal.id = 'clickable-elements-modal';
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 2147483648;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        `;
+
+        // Create modal content
+        const modalContent = document.createElement('div');
+        modalContent.style.cssText = `
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 80%;
+            max-height: 80%;
+            overflow-y: auto;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+        `;
+
+        let content = `
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="margin: 0; font-size: 18px; font-weight: 600;">🖱️ Danh sách Clickable Elements (${clickableElements.length})</h2>
+                <button id="close-clickable-modal" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px;">×</button>
+            </div>
+            <div style="font-size: 12px; font-family: monospace; line-height: 1.4;">
+        `;
+
+        clickableElements.forEach(({ element, index, info, xpath, cssSelector }) => {
+            const tagName = element.tagName.toLowerCase();
+            const textContent = element.textContent?.trim().substring(0, 100) || 'empty';
+
+            content += `
+                <div style="border: 1px solid #eee; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: #f9f9f9;">
+                    <strong style="color: #ff5722;">[${index}] ${tagName}</strong><br>
+                    <span style="color: #666;">Info:</span> ${info}<br>
+                    <span style="color: #666;">Text:</span> ${textContent}<br>
+                    <span style="color: #666;">XPath:</span> ${xpath}<br>
+                    <span style="color: #666;">CSS:</span> ${cssSelector}
+                </div>
+            `;
+        });
+
+        content += `</div>`;
+        modalContent.innerHTML = content;
+        modal.appendChild(modalContent);
+        document.body.appendChild(modal);
+
+        // Close modal event
+        document.getElementById('close-clickable-modal')?.addEventListener('click', () => {
+            if (modal.parentNode) {
+                modal.parentNode.removeChild(modal);
+            }
+        });
+
+        // Close on overlay click
+        modal.addEventListener('click', e => {
+            if (e.target === modal) {
+                if (modal.parentNode) {
+                    modal.parentNode.removeChild(modal);
+                }
+            }
+        });
+    }
+
+    function toggleClickMode() {
+        const button = document.getElementById('enable-click-mode-btn') as HTMLButtonElement;
+
+        if (!clickModeEnabled) {
+            // Enable click mode
+            clickModeCleanup = enableRowClickHandler({
+                highlightOnHover: true,
+                highlightColor: '#e3f2fd',
+                includeTableRows: true,
+                includeListItems: true,
+                includeGridItems: true,
+                includeCustomSelectors: [
+                    '.vue-grid-item',
+                    '.data-row',
+                    '.list-row',
+                    '.editor-click'
+                ],
+                clickCallback: (element, index) => {
+                    // Custom click behavior
+                    const elementInfo = `${element.tagName.toLowerCase()}[${index}]`;
+                    const textContent = element.textContent?.trim().substring(0, 50) || '';
+
+                    console.log(`🖱️ Clicked on element [${index}]:`, element);
+                    showNotification(
+                        `Clicked: [${index}] ${elementInfo} - "${textContent}"`,
+                        'info',
+                        { duration: 2000 }
+                    );
+
+                    // You can add more custom logic here
+                    // For example: extract data, fill forms, etc.
+                }
+            });
+
+            clickModeEnabled = true;
+            button.textContent = '🛑 Tắt chế độ Click';
+            button.style.background = '#f44336';
+
+            showNotification(
+                'Đã bật chế độ Click! Hover và click vào các elements để tương tác.',
+                'success'
+            );
+        } else {
+            // Disable click mode
+            if (clickModeCleanup) {
+                clickModeCleanup();
+                clickModeCleanup = null;
+            }
+
+            clickModeEnabled = false;
+            button.textContent = '⚡ Bật chế độ Click';
+            button.style.background = '#4caf50';
+
+            showNotification('Đã tắt chế độ Click.', 'info');
+        }
+    }
+
+    function enableClassClick() {
+        const input = document.getElementById('target-class-input') as HTMLInputElement;
+        const button = document.getElementById('enable-class-click-btn') as HTMLButtonElement;
+
+        if (!input || !button) return;
+
+        const className = input.value.trim();
+        if (!className) {
+            showNotification('Vui lòng nhập class name!', 'warning');
+            return;
+        }
+
+        // Add dot prefix if not present
+        const selector = className.startsWith('.') ? className : `.${className}`;
+
+        // Check if elements with this class exist
+        const elements = document.querySelectorAll(selector);
+        if (elements.length === 0) {
+            showNotification(`Không tìm thấy elements với class "${className}"`, 'warning');
+            return;
+        }
+
+        // Disable current click mode if active
+        if (clickModeEnabled && clickModeCleanup) {
+            clickModeCleanup();
+            clickModeCleanup = null;
+            clickModeEnabled = false;
+
+            // Reset general click mode button
+            const generalButton = document.getElementById(
+                'enable-click-mode-btn'
+            ) as HTMLButtonElement;
+            if (generalButton) {
+                generalButton.textContent = '⚡ Bật chế độ Click tổng quát';
+                generalButton.style.background = '#4caf50';
+            }
+        }
+
+        // Enable click mode for specific class
+        clickModeCleanup = enableRowClickHandler({
+            highlightOnHover: true,
+            highlightColor: '#ffeb3b',
+            includeTableRows: false,
+            includeListItems: false,
+            includeGridItems: false,
+            includeCustomSelectors: [selector],
+            clickCallback: (element, index) => {
+                const elementInfo = `${element.tagName.toLowerCase()}[${index}]`;
+                const textContent = element.textContent?.trim().substring(0, 50) || '';
+
+                console.log(`🎯 Clicked on ${className} element [${index}]:`, element);
+                showNotification(
+                    `Clicked ${className}: [${index}] ${elementInfo} - "${textContent}"`,
+                    'success',
+                    { duration: 3000 }
+                );
+
+                // You can add custom logic here for specific class
+                // For example: extract data, trigger actions, etc.
+            }
+        });
+
+        clickModeEnabled = true;
+        button.textContent = `🛑 Tắt click ${className}`;
+        button.style.background = '#f44336';
+
+        showNotification(
+            `Đã bật click mode cho class "${className}" (${elements.length} elements)`,
+            'success'
+        );
+
+        // Update button click handler to toggle
+        button.onclick = () => {
+            if (clickModeCleanup) {
+                clickModeCleanup();
+                clickModeCleanup = null;
+            }
+
+            clickModeEnabled = false;
+            button.textContent = 'Bật Click';
+            button.style.background = '#ff5722';
+            button.onclick = enableClassClick;
+
+            showNotification(`Đã tắt click mode cho class "${className}"`, 'info');
+        };
+    }
+
+    function startSequentialClick() {
+        const input = document.getElementById('target-class-input') as HTMLInputElement;
+        const delayInput = document.getElementById('sequence-delay-input') as HTMLInputElement;
+        const interactiveCheckbox = document.getElementById(
+            'interactive-mode-checkbox'
+        ) as HTMLInputElement;
+        const dataInput = document.getElementById('sequence-data-input') as HTMLTextAreaElement;
+
+        if (!input || !delayInput) return;
+
+        const className = input.value.trim();
+        if (!className) {
+            showNotification('Vui lòng nhập class name trước!', 'warning');
+            return;
+        }
+
+        const delay = parseInt(delayInput.value) || 1000;
+        const selector = className.startsWith('.') ? className : `.${className}`;
+
+        // Get elements to click
+        sequenceElements = Array.from(document.querySelectorAll(selector));
+        if (sequenceElements.length === 0) {
+            showNotification(`Không tìm thấy elements với class "${className}"`, 'warning');
+            return;
+        }
+
+        // Check interactive mode
+        interactiveMode = interactiveCheckbox?.checked || false;
+
+        // Parse sequence data if provided
+        sequenceData = [];
+        if (dataInput?.value.trim()) {
+            try {
+                const parsedData = JSON.parse(dataInput.value);
+                if (parsedData.data && Array.isArray(parsedData.data)) {
+                    sequenceData = parsedData.data;
+                }
+            } catch (error) {
+                showNotification('Dữ liệu JSON không hợp lệ!', 'warning');
+                return;
+            }
+        }
+
+        // Reset state
+        sequenceRunning = true;
+        sequencePaused = false;
+        currentSequenceIndex = 0;
+        sequenceTimeouts = [];
+        currentElement = null;
+
+        // Update UI
+        updateSequenceButtons();
+
+        const modeText = interactiveMode ? 'Interactive Mode' : 'Auto Mode';
+        showNotification(
+            `Bắt đầu ${modeText} cho ${sequenceElements.length} elements với delay ${delay}ms`,
+            'info'
+        );
+
+        // Start the sequence
+        if (interactiveMode) {
+            executeInteractiveSequence();
+        } else {
+            executeSequence(delay);
+        }
+    }
+
+    function executeSequence(delay: number) {
+        if (!sequenceRunning || sequencePaused) return;
+
+        if (currentSequenceIndex >= sequenceElements.length) {
+            // Sequence completed
+            stopSequentialClick();
+            showNotification('Hoàn thành click sequence!', 'success');
+            return;
+        }
+
+        const element = sequenceElements[currentSequenceIndex];
+
+        // Highlight current element
+        const originalStyle = element.getAttribute('style') || '';
+        (element as HTMLElement).style.cssText =
+            originalStyle +
+            '; background-color: #ff5722 !important; transition: background-color 0.3s ease;';
+
+        // Click the element
+        setTimeout(() => {
+            if (!sequenceRunning || sequencePaused) return;
+
+            // Trigger click event
+            const clickEvent = new MouseEvent('click', {
+                bubbles: true,
+                cancelable: true,
+                view: window
+            });
+            element.dispatchEvent(clickEvent);
+
+            console.log(
+                `🔄 Sequential click [${currentSequenceIndex + 1}/${sequenceElements.length}]:`,
+                element
+            );
+            showNotification(
+                `Click [${currentSequenceIndex + 1}/${sequenceElements.length}]: ${element.tagName.toLowerCase()}`,
+                'info',
+                { duration: 1000 }
+            );
+
+            // Restore original style
+            setTimeout(() => {
+                (element as HTMLElement).style.cssText = originalStyle;
+            }, 300);
+
+            currentSequenceIndex++;
+
+            // Schedule next click
+            if (currentSequenceIndex < sequenceElements.length) {
+                const timeoutId = window.setTimeout(() => executeSequence(delay), delay);
+                sequenceTimeouts.push(timeoutId);
+            } else {
+                // Sequence completed
+                stopSequentialClick();
+                showNotification('Hoàn thành click sequence!', 'success');
+            }
+        }, 100);
+    }
+
+    function stopSequentialClick() {
+        sequenceRunning = false;
+        sequencePaused = false;
+
+        // Clear all timeouts
+        sequenceTimeouts.forEach(id => clearTimeout(id));
+        sequenceTimeouts = [];
+
+        // Reset interactive mode state
+        if (currentElement) {
+            // Restore original style
+            const originalStyle =
+                currentElement
+                    .getAttribute('style')
+                    ?.replace(
+                        /background-color: #ff5722 !important; border: 3px solid #f44336 !important; transition: all 0.3s ease;/g,
+                        ''
+                    ) || '';
+            (currentElement as HTMLElement).style.cssText = originalStyle;
+        }
+
+        // Reset state
+        currentSequenceIndex = 0;
+        currentElement = null;
+        interactiveMode = false;
+        sequenceData = [];
+
+        // Update UI
+        updateSequenceButtons();
+
+        showNotification('Đã dừng click sequence', 'info');
+    }
+
+    function pauseSequentialClick() {
+        if (!sequenceRunning) return;
+
+        sequencePaused = true;
+
+        // Clear pending timeouts
+        sequenceTimeouts.forEach(id => clearTimeout(id));
+        sequenceTimeouts = [];
+
+        // Update UI
+        updateSequenceButtons();
+
+        showNotification('Đã tạm dừng click sequence', 'warning');
+    }
+
+    function resumeSequentialClick() {
+        if (!sequenceRunning || !sequencePaused) return;
+
+        sequencePaused = false;
+
+        // Update UI
+        updateSequenceButtons();
+
+        // Get delay and continue
+        const delayInput = document.getElementById('sequence-delay-input') as HTMLInputElement;
+        const delay = parseInt(delayInput.value) || 1000;
+
+        showNotification('Tiếp tục click sequence', 'info');
+
+        // Continue sequence
+        executeSequence(delay);
+    }
+
+    function updateSequenceButtons() {
+        const startBtn = document.getElementById('start-sequence-btn') as HTMLButtonElement;
+        const stopBtn = document.getElementById('stop-sequence-btn') as HTMLButtonElement;
+        const pauseBtn = document.getElementById('pause-sequence-btn') as HTMLButtonElement;
+        const resumeBtn = document.getElementById('resume-sequence-btn') as HTMLButtonElement;
+        const nextBtn = document.getElementById('next-step-btn') as HTMLButtonElement;
+        const fillBtn = document.getElementById('fill-current-btn') as HTMLButtonElement;
+
+        if (startBtn) startBtn.disabled = sequenceRunning;
+        if (stopBtn) stopBtn.disabled = !sequenceRunning;
+        if (pauseBtn) pauseBtn.disabled = !sequenceRunning || sequencePaused || interactiveMode;
+        if (resumeBtn) resumeBtn.disabled = !sequenceRunning || !sequencePaused || interactiveMode;
+        if (nextBtn) nextBtn.disabled = !sequenceRunning || !interactiveMode || !currentElement;
+        if (fillBtn) fillBtn.disabled = !sequenceRunning || !interactiveMode || !currentElement;
+    }
+
+    function executeInteractiveSequence() {
+        if (!sequenceRunning || currentSequenceIndex >= sequenceElements.length) {
+            stopSequentialClick();
+            showNotification('Hoàn thành interactive sequence!', 'success');
+            return;
+        }
+
+        // Get current element
+        currentElement = sequenceElements[currentSequenceIndex];
+
+        // Highlight current element
+        const originalStyle = currentElement.getAttribute('style') || '';
+        (currentElement as HTMLElement).style.cssText =
+            originalStyle +
+            '; background-color: #ff5722 !important; border: 3px solid #f44336 !important; transition: all 0.3s ease;';
+
+        // Update UI
+        updateSequenceButtons();
+
+        // Show notification
+        showNotification(
+            `Dừng tại element [${currentSequenceIndex + 1}/${sequenceElements.length}]. Điền dữ liệu và click "Tiếp tục"`,
+            'info',
+            { duration: 5000 }
+        );
+
+        console.log(
+            `🛑 Interactive stop at element [${currentSequenceIndex + 1}/${sequenceElements.length}]:`,
+            currentElement
+        );
+
+        // Scroll to element
+        currentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }
+
+    function nextSequenceStep() {
+        if (!sequenceRunning || !interactiveMode || !currentElement) return;
+
+        // Restore original style
+        const originalStyle =
+            currentElement
+                .getAttribute('style')
+                ?.replace(
+                    /background-color: #ff5722 !important; border: 3px solid #f44336 !important; transition: all 0.3s ease;/g,
+                    ''
+                ) || '';
+        (currentElement as HTMLElement).style.cssText = originalStyle;
+
+        // Move to next element
+        currentSequenceIndex++;
+        currentElement = null;
+
+        // Continue sequence
+        executeInteractiveSequence();
+    }
+
+    function fillCurrentElement() {
+        if (!sequenceRunning || !interactiveMode || !currentElement) return;
+
+        // Get data for current index
+        const dataValue =
+            sequenceData[currentSequenceIndex] || `Dữ liệu ${currentSequenceIndex + 1}`;
+
+        // Try to fill the element
+        const element = currentElement;
+
+        if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
+            // Direct input element
+            element.focus();
+            element.value = dataValue;
+
+            // Trigger events for Vue.js compatibility
+            const events = ['focus', 'input', 'change', 'blur'];
+            events.forEach(eventType => {
+                const event = new Event(eventType, { bubbles: true, cancelable: true });
+                element.dispatchEvent(event);
+            });
+
+            showNotification(`Đã điền: "${dataValue}"`, 'success');
+        } else {
+            // Try to find input inside the element
+            const input = element.querySelector('input, textarea, select') as
+                | HTMLInputElement
+                | HTMLTextAreaElement
+                | HTMLSelectElement;
+
+            if (input) {
+                input.focus();
+                input.value = dataValue;
+
+                // Trigger events
+                const events = ['focus', 'input', 'change', 'blur'];
+                events.forEach(eventType => {
+                    const event = new Event(eventType, { bubbles: true, cancelable: true });
+                    input.dispatchEvent(event);
+                });
+
+                showNotification(`Đã điền vào input con: "${dataValue}"`, 'success');
+            } else {
+                // Set text content as fallback
+                if (element.textContent !== null) {
+                    element.textContent = dataValue;
+                    showNotification(`Đã set text content: "${dataValue}"`, 'info');
+                } else {
+                    showNotification('Không thể điền dữ liệu vào element này', 'warning');
+                }
+            }
+        }
+
+        console.log(
+            `📝 Filled element [${currentSequenceIndex + 1}] with data:`,
+            dataValue,
+            element
+        );
     }
 
     async function analyzeUrls() {

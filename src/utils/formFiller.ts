@@ -329,6 +329,266 @@ export function getElementsWithIndices(options?: FormFillerOptions): Array<{
 }
 
 /**
+ * Row/Element Click Handler Interface
+ */
+export interface ClickableElement {
+    element: Element;
+    index: number;
+    info: string;
+    xpath: string;
+    cssSelector: string;
+}
+
+export interface RowClickOptions {
+    highlightOnHover?: boolean;
+    highlightColor?: string;
+    clickCallback?: (element: Element, index: number) => void;
+    includeTableRows?: boolean;
+    includeListItems?: boolean;
+    includeGridItems?: boolean;
+    includeCustomSelectors?: string[];
+}
+
+/**
+ * Get all clickable rows/elements on the page (similar to Tampermonkey functionality)
+ */
+export function getClickableElements(options: RowClickOptions = {}): ClickableElement[] {
+    const {
+        includeTableRows = true,
+        includeListItems = true,
+        includeGridItems = true,
+        includeCustomSelectors = []
+    } = options;
+
+    const selectors: string[] = [];
+
+    if (includeTableRows) {
+        selectors.push(
+            'table tr',
+            'tbody tr',
+            'thead tr',
+            'tfoot tr',
+            '.table tr',
+            '.data-table tr',
+            '.grid-row',
+            '[role="row"]'
+        );
+    }
+
+    if (includeListItems) {
+        selectors.push('ul li', 'ol li', '.list-item', '.menu-item', '[role="listitem"]');
+    }
+
+    if (includeGridItems) {
+        selectors.push(
+            '.grid-item',
+            '.card',
+            '.item',
+            '.row',
+            '[role="gridcell"]',
+            '[role="option"]',
+            '.editor-click'
+        );
+    }
+
+    // Add custom selectors
+    selectors.push(...includeCustomSelectors);
+
+    const allElements: Element[] = [];
+    const foundElements = new Set<Element>();
+
+    selectors.forEach(selector => {
+        try {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => {
+                if (!foundElements.has(el) && isElementClickable(el)) {
+                    foundElements.add(el);
+                    allElements.push(el);
+                }
+            });
+        } catch (e) {
+            console.warn(`Error with selector ${selector}:`, e);
+        }
+    });
+
+    return allElements.map((element, index) => ({
+        element,
+        index,
+        info: getClickableElementInfo(element),
+        xpath: getElementXPath(element),
+        cssSelector: getElementCSSSelector(element)
+    }));
+}
+
+/**
+ * Check if element is clickable
+ */
+function isElementClickable(element: Element): boolean {
+    const style = window.getComputedStyle(element);
+    return (
+        style.display !== 'none' &&
+        style.visibility !== 'hidden' &&
+        element.offsetWidth > 0 &&
+        element.offsetHeight > 0
+    );
+}
+
+/**
+ * Get detailed info about clickable element
+ */
+function getClickableElementInfo(element: Element): string {
+    const tagName = element.tagName.toLowerCase();
+    const id = element.id ? `#${element.id}` : '';
+    const className = element.className
+        ? `.${element.className.toString().split(' ').join('.')}`
+        : '';
+    const textContent = element.textContent?.trim().substring(0, 50) || '';
+
+    return `${tagName}${id}${className} - "${textContent}"`;
+}
+
+/**
+ * Get XPath for element
+ */
+function getElementXPath(element: Element): string {
+    if (element.id) return `//*[@id="${element.id}"]`;
+
+    const parts = [];
+    let current: Element | null = element;
+
+    while (current && current.nodeType === Node.ELEMENT_NODE) {
+        let index = 1;
+        let sibling = current.previousElementSibling;
+
+        while (sibling) {
+            if (sibling.tagName === current.tagName) index++;
+            sibling = sibling.previousElementSibling;
+        }
+
+        const tagName = current.tagName.toLowerCase();
+        parts.unshift(`${tagName}[${index}]`);
+        current = current.parentElement;
+    }
+
+    return '/' + parts.join('/');
+}
+
+/**
+ * Get CSS selector for element
+ */
+function getElementCSSSelector(element: Element): string {
+    if (element.id) return `#${element.id}`;
+
+    const path = [];
+    let current: Element | null = element;
+
+    while (current && current.nodeType === Node.ELEMENT_NODE) {
+        let selector = current.tagName.toLowerCase();
+
+        if (current.className) {
+            selector += '.' + current.className.toString().split(' ').join('.');
+        }
+
+        path.unshift(selector);
+        current = current.parentElement;
+    }
+
+    return path.join(' > ');
+}
+
+/**
+ * Enable click functionality on rows/elements (Tampermonkey-style)
+ */
+export function enableRowClickHandler(options: RowClickOptions = {}): () => void {
+    const { highlightOnHover = true, highlightColor = '#e3f2fd', clickCallback } = options;
+
+    const clickableElements = getClickableElements(options);
+    const originalStyles = new Map<Element, string>();
+
+    // Add hover effects and click handlers
+    clickableElements.forEach(({ element, index }) => {
+        // Store original style
+        originalStyles.set(element, element.getAttribute('style') || '');
+
+        // Add cursor pointer
+        (element as HTMLElement).style.cursor = 'pointer';
+
+        // Initialize handlers object
+        const handlers: any = {};
+
+        if (highlightOnHover) {
+            // Mouse enter handler
+            const mouseEnterHandler = () => {
+                (element as HTMLElement).style.backgroundColor = highlightColor;
+                (element as HTMLElement).style.transition = 'background-color 0.2s ease';
+            };
+
+            // Mouse leave handler
+            const mouseLeaveHandler = () => {
+                (element as HTMLElement).style.backgroundColor = '';
+            };
+
+            element.addEventListener('mouseenter', mouseEnterHandler);
+            element.addEventListener('mouseleave', mouseLeaveHandler);
+
+            handlers.mouseEnterHandler = mouseEnterHandler;
+            handlers.mouseLeaveHandler = mouseLeaveHandler;
+        }
+
+        // Click handler
+        const clickHandler = (event: Event) => {
+            event.preventDefault();
+            event.stopPropagation();
+
+            console.log(`Clicked on element [${index}]:`, getClickableElementInfo(element));
+
+            if (clickCallback) {
+                clickCallback(element, index);
+            } else {
+                // Default behavior: show element info
+                showNotification(
+                    `Clicked on element [${index}]: ${getClickableElementInfo(element)}`,
+                    'info'
+                );
+            }
+        };
+
+        element.addEventListener('click', clickHandler);
+        handlers.clickHandler = clickHandler;
+
+        // Store handlers for cleanup
+        (element as any)._clickHandlers = handlers;
+    });
+
+    // Return cleanup function
+    return () => {
+        clickableElements.forEach(({ element }) => {
+            const handlers = (element as any)._clickHandlers;
+            if (handlers) {
+                // Remove hover handlers if they exist
+                if (handlers.mouseEnterHandler) {
+                    element.removeEventListener('mouseenter', handlers.mouseEnterHandler);
+                }
+                if (handlers.mouseLeaveHandler) {
+                    element.removeEventListener('mouseleave', handlers.mouseLeaveHandler);
+                }
+                // Remove click handler
+                if (handlers.clickHandler) {
+                    element.removeEventListener('click', handlers.clickHandler);
+                }
+                delete (element as any)._clickHandlers;
+            }
+
+            // Restore original style
+            const originalStyle = originalStyles.get(element);
+            if (originalStyle !== undefined) {
+                element.setAttribute('style', originalStyle);
+            }
+        });
+    };
+}
+
+/**
  * Show notification to user
  */
 export function showNotification(

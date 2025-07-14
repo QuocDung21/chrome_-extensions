@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Custom Class Click - Chrome Extension</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        
+        .container {
+            max-width: 1000px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .instructions {
+            background: #e3f2fd;
+            border: 1px solid #2196f3;
+            border-radius: 5px;
+            padding: 15px;
+            margin-bottom: 20px;
+        }
+        
+        .test-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        
+        /* Test classes */
+        .editor-click {
+            padding: 15px;
+            margin: 10px 0;
+            border: 2px solid #4caf50;
+            border-radius: 8px;
+            background: #e8f5e8;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .my-custom-class {
+            padding: 12px;
+            margin: 8px 0;
+            border: 2px solid #ff9800;
+            border-radius: 6px;
+            background: #fff3e0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        
+        .grid-item {
+            padding: 10px;
+            margin: 5px;
+            border: 1px solid #9c27b0;
+            border-radius: 4px;
+            background: #f3e5f5;
+            cursor: pointer;
+            display: inline-block;
+            min-width: 150px;
+        }
+        
+        .data-row {
+            padding: 8px 12px;
+            margin: 3px 0;
+            border-left: 4px solid #f44336;
+            background: #ffebee;
+            cursor: pointer;
+        }
+        
+        .clickable-item {
+            padding: 10px;
+            margin: 5px;
+            border: 2px solid #607d8b;
+            border-radius: 5px;
+            background: #eceff1;
+            cursor: pointer;
+            display: inline-block;
+            min-width: 120px;
+            text-align: center;
+        }
+        
+        .special-element {
+            padding: 20px;
+            margin: 10px 0;
+            border: 3px dashed #795548;
+            border-radius: 10px;
+            background: #efebe9;
+            cursor: pointer;
+            text-align: center;
+        }
+        
+        .hover-effect:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 Test Custom Class Click Functionality</h1>
+        
+        <div class="instructions">
+            <h3>📋 Hướng dẫn sử dụng:</h3>
+            <ol>
+                <li><strong>Mở Chrome Extension</strong> (floating button góc dưới phải)</li>
+                <li><strong>Nhập class name</strong> vào ô input (ví dụ: editor-click, my-custom-class, grid-item)</li>
+                <li><strong>Click "Bật Click"</strong> để enable click mode cho class đó</li>
+                <li><strong>Hover và click</strong> vào các elements có class tương ứng</li>
+                <li><strong>Xem kết quả</strong> trong console và notifications</li>
+            </ol>
+            <p><strong>💡 Tip:</strong> Bạn có thể test với bất kỳ class nào có trong trang này!</p>
+        </div>
+
+        <div class="test-section">
+            <h2>🟢 Class: editor-click</h2>
+            <div class="editor-click hover-effect">
+                <h4>Editor Click Element 1</h4>
+                <p>Nhập "editor-click" vào extension để test class này</p>
+            </div>
+            <div class="editor-click hover-effect">
+                <h4>Editor Click Element 2</h4>
+                <p>Đây là element thứ hai với class editor-click</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🟠 Class: my-custom-class</h2>
+            <div class="my-custom-class hover-effect">
+                <h4>Custom Class Element 1</h4>
+                <p>Nhập "my-custom-class" để test class này</p>
+            </div>
+            <div class="my-custom-class hover-effect">
+                <h4>Custom Class Element 2</h4>
+                <p>Element với class tùy chỉnh</p>
+            </div>
+            <div class="my-custom-class hover-effect">
+                <h4>Custom Class Element 3</h4>
+                <p>Thêm một element nữa để test</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🟣 Class: grid-item</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div class="grid-item hover-effect">Grid Item 1</div>
+                <div class="grid-item hover-effect">Grid Item 2</div>
+                <div class="grid-item hover-effect">Grid Item 3</div>
+                <div class="grid-item hover-effect">Grid Item 4</div>
+                <div class="grid-item hover-effect">Grid Item 5</div>
+                <div class="grid-item hover-effect">Grid Item 6</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔴 Class: data-row</h2>
+            <div class="data-row hover-effect">Data Row 1 - Thông tin dữ liệu đầu tiên</div>
+            <div class="data-row hover-effect">Data Row 2 - Thông tin dữ liệu thứ hai</div>
+            <div class="data-row hover-effect">Data Row 3 - Thông tin dữ liệu thứ ba</div>
+            <div class="data-row hover-effect">Data Row 4 - Thông tin dữ liệu cuối cùng</div>
+        </div>
+
+        <div class="test-section">
+            <h2>🔵 Class: clickable-item</h2>
+            <div style="display: flex; flex-wrap: wrap; gap: 10px;">
+                <div class="clickable-item hover-effect">Item A</div>
+                <div class="clickable-item hover-effect">Item B</div>
+                <div class="clickable-item hover-effect">Item C</div>
+                <div class="clickable-item hover-effect">Item D</div>
+                <div class="clickable-item hover-effect">Item E</div>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>🟤 Class: special-element</h2>
+            <div class="special-element hover-effect">
+                <h3>Special Element 1</h3>
+                <p>Đây là element đặc biệt với border dashed</p>
+            </div>
+            <div class="special-element hover-effect">
+                <h3>Special Element 2</h3>
+                <p>Element đặc biệt thứ hai để test</p>
+            </div>
+        </div>
+
+        <div class="test-section">
+            <h2>📊 Kết quả mong đợi</h2>
+            <ul>
+                <li><strong>Highlight effect:</strong> Elements sẽ có background màu vàng khi hover</li>
+                <li><strong>Click detection:</strong> Notification hiển thị khi click</li>
+                <li><strong>Console log:</strong> Thông tin chi tiết về element được click</li>
+                <li><strong>Element count:</strong> Hiển thị số lượng elements được tìm thấy</li>
+                <li><strong>Toggle functionality:</strong> Button chuyển thành "Tắt click" sau khi bật</li>
+            </ul>
+        </div>
+
+        <div class="test-section">
+            <h2>🧪 Test Cases</h2>
+            <ol>
+                <li><strong>Test với class có sẵn:</strong> editor-click, my-custom-class, grid-item</li>
+                <li><strong>Test với class không tồn tại:</strong> non-existent-class</li>
+                <li><strong>Test với input rỗng:</strong> để trống và click "Bật Click"</li>
+                <li><strong>Test toggle:</strong> Bật rồi tắt click mode</li>
+                <li><strong>Test multiple classes:</strong> Chuyển đổi giữa các class khác nhau</li>
+            </ol>
+        </div>
+    </div>
+
+    <script>
+        // Add debug logging
+        console.log('🧪 Custom class test page loaded');
+        
+        // Log all available classes
+        const allElements = document.querySelectorAll('[class]');
+        const classes = new Set();
+        allElements.forEach(el => {
+            el.classList.forEach(cls => classes.add(cls));
+        });
+        
+        console.log('📋 Available classes on this page:', Array.from(classes).sort());
+        
+        // Add normal click listeners for comparison
+        document.querySelectorAll('[class*="click"], [class*="item"], [class*="row"], [class*="element"]').forEach((element, index) => {
+            element.addEventListener('click', function(e) {
+                console.log(`🔍 Normal click detected on:`, this.className, this);
+            });
+        });
+        
+        // Dynamic content test
+        setTimeout(() => {
+            const newElement = document.createElement('div');
+            newElement.className = 'editor-click hover-effect';
+            newElement.innerHTML = '<h4>Dynamic Editor Click Element</h4><p>Element được thêm sau 3 giây</p>';
+            document.querySelector('.test-section').appendChild(newElement);
+            console.log('✅ Dynamic element added with class "editor-click"');
+        }, 3000);
+    </script>
+</body>
+</html>
