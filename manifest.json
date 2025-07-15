@@ -26,6 +26,10 @@
             "resources": ["assets/icons/*.png", "src/admin/index.html"],
             "matches": [],
             "extension_ids": []
+        },
+        {
+            "resources": ["src/injected/vue-injector.js"],
+            "matches": ["*://*/*"]
         }
     ],
     "permissions": ["storage", "tabs", "activeTab", "notifications"],

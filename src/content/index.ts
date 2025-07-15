@@ -1,88 +1,982 @@
-import { ChromeMessage, ChromeMessageType } from '@/common/chrome-api-wrapper';
-import { FormFillData, ScraperCommand, ScraperMessage } from '@/common/types/scraper';
-import {
-    FormFiller,
-    RowClickOptions,
-    enableRowClickHandler,
-    getClickableElements,
-    getElementsWithIndices,
-    showNotification
-} from '@/utils/formFiller';
+// Vue.js Grid Data Insertion Logic - Multiple rows support
+function insertDataToVueGrid(targetSelector?: string, customData?: any[]) {
+    console.log('🚀 Starting Vue.js Grid Data Insertion...');
 
-async function handleScrapeCommand() {
-    const pageTitle = document.title;
-    const message = new ChromeMessage(ChromeMessageType.SCRAPING_RESULTS, pageTitle);
-    await chrome.runtime.sendMessage(chrome.runtime.id, message);
+    // Default data to insert (sample data for 2 rows)
+    const defaultDataToInsert = [
+        {
+            accounting_object_code: null,
+            accounting_object_id: null,
+            accounting_object_name: null,
+            activity_id: 'd01d000f-83df-4f9d-bb4d-ba0babaa5a0c',
+            activity_name: 'Hoạt động từ nguồn NSNN cấp',
+            budget_chapter_code: '622',
+            budget_chapter_id: '3cf8f3ad-6e72-400b-9cf6-24650a3dc8da',
+            budget_kind_item_code: '340',
+            budget_kind_item_id: '624baeae-92e0-41e0-aa3b-85b51dbacccc',
+            budget_source_group_property_type: 1,
+            budget_source_id: '4c26e114-1fec-4a53-9eaa-dce78de34b2a',
+            budget_source_name: 'Ngân sách Huyện tự chủ 1',
+            budget_sub_kind_item_code: '341',
+            budget_sub_kind_item_id: 'ff8833d8-84e9-416d-81e9-f1bbc080ce4d',
+            cash_withdraw_type_id: 7,
+            cash_withdraw_type_name: 'Nhận dự toán',
+            debit_account: '00822',
+            description: 'Dòng dữ liệu thứ 1',
+            method_distribute_name: 'Dự toán',
+            method_distribute_type: 0,
+            project_code: null,
+            project_id: null,
+            ref_detail_id: 'a67aaf75-61f7-4d25-8f22-4eefa2272172',
+            selected: true,
+            sort_order: null,
+            state: 4,
+            org_ref_no: 'Số chứng từ gốc 1'
+        }
+    ];
+
+    // Use custom data if provided, otherwise use default
+    const dataToInsert = customData || defaultDataToInsert;
+
+    // Use user-specified selector or default
+    const selector = targetSelector || 'tr.ms-tr.custom-class';
+    console.log('🎯 Target selector:', selector);
+    console.log('📊 Data rows to insert:', dataToInsert.length);
+
+    // Try insertion with specified selector
+    tryMultipleDataInsertionWithSelector(dataToInsert, selector);
 }
+
+// Multiple data insertion function with user-specified selector
+async function tryMultipleDataInsertionWithSelector(dataArray: any[], selector: string) {
+    console.log('🚀 Starting multiple data insertion with selector:', selector);
+    console.log('📊 Number of rows to insert:', dataArray.length);
+
+    try {
+        let successCount = 0;
+        let failCount = 0;
+
+        // Insert each data row sequentially
+        for (let i = 0; i < dataArray.length; i++) {
+            const data = dataArray[i];
+            console.log(`🔄 Inserting row ${i + 1}/${dataArray.length}...`);
+
+            try {
+                // Try web accessible resource injection with custom selector
+                const success = await tryWebAccessibleResourceInjection(data, selector, i);
+                if (success) {
+                    successCount++;
+                    console.log(`✅ Row ${i + 1} insertion succeeded`);
+
+                    // Wait a bit between insertions to allow UI to update
+                    if (i < dataArray.length - 1) {
+                        await sleep(1000);
+                    }
+                } else {
+                    failCount++;
+                    console.log(`❌ Row ${i + 1} insertion failed`);
+                }
+            } catch (error) {
+                failCount++;
+                console.error(`❌ Error inserting row ${i + 1}:`, error);
+            }
+        }
+
+        // Show final result
+        if (successCount === dataArray.length) {
+            showSimpleNotification(
+                `✅ Thành công! Đã chèn ${successCount} dòng dữ liệu vào lưới!`,
+                'success'
+            );
+        } else if (successCount > 0) {
+            showSimpleNotification(
+                `⚠️ Chèn thành công ${successCount}/${dataArray.length} dòng. ${failCount} dòng thất bại.`,
+                'info'
+            );
+        } else {
+            showSimpleNotification(
+                '❌ Không thể chèn dữ liệu. Vui lòng kiểm tra selector: ' + selector,
+                'error'
+            );
+        }
+    } catch (error) {
+        console.error('❌ Error in multiple data insertion:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showSimpleNotification('❌ Lỗi: ' + errorMessage, 'error');
+    }
+}
+
+// Main data insertion function with user-specified selector (single row - kept for backward compatibility)
+async function tryDataInsertionWithSelector(data: any, selector: string) {
+    console.log('🚀 Starting data insertion with selector:', selector);
+
+    try {
+        // Try web accessible resource injection with custom selector
+        const success = await tryWebAccessibleResourceInjection(data, selector);
+        if (success) {
+            console.log('✅ Data insertion succeeded');
+            showSimpleNotification('✅ Thành công! Đã chèn dữ liệu vào lưới!', 'success');
+            return;
+        }
+
+        // If failed, show error
+        console.log('❌ Data insertion failed');
+        showSimpleNotification(
+            '❌ Không thể chèn dữ liệu. Vui lòng kiểm tra selector: ' + selector,
+            'error'
+        );
+    } catch (error) {
+        console.error('❌ Error in data insertion:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showSimpleNotification('❌ Lỗi: ' + errorMessage, 'error');
+    }
+}
+
+// Strategy 1: Direct DOM manipulation with event simulation
+async function tryDirectDOMManipulation(data: any): Promise<boolean> {
+    console.log('🔧 Trying direct DOM manipulation...');
+
+    try {
+        // Find the target grid table
+        const gridTable = document.querySelector('table.ms-table');
+        if (!gridTable) {
+            console.log('❌ Grid table not found');
+            return false;
+        }
+
+        // Find the add button or create new row mechanism
+        const addButton = gridTable.querySelector(
+            'button[title*="Thêm"], button[title*="Add"], .ms-button-add, .add-row-btn'
+        );
+        if (addButton) {
+            console.log('✅ Found add button, clicking...');
+            simulateClick(addButton as HTMLElement);
+
+            // Wait for new row to be created
+            await sleep(500);
+        }
+
+        // Find the target row (usually the last row or a row with specific class)
+        const targetRow = findTargetRow(gridTable);
+        if (!targetRow) {
+            console.log('❌ Target row not found');
+            return false;
+        }
+
+        console.log('✅ Found target row:', targetRow);
+
+        // Fill data into the row
+        const success = await fillRowWithData(targetRow, data);
+        return success;
+    } catch (error) {
+        console.error('❌ Direct DOM manipulation failed:', error);
+        return false;
+    }
+}
+
+// Enhanced web accessible resource injection with custom selector
+async function tryWebAccessibleResourceInjection(
+    data: any,
+    selector: string = 'tr.ms-tr.custom-class',
+    rowIndex?: number
+): Promise<boolean> {
+    const logPrefix = rowIndex !== undefined ? `[Row ${rowIndex + 1}]` : '';
+    console.log(
+        `🚀 ${logPrefix} Trying enhanced web accessible resource injection with selector:`,
+        selector
+    );
+
+    return new Promise(resolve => {
+        // Get extension URL for the injected script
+        const scriptUrl = chrome.runtime.getURL('src/injected/vue-injector.js');
+        console.log(`📄 ${logPrefix} Script URL:`, scriptUrl);
+
+        // Check if script is already injected
+        const existingScript = document.getElementById('vue-grid-injector');
+        if (existingScript) {
+            console.log(`✅ ${logPrefix} Script already injected, sending message...`);
+            sendVueInsertMessage(data, selector, rowIndex);
+
+            // Set up timeout for response
+            const timeout = setTimeout(() => {
+                console.log(`⏰ ${logPrefix} Web accessible resource timeout`);
+                resolve(false);
+            }, 5000);
+
+            // Listen for success/failure
+            const messageHandler = (event: MessageEvent) => {
+                if (event.source !== window) return;
+
+                if (event.data.type === 'VUE_GRID_INSERT_SUCCESS') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    resolve(true);
+                } else if (event.data.type === 'VUE_GRID_INSERT_ERROR') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    resolve(false);
+                }
+            };
+
+            window.addEventListener('message', messageHandler);
+            return;
+        }
+
+        // Create script element with web accessible resource
+        const script = document.createElement('script');
+        script.id = 'vue-grid-injector';
+        script.src = scriptUrl;
+
+        const timeout = setTimeout(() => {
+            console.log(`⏰ ${logPrefix} Web accessible resource timeout`);
+            resolve(false);
+        }, 10000);
+
+        script.onload = () => {
+            console.log(`✅ ${logPrefix} Web accessible resource script loaded successfully`);
+            // Wait a bit for script to initialize, then send message
+            setTimeout(() => {
+                sendVueInsertMessage(data, selector, rowIndex);
+
+                // Listen for success/failure
+                const messageHandler = (event: MessageEvent) => {
+                    if (event.source !== window) return;
+
+                    if (event.data.type === 'VUE_GRID_INSERT_SUCCESS') {
+                        clearTimeout(timeout);
+                        window.removeEventListener('message', messageHandler);
+                        resolve(true);
+                    } else if (event.data.type === 'VUE_GRID_INSERT_ERROR') {
+                        clearTimeout(timeout);
+                        window.removeEventListener('message', messageHandler);
+                        resolve(false);
+                    }
+                };
+
+                window.addEventListener('message', messageHandler);
+            }, 100);
+        };
+
+        script.onerror = () => {
+            console.error(`❌ ${logPrefix} Failed to load web accessible resource script`);
+            clearTimeout(timeout);
+            resolve(false);
+        };
+
+        // Inject script into page
+        (document.head || document.documentElement).appendChild(script);
+        console.log(`✅ ${logPrefix} Web accessible resource script injection initiated`);
+    });
+}
+
+// Helper functions for DOM manipulation
+function simulateClick(element: HTMLElement) {
+    console.log('🖱️ Simulating click on element:', element);
+
+    // Create and dispatch multiple events to ensure compatibility
+    const events = ['mousedown', 'mouseup', 'click'];
+
+    events.forEach(eventType => {
+        const event = new MouseEvent(eventType, {
+            bubbles: true,
+            cancelable: true,
+            view: window
+        });
+        element.dispatchEvent(event);
+    });
+
+    // Also try direct click if available
+    if (typeof element.click === 'function') {
+        element.click();
+    }
+}
+
+function sleep(ms: number): Promise<void> {
+    return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function findTargetRow(gridTable: Element): HTMLElement | null {
+    console.log('🔍 Finding target row in grid table...');
+
+    // Strategy 1: Look for specific custom-class first (for backward compatibility)
+    const targetRow = gridTable.querySelector('tr.ms-tr.custom-class') as HTMLElement;
+    if (targetRow) {
+        console.log('✅ Found target row with custom-class');
+        return targetRow;
+    }
+
+    // Strategy 2: Look for editable rows
+    const editableSelectors = [
+        'tr.ms-tr.row-editor',
+        'tr.ms-tr[class*="editor"]',
+        'tr.ms-tr[class*="edit"]',
+        'tr.ms-tr:last-child',
+        'tr.ms-tr[data-new="true"]',
+        'tr.ms-tr.new-row',
+        'tbody tr:last-child'
+    ];
+
+    for (const selector of editableSelectors) {
+        const row = gridTable.querySelector(selector) as HTMLElement;
+        if (row) {
+            console.log(`✅ Found target row with selector: ${selector}`);
+            return row;
+        }
+    }
+
+    // Strategy 3: Look for any tr.ms-tr that might be suitable
+    const allRows = gridTable.querySelectorAll('tr.ms-tr');
+    console.log(`🔍 Found ${allRows.length} tr.ms-tr elements, checking for suitable row...`);
+
+    for (let i = allRows.length - 1; i >= 0; i--) {
+        const row = allRows[i] as HTMLElement;
+
+        // Check if row has input elements (likely editable)
+        const inputs = row.querySelectorAll('input, textarea, select');
+        if (inputs.length > 0) {
+            console.log(`✅ Found row with ${inputs.length} input elements at index ${i}`);
+            return row;
+        }
+    }
+
+    // Fallback: use last row if available
+    if (allRows.length > 0) {
+        const lastRow = allRows[allRows.length - 1] as HTMLElement;
+        console.log('✅ Using last row as fallback target');
+        return lastRow;
+    }
+
+    console.log('❌ No target row found');
+    return null;
+}
+
+async function fillRowWithData(row: HTMLElement, data: any): Promise<boolean> {
+    console.log('📝 Filling row with data:', data);
+
+    try {
+        // Find all input elements in the row
+        const inputs = row.querySelectorAll('input, textarea, select');
+        console.log(`🔍 Found ${inputs.length} input elements in row`);
+
+        // Map data fields to inputs based on common patterns
+        const fieldMappings = [
+            {
+                field: 'debit_account',
+                selectors: [
+                    'input[name*="debit"]',
+                    'input[placeholder*="tài khoản"]',
+                    'input[data-field="debit_account"]'
+                ]
+            },
+            {
+                field: 'budget_chapter_code',
+                selectors: [
+                    'input[name*="chapter"]',
+                    'input[placeholder*="chương"]',
+                    'input[data-field="budget_chapter_code"]'
+                ]
+            },
+            {
+                field: 'budget_kind_item_code',
+                selectors: [
+                    'input[name*="kind"]',
+                    'input[placeholder*="loại"]',
+                    'input[data-field="budget_kind_item_code"]'
+                ]
+            },
+            {
+                field: 'budget_source_name',
+                selectors: [
+                    'input[name*="source"]',
+                    'input[placeholder*="nguồn"]',
+                    'input[data-field="budget_source_name"]'
+                ]
+            },
+            {
+                field: 'description',
+                selectors: [
+                    'input[name*="description"]',
+                    'textarea',
+                    'input[placeholder*="diễn giải"]',
+                    'input[data-field="description"]'
+                ]
+            }
+        ];
+
+        let filledCount = 0;
+
+        // Try to fill fields based on mappings
+        for (const mapping of fieldMappings) {
+            const value = data[mapping.field];
+            if (value === null || value === undefined) continue;
+
+            let targetInput: HTMLInputElement | null = null;
+
+            // Try each selector for this field
+            for (const selector of mapping.selectors) {
+                targetInput = row.querySelector(selector) as HTMLInputElement;
+                if (targetInput) break;
+            }
+
+            // If no specific selector worked, try by index
+            if (!targetInput && inputs.length > filledCount) {
+                targetInput = inputs[filledCount] as HTMLInputElement;
+            }
+
+            if (targetInput) {
+                await fillInputWithValue(targetInput, String(value));
+                filledCount++;
+                console.log(`✅ Filled ${mapping.field} = ${value}`);
+            }
+        }
+
+        console.log(`✅ Successfully filled ${filledCount} fields`);
+        return filledCount > 0;
+    } catch (error) {
+        console.error('❌ Error filling row with data:', error);
+        return false;
+    }
+}
+
+async function fillInputWithValue(input: HTMLInputElement, value: string): Promise<void> {
+    console.log(`📝 Filling input with value: ${value}`);
+
+    // Focus the input
+    input.focus();
+    await sleep(50);
+
+    // Clear existing value
+    input.select();
+    await sleep(50);
+
+    // Set the value using multiple methods for compatibility
+    input.value = value;
+
+    // Dispatch input events to trigger Vue.js reactivity
+    const events = [
+        new Event('input', { bubbles: true }),
+        new Event('change', { bubbles: true }),
+        new Event('blur', { bubbles: true })
+    ];
+
+    for (const event of events) {
+        input.dispatchEvent(event);
+        await sleep(10);
+    }
+
+    // Also try Vue.js specific event triggering
+    if ((input as any).__vue__) {
+        try {
+            const vueInstance = (input as any).__vue__;
+            if (vueInstance && vueInstance.$emit) {
+                vueInstance.$emit('input', value);
+                vueInstance.$emit('change', value);
+            }
+        } catch (error) {
+            console.log('Vue.js event triggering failed (expected in content script)');
+        }
+    }
+}
+
+// Strategy 3: Advanced script injection with multiple methods
+async function tryAdvancedScriptInjection(data: any): Promise<boolean> {
+    console.log('🔧 Trying advanced script injection...');
+
+    return new Promise(resolve => {
+        const timeout = setTimeout(() => {
+            console.log('⏰ Advanced script injection timeout');
+            resolve(false);
+        }, 10000);
+
+        // Method 1: Try blob URL injection
+        tryBlobURLInjection(data)
+            .then(success => {
+                if (success) {
+                    clearTimeout(timeout);
+                    resolve(true);
+                    return;
+                }
+
+                // Method 2: Try data URL injection
+                return tryDataURLInjection(data);
+            })
+            .then(success => {
+                if (success) {
+                    clearTimeout(timeout);
+                    resolve(true);
+                    return;
+                }
+
+                // Method 3: Try eval injection
+                return tryEvalInjection(data);
+            })
+            .then(success => {
+                clearTimeout(timeout);
+                resolve(success || false);
+            })
+            .catch(error => {
+                console.error('❌ Advanced script injection failed:', error);
+                clearTimeout(timeout);
+                resolve(false);
+            });
+    });
+}
+
+async function tryBlobURLInjection(data: any): Promise<boolean> {
+    console.log('🔄 Trying blob URL injection...');
+
+    try {
+        const scriptContent = generateVueInsertionScript(data);
+        const blob = new Blob([scriptContent], { type: 'application/javascript' });
+        const scriptUrl = URL.createObjectURL(blob);
+
+        const script = document.createElement('script');
+        script.src = scriptUrl;
+
+        return new Promise(resolve => {
+            const timeout = setTimeout(() => {
+                URL.revokeObjectURL(scriptUrl);
+                resolve(false);
+            }, 5000);
+
+            const messageHandler = (event: MessageEvent) => {
+                if (event.source !== window) return;
+
+                if (event.data.type === 'VUE_GRID_INSERT_SUCCESS') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    URL.revokeObjectURL(scriptUrl);
+                    resolve(true);
+                } else if (event.data.type === 'VUE_GRID_INSERT_ERROR') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    URL.revokeObjectURL(scriptUrl);
+                    resolve(false);
+                }
+            };
+
+            window.addEventListener('message', messageHandler);
+
+            script.onload = () => {
+                console.log('✅ Blob URL script loaded');
+            };
+
+            script.onerror = () => {
+                console.error('❌ Blob URL script failed');
+                clearTimeout(timeout);
+                window.removeEventListener('message', messageHandler);
+                URL.revokeObjectURL(scriptUrl);
+                resolve(false);
+            };
+
+            (document.head || document.documentElement).appendChild(script);
+
+            // Clean up script after execution
+            setTimeout(() => {
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }, 1000);
+        });
+    } catch (error) {
+        console.error('❌ Blob URL injection failed:', error);
+        return false;
+    }
+}
+
+async function tryDataURLInjection(data: any): Promise<boolean> {
+    console.log('🔄 Trying data URL injection...');
+
+    try {
+        const scriptContent = generateVueInsertionScript(data);
+        const dataUrl = `data:application/javascript;base64,${btoa(scriptContent)}`;
+
+        const script = document.createElement('script');
+        script.src = dataUrl;
+
+        return new Promise(resolve => {
+            const timeout = setTimeout(() => {
+                resolve(false);
+            }, 5000);
+
+            const messageHandler = (event: MessageEvent) => {
+                if (event.source !== window) return;
+
+                if (event.data.type === 'VUE_GRID_INSERT_SUCCESS') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    resolve(true);
+                } else if (event.data.type === 'VUE_GRID_INSERT_ERROR') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    resolve(false);
+                }
+            };
+
+            window.addEventListener('message', messageHandler);
+
+            script.onload = () => {
+                console.log('✅ Data URL script loaded');
+            };
+
+            script.onerror = () => {
+                console.error('❌ Data URL script failed');
+                clearTimeout(timeout);
+                window.removeEventListener('message', messageHandler);
+                resolve(false);
+            };
+
+            (document.head || document.documentElement).appendChild(script);
+
+            // Clean up script after execution
+            setTimeout(() => {
+                if (script.parentNode) {
+                    script.parentNode.removeChild(script);
+                }
+            }, 1000);
+        });
+    } catch (error) {
+        console.error('❌ Data URL injection failed:', error);
+        return false;
+    }
+}
+
+async function tryEvalInjection(data: any): Promise<boolean> {
+    console.log('🔄 Trying eval injection...');
+
+    try {
+        const scriptContent = generateVueInsertionScript(data);
+
+        return new Promise(resolve => {
+            const timeout = setTimeout(() => {
+                resolve(false);
+            }, 5000);
+
+            const messageHandler = (event: MessageEvent) => {
+                if (event.source !== window) return;
+
+                if (event.data.type === 'VUE_GRID_INSERT_SUCCESS') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    resolve(true);
+                } else if (event.data.type === 'VUE_GRID_INSERT_ERROR') {
+                    clearTimeout(timeout);
+                    window.removeEventListener('message', messageHandler);
+                    resolve(false);
+                }
+            };
+
+            window.addEventListener('message', messageHandler);
+
+            // Try to execute script in page context using eval
+            try {
+                const script = document.createElement('script');
+                script.textContent = scriptContent;
+                (document.head || document.documentElement).appendChild(script);
+
+                // Clean up script after execution
+                setTimeout(() => {
+                    if (script.parentNode) {
+                        script.parentNode.removeChild(script);
+                    }
+                }, 1000);
+
+                console.log('✅ Eval injection executed');
+            } catch (evalError) {
+                console.error('❌ Eval injection failed:', evalError);
+                clearTimeout(timeout);
+                window.removeEventListener('message', messageHandler);
+                resolve(false);
+            }
+        });
+    } catch (error) {
+        console.error('❌ Eval injection failed:', error);
+        return false;
+    }
+}
+
+function generateVueInsertionScript(data: any): string {
+    return `
+        (function() {
+            console.log('📝 Generated Vue insertion script executing...');
+
+            function executeVueInsertion(retryCount = 0) {
+                try {
+                    console.log('🔄 Attempt ' + (retryCount + 1) + ' to insert data...');
+
+                    // Try to find the target element using multiple strategies
+                    var targetElement = null;
+
+                    // Strategy 1: Look for specific custom-class first
+                    targetElement = document.querySelector('tr.ms-tr.custom-class');
+                    if (targetElement) {
+                        console.log('✅ Found target element with custom-class');
+                    }
+
+                    // Strategy 2: Look for editable rows
+                    if (!targetElement) {
+                        var editableSelectors = [
+                            'tr.ms-tr.row-editor',
+                            'tr.ms-tr[class*="editor"]',
+                            'tr.ms-tr[class*="edit"]',
+                            'tr.ms-tr:last-child'
+                        ];
+
+                        for (var s = 0; s < editableSelectors.length; s++) {
+                            var selector = editableSelectors[s];
+                            var candidate = document.querySelector(selector);
+                            if (candidate && typeof candidate.getVueInstance === 'function') {
+                                targetElement = candidate;
+                                console.log('✅ Found editable element with selector: ' + selector);
+                                break;
+                            }
+                        }
+                    }
+
+                    // Strategy 3: Look for any tr.ms-tr with Vue instance
+                    if (!targetElement) {
+                        console.log('🔍 Looking for any tr.ms-tr with Vue instance...');
+                        var allTrs = document.querySelectorAll('tr.ms-tr');
+                        console.log('🔍 Found ' + allTrs.length + ' tr.ms-tr elements');
+
+                        for (var i = 0; i < allTrs.length; i++) {
+                            var tr = allTrs[i];
+                            if (typeof tr.getVueInstance === 'function') {
+                                try {
+                                    var vueTest = tr.getVueInstance();
+                                    if (vueTest && typeof vueTest.setRowValue === 'function') {
+                                        targetElement = tr;
+                                        console.log('✅ Found suitable Vue row at index ' + i);
+                                        break;
+                                    }
+                                } catch (e) {
+                                    // Continue searching
+                                }
+                            }
+                        }
+                    }
+
+                    if (!targetElement) {
+                        if (retryCount < 3) {
+                            console.log('⏳ Element not found, retrying in 1 second... (' + (retryCount + 1) + '/3)');
+                            setTimeout(function() { executeVueInsertion(retryCount + 1); }, 1000);
+                            return;
+                        }
+                        throw new Error('Could not find target element after 3 attempts');
+                    }
+
+                    console.log('✅ Target element found:', targetElement);
+
+                    // Try getVueInstance method
+                    if (typeof targetElement.getVueInstance === 'function') {
+                        console.log('✅ Found getVueInstance method');
+                        var vueInstance = targetElement.getVueInstance();
+
+                        if (vueInstance && typeof vueInstance.setRowValue === 'function') {
+                            console.log('✅ Found setRowValue method - inserting data...');
+                            vueInstance.setRowValue(${JSON.stringify(data)});
+
+                            window.postMessage({
+                                type: 'VUE_GRID_INSERT_SUCCESS',
+                                method: 'setRowValue',
+                                message: 'Data inserted successfully!'
+                            }, '*');
+                            return;
+                        }
+                    }
+
+                    // Try __vue__ property
+                    if (targetElement.__vue__) {
+                        console.log('✅ Found __vue__ property');
+                        var vueInstance = targetElement.__vue__;
+
+                        if (vueInstance && typeof vueInstance.setRowValue === 'function') {
+                            console.log('✅ Found setRowValue on __vue__');
+                            vueInstance.setRowValue(${JSON.stringify(data)});
+
+                            window.postMessage({
+                                type: 'VUE_GRID_INSERT_SUCCESS',
+                                method: '__vue__',
+                                message: 'Data inserted successfully via __vue__!'
+                            }, '*');
+                            return;
+                        }
+                    }
+
+                    throw new Error('No suitable Vue.js method found');
+
+                } catch (error) {
+                    console.error('❌ Error in Vue insertion:', error);
+
+                    if (retryCount < 3) {
+                        setTimeout(function() { executeVueInsertion(retryCount + 1); }, 1000);
+                    } else {
+                        window.postMessage({
+                            type: 'VUE_GRID_INSERT_ERROR',
+                            message: error.message
+                        }, '*');
+                    }
+                }
+            }
+
+            executeVueInsertion();
+        })();
+    `;
+}
+
+// Removed clipboard automation - using only automated strategies
+
+// Send message to injected script (used by web accessible resource strategy)
+
+// Send message to injected script
+function sendVueInsertMessage(
+    data: any,
+    selector: string = 'tr.ms-tr.custom-class',
+    rowIndex?: number
+) {
+    const logPrefix = rowIndex !== undefined ? `[Row ${rowIndex + 1}]` : '';
+    console.log(`📤 ${logPrefix} Sending Vue insert message to injected script...`);
+
+    const message = {
+        type: 'VUE_GRID_INSERT_REQUEST',
+        data: data,
+        selector: selector,
+        rowIndex: rowIndex
+    };
+
+    // Send message to page context
+    window.postMessage(message, '*');
+    console.log(`✅ ${logPrefix} Message sent to injected script with selector:`, selector);
+}
+
+// Removed unused injectVueScript function
+
+// Test function for direct access (for debugging)
+function testDirectVueAccess() {
+    console.log('🧪 Testing direct Vue access from content script...');
+
+    try {
+        const element = document.querySelector('tr.ms-tr.custom-class') as any;
+        console.log('🔍 Element found:', element);
+
+        if (element) {
+            console.log('🔍 Element className:', element.className);
+            console.log('🔍 getVueInstance type:', typeof element.getVueInstance);
+            console.log('🔍 __vue__ exists:', !!element.__vue__);
+
+            // This will likely fail due to isolated world
+            if (element.getVueInstance) {
+                console.log('🔍 Trying to call getVueInstance...');
+                const vueInstance = element.getVueInstance();
+                console.log('🔍 Vue instance:', vueInstance);
+            }
+        }
+    } catch (error) {
+        console.error('❌ Direct access failed (expected in content script):', error);
+        console.log(
+            '💡 This is expected behavior in content script. Use script injection instead.'
+        );
+    }
+}
+
+// Debug function to explore Vue.js structure
+function debugVueStructure() {
+    console.log('🔍 === Vue.js Structure Debug ===');
+
+    // Find all potential Vue elements
+    const selectors = [
+        'tr.ms-tr',
+        'tr.ms-tr.custom-class',
+        '.ms-tr',
+        '.custom-class',
+        'tr[class*="ms-tr"]',
+        'table.ms-table tr'
+    ];
+
+    selectors.forEach(selector => {
+        const elements = document.querySelectorAll(selector);
+        console.log(`🔍 Selector "${selector}": ${elements.length} elements found`);
+
+        elements.forEach((el, index) => {
+            console.log(`  Element ${index}:`, el);
+            console.log(`  Classes: ${el.className}`);
+            console.log(`  Has __vue__: ${!!(el as any).__vue__}`);
+            console.log(`  Has getVueInstance: ${!!(el as any).getVueInstance}`);
+        });
+    });
+}
+
+// Message listener for communication with injected script
+window.addEventListener('message', event => {
+    if (event.source !== window) return;
+
+    if (event.data.type === 'VUE_GRID_INSERT_SUCCESS') {
+        console.log('✅ Vue insertion successful via method:', event.data.method);
+        showSimpleNotification('✅ Thành công! Đã chèn dữ liệu vào Vue.js Grid!', 'success');
+    } else if (event.data.type === 'VUE_GRID_INSERT_ERROR') {
+        console.error('❌ Vue insertion failed:', event.data.message);
+        showSimpleNotification('❌ Lỗi: ' + event.data.message, 'error');
+    }
+});
+
+// Chrome extension message handling
 chrome.runtime.onMessage.addListener(message => {
     console.debug('Received message', message);
 
-    if (message.type === ChromeMessageType.SCRAPER_COMMAND) {
-        const scraperMessage = message as ChromeMessage<ScraperMessage>;
-        if (scraperMessage.payload.command === ScraperCommand.SCRAPE) {
-            handleScrapeCommand().catch(error => console.error(error));
-        }
-        return false;
-    }
-
-    if (message.type === ChromeMessageType.FILL_FORM_DATA) {
-        const fillMessage = message as ChromeMessage<FormFillData>;
-        handleFillFormData(fillMessage.payload).catch(error => console.error(error));
+    if (message.type === 'INSERT_GRID_DATA') {
+        insertDataToVueGrid();
         return false;
     }
 
     return false;
 });
 
-async function handleFillFormData(data: FormFillData) {
-    console.log('Filling form with data:', data);
-
-    try {
-        const formFiller = new FormFiller({
-            includeHidden: true,
-            triggerEvents: true,
-            onElementFilled: (element, value, identifier) => {
-                const elementInfo =
-                    element.id ||
-                    (element as HTMLInputElement).name ||
-                    `${element.tagName}[${(element as HTMLInputElement).type}]`;
-                console.log(`✅ Filled field ${identifier} (${elementInfo}) with value: ${value}`);
-            },
-            onElementNotFound: identifier => {
-                console.warn(`❌ Could not find element with identifier: ${identifier}`);
-            }
-        });
-
-        const result = await formFiller.fillForm(data);
-
-        // Show notification to user
-        if (result.filledCount > 0) {
-            showNotification(`Đã điền ${result.filledCount} trường thành công!`, 'success');
+// Simple notification function
+function showSimpleNotification(message: string, type: 'success' | 'error' | 'info' = 'info') {
+    const notification = document.createElement('div');
+    notification.style.cssText = `
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        padding: 12px 16px;
+        border-radius: 8px;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+        font-size: 14px;
+        z-index: 2147483648;
+        max-width: 300px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: all 0.3s ease-in-out;
+        ${
+            type === 'success'
+                ? 'background: #4caf50;'
+                : type === 'error'
+                  ? 'background: #f44336;'
+                  : 'background: #2196f3;'
         }
-        if (result.notFoundCount > 0) {
-            showNotification(`Không tìm thấy ${result.notFoundCount} trường`, 'warning');
+    `;
+    notification.textContent = message;
+
+    document.body.appendChild(notification);
+
+    setTimeout(() => {
+        if (notification.parentNode) {
+            notification.parentNode.removeChild(notification);
         }
-        if (result.errors.length > 0) {
-            console.error('Form filling errors:', result.errors);
-            showNotification('Có lỗi xảy ra khi điền form', 'error');
-        }
-    } catch (error) {
-        console.error('Error filling form:', error);
-        showNotification('Có lỗi xảy ra khi điền form', 'error');
-    }
+    }, 3000);
 }
 
-// Create floating button and overlay
+// Removed showAdvancedNotification - using only showSimpleNotification
+
+// Create floating UI
 function createFloatingUI() {
     console.log('Creating floating UI...');
 
-    // Check if already exists
     if (document.getElementById('chrome-extension-floating-ui')) {
         console.log('Floating UI already exists');
         return;
     }
 
-    // Create container
     const container = document.createElement('div');
     container.id = 'chrome-extension-floating-ui';
     container.style.cssText = `
@@ -95,7 +989,6 @@ function createFloatingUI() {
         z-index: 2147483647;
     `;
 
-    // Create floating assistant card
     const floatingCard = document.createElement('div');
     floatingCard.id = 'floating-extension-card';
     floatingCard.innerHTML = `
@@ -103,8 +996,8 @@ function createFloatingUI() {
             <div style="display: flex; align-items: center; gap: 8px; flex: 1;">
                 <div style="width: 8px; height: 8px; background: #4caf50; border-radius: 50%;"></div>
                 <div style="display: flex; flex-direction: column;">
-                    <span style="font-size: 14px; font-weight: 600; color: #333; margin: 0; line-height: 1.2;">NTS DocumentAI</span>
-                    <span style="font-size: 12px; color: #666; margin: 0; line-height: 1.2;">Biến tài liệu giấy thành dữ liệu thông minh</span>
+                    <span style="font-size: 14px; font-weight: 600; color: #333; margin: 0; line-height: 1.2;">Vue.js Grid Data Inserter</span>
+                    <span style="font-size: 12px; color: #666; margin: 0; line-height: 1.2;">Chèn dữ liệu vào lưới Vue.js</span>
                 </div>
             </div>
             <button id="floating-extension-button" style="
@@ -137,12 +1030,10 @@ function createFloatingUI() {
         font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
     `;
 
-    // Get the button element from the card
     const floatingButton = floatingCard.querySelector(
         '#floating-extension-button'
     ) as HTMLButtonElement;
 
-    // Create overlay
     const overlay = document.createElement('div');
     overlay.id = 'floating-extension-overlay';
     overlay.style.cssText = `
@@ -151,7 +1042,7 @@ function createFloatingUI() {
         left: 50%;
         transform: translate(-50%, -50%);
         width: 400px;
-        max-height: 1000px;
+        max-height: 600px;
         background: white;
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
@@ -165,158 +1056,68 @@ function createFloatingUI() {
     overlay.innerHTML = `
         <div style="padding: 20px;">
             <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0; font-size: 18px; font-weight: 600;">NTSOFT Document AI</h2>
+                <h2 style="margin: 0; font-size: 18px; font-weight: 600;">Vue.js Grid Data Inserter</h2>
                 <button id="close-overlay" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px;">×</button>
             </div>
             <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
 
             <div style="margin-bottom: 20px;">
-                <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Thêm URL để phân tích:</label>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <input id="url-input" type="text" placeholder="https://example.com" style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                    <button id="add-url" style="padding: 8px 16px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Thêm</button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="add-current-url" style="padding: 6px 12px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
-                        📍 Thêm trang hiện tại
-                    </button>
-                    <button id="fill-current-url" style="padding: 6px 12px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
-                        ✏️ Điền vào ô
-                    </button>
-                </div>
-            </div>
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Vue.js Grid Data Insertion (Multiple Rows)</h3>
+                <p style="font-size: 12px; color: #666; margin-bottom: 16px;">
+                    Chèn nhiều dòng dữ liệu vào lưới Vue.js. Hiện tại sẽ chèn 2 dòng mẫu.
+                </p>
 
-            <div style="margin-bottom: 20px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Danh sách URLs (<span id="url-count">0</span>)</h3>
-                <div id="url-list" style="max-height: 200px; overflow-y: auto; border: 1px solid #eee; border-radius: 4px; padding: 8px;">
-                    <p style="text-align: center; color: #666; margin: 20px 0;">Chưa có URL nào. Thêm URL để bắt đầu phân tích.</p>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">
+                        Target Selector:
+                    </label>
+                    <input
+                        id="target-selector-input"
+                        type="text"
+                        value="tr.ms-tr.custom-class"
+                        placeholder="tr.ms-tr.custom-class"
+                        style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; box-sizing: border-box;"
+                    />
+                    <div style="font-size: 10px; color: #666; margin-top: 4px;">
+                        Ví dụ: tr.ms-tr.custom-class, .grid-row, #specific-row
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <button id="insert-grid-data-btn" style="padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
+                        � Auto Insert Data
+                    </button>
+                </div>
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <button id="debug-vue-btn" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                        🔍 Debug Vue Structure
+                    </button>
+                    <button id="test-direct-btn" style="padding: 8px 16px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                        🧪 Test Direct Access
+                    </button>
+                </div>
+                <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; font-family: monospace;">
+                    <strong>Method:</strong> Web Accessible Resource Injection<br>
+                    <strong>Current Target:</strong> <span id="current-target-display">tr.ms-tr.custom-class</span>
                 </div>
             </div>
 
             <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
 
-            <div style="margin-bottom: 20px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Click Mode: Chọn class để click</h3>
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Class name để click:</label>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <input id="target-class-input" type="text" placeholder="Nhập class name (vd: editor-click)" style="flex: 1; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                        <button id="enable-class-click-btn" style="padding: 8px 16px; background: #ff5722; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">Bật Click</button>
-                    </div>
-                    <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                        <button id="show-clickable-btn" style="padding: 6px 12px; background: #607d8b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
-                            🖱️ Hiển thị danh sách Click Elements
-                        </button>
-                        <button id="enable-click-mode-btn" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
-                            ⚡ Bật chế độ Click tổng quát
-                        </button>
-                    </div>
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Sequential Click - Click theo trình tự:</label>
-                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                            <input id="sequence-delay-input" type="number" placeholder="Delay (ms)" value="1000" style="width: 100px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px;">
-                            <button id="start-sequence-btn" style="padding: 8px 16px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
-                                ▶️ Bắt đầu Click theo trình tự
-                            </button>
-                        </div>
-                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                            <button id="stop-sequence-btn" style="padding: 6px 12px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
-                                ⏹️ Dừng
-                            </button>
-                            <button id="pause-sequence-btn" style="padding: 6px 12px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
-                                ⏸️ Tạm dừng
-                            </button>
-                            <button id="resume-sequence-btn" style="padding: 6px 12px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
-                                ▶️ Tiếp tục
-                            </button>
-                        </div>
-                        <div style="margin-bottom: 8px;">
-                            <label style="display: block; margin-bottom: 4px; font-weight: 500; font-size: 12px;">Interactive Mode - Dừng và điền dữ liệu:</label>
-                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                                <input type="checkbox" id="interactive-mode-checkbox" style="margin-right: 8px;">
-                                <label for="interactive-mode-checkbox" style="font-size: 12px;">Dừng tại mỗi element để điền dữ liệu</label>
-                            </div>
-                            <textarea id="sequence-data-input" placeholder='Dữ liệu JSON cho sequence:
-{"data": ["Giá trị 1", "Giá trị 2", "Giá trị 3"]}' style="width: 100%; height: 60px; padding: 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button id="next-step-btn" style="padding: 6px 12px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
-                                ➡️ Tiếp tục bước tiếp theo
-                            </button>
-                            <button id="fill-current-btn" style="padding: 6px 12px; background: #673ab7; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;" disabled>
-                                📝 Điền dữ liệu hiện tại
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
-
-            <div style="margin-bottom: 20px;">
-                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Test chức năng: Điền dữ liệu vào Form</h3>
-                <div style="margin-bottom: 12px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 500; font-size: 14px;">Dữ liệu JSON:</label>
-                    <textarea id="form-data-input" placeholder='{"data": [{"26": "Đây là nơi ghi chú"}, {"14": "6836bc24cfd0c57611ffb663"}]}' style="width: 100%; height: 120px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; resize: vertical; box-sizing: border-box;"></textarea>
-                </div>
-                <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                    <button id="fill-form-btn" style="padding: 8px 16px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
-                        Điền Form
-                    </button>
-                    <button id="clear-form-btn" style="padding: 8px 16px; background: #f44336; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px;">
-                        Xóa
-                    </button>
-                </div>
-                <div style="display: flex; gap: 8px;">
-                    <button id="show-inputs-btn" style="padding: 6px 12px; background: #607d8b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
-                        📋 Hiển thị danh sách Input (Index)
-                    </button>
-                </div>
-            </div>
-
-            <hr style="border: none; border-top: 1px solid #eee; margin-bottom: 20px;">
-
-            <div style="text-align: center; display: flex; gap: 12px; justify-content: center;">
-                <button id="analyze-btn" style="padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-width: 120px;" disabled>
-                    Phân tích
-                </button>
-                <button id="dashboard-btn" style="padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-width: 120px;">
+            <div style="text-align: center;">
+                <button id="dashboard-btn" style="padding: 12px 24px; background: #1976d2; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; min-width: 120px;">
                     Dashboard
                 </button>
             </div>
         </div>
     `;
 
-    // Add elements to container
     container.appendChild(floatingCard);
     container.appendChild(overlay);
     document.body.appendChild(container);
 
     console.log('Floating UI elements added to DOM');
 
-    // State management
-    let urls: string[] = [];
     let isOverlayOpen = false;
-    let clickModeEnabled = false;
-    let clickModeCleanup: (() => void) | null = null;
-
-    // Sequential click state
-    let sequenceRunning = false;
-    let sequencePaused = false;
-    let sequenceTimeouts: number[] = [];
-    let currentSequenceIndex = 0;
-    let sequenceElements: Element[] = [];
-    let interactiveMode = false;
-    let sequenceData: string[] = [];
-    let currentElement: Element | null = null;
-
-    // Load saved URLs
-    chrome.storage.local.get(['urls'], result => {
-        if (result.urls) {
-            urls = result.urls;
-            updateUrlList();
-        }
-    });
 
     // Event handlers
     floatingButton.addEventListener('click', () => {
@@ -324,7 +1125,6 @@ function createFloatingUI() {
         isOverlayOpen = !isOverlayOpen;
         overlay.style.display = isOverlayOpen ? 'block' : 'none';
         floatingButton.style.background = isOverlayOpen ? '#f44336' : '#2196f3';
-        console.log('Overlay is now:', isOverlayOpen ? 'open' : 'closed');
     });
 
     document.getElementById('close-overlay')?.addEventListener('click', () => {
@@ -333,975 +1133,42 @@ function createFloatingUI() {
         floatingButton.style.background = '#2196f3';
     });
 
-    document.getElementById('add-url')?.addEventListener('click', addUrl);
-    document.getElementById('url-input')?.addEventListener('keypress', e => {
-        if (e.key === 'Enter') addUrl();
+    document.getElementById('insert-grid-data-btn')?.addEventListener('click', () => {
+        const selectorInput = document.getElementById('target-selector-input') as HTMLInputElement;
+        const selector = selectorInput?.value.trim() || 'tr.ms-tr.custom-class';
+
+        // Update display
+        const displayElement = document.getElementById('current-target-display');
+        if (displayElement) {
+            displayElement.textContent = selector;
+        }
+
+        insertDataToVueGrid(selector);
     });
 
-    document.getElementById('add-current-url')?.addEventListener('click', addCurrentUrl);
-    document.getElementById('fill-current-url')?.addEventListener('click', fillCurrentUrl);
-
-    document.getElementById('fill-form-btn')?.addEventListener('click', fillFormData);
-    document.getElementById('clear-form-btn')?.addEventListener('click', clearFormData);
-    document.getElementById('show-inputs-btn')?.addEventListener('click', showInputsList);
-    document
-        .getElementById('show-clickable-btn')
-        ?.addEventListener('click', showClickableElementsList);
-    document.getElementById('enable-click-mode-btn')?.addEventListener('click', toggleClickMode);
-    document.getElementById('enable-class-click-btn')?.addEventListener('click', enableClassClick);
-    document.getElementById('target-class-input')?.addEventListener('keypress', e => {
-        if (e.key === 'Enter') enableClassClick();
+    // Update display when input changes
+    document.getElementById('target-selector-input')?.addEventListener('input', e => {
+        const target = e.target as HTMLInputElement;
+        const selector = target.value.trim() || 'tr.ms-tr.custom-class';
+        const displayElement = document.getElementById('current-target-display');
+        if (displayElement) {
+            displayElement.textContent = selector;
+        }
     });
 
-    // Sequential click event listeners
-    document.getElementById('start-sequence-btn')?.addEventListener('click', startSequentialClick);
-    document.getElementById('stop-sequence-btn')?.addEventListener('click', stopSequentialClick);
-    document.getElementById('pause-sequence-btn')?.addEventListener('click', pauseSequentialClick);
-    document
-        .getElementById('resume-sequence-btn')
-        ?.addEventListener('click', resumeSequentialClick);
-
-    // Interactive mode event listeners
-    document.getElementById('next-step-btn')?.addEventListener('click', nextSequenceStep);
-    document.getElementById('fill-current-btn')?.addEventListener('click', fillCurrentElement);
-
-    document.getElementById('analyze-btn')?.addEventListener('click', analyzeUrls);
-    document.getElementById('dashboard-btn')?.addEventListener('click', openDashboard);
-
-    function addUrl() {
-        const input = document.getElementById('url-input') as HTMLInputElement;
-        const url = input.value.trim();
-
-        if (url && !urls.includes(url)) {
-            urls.push(url);
-            input.value = '';
-            updateUrlList();
-            saveUrls();
-        }
-    }
-
-    function addCurrentUrl() {
-        const currentUrl = window.location.href;
-        if (currentUrl && !urls.includes(currentUrl)) {
-            urls.push(currentUrl);
-            updateUrlList();
-            saveUrls();
-            console.log('Added current URL:', currentUrl);
-        } else if (urls.includes(currentUrl)) {
-            console.log('Current URL already in list');
-        }
-    }
-
-    function fillCurrentUrl() {
-        const input = document.getElementById('url-input') as HTMLInputElement;
-        const currentUrl = window.location.href;
-        if (input && currentUrl) {
-            input.value = currentUrl;
-            input.focus();
-            console.log('Filled current URL into input:', currentUrl);
-        }
-    }
-
-    function removeUrl(url: string) {
-        urls = urls.filter(u => u !== url);
-        updateUrlList();
-        saveUrls();
-    }
-
-    function updateUrlList() {
-        const urlList = document.getElementById('url-list');
-        const urlCount = document.getElementById('url-count');
-        const analyzeBtn = document.getElementById('analyze-btn') as HTMLButtonElement;
-
-        if (urlCount) {
-            urlCount.textContent = urls.length.toString();
-        }
-
-        if (analyzeBtn) {
-            analyzeBtn.disabled = urls.length === 0;
-        }
-
-        if (urlList) {
-            if (urls.length === 0) {
-                urlList.innerHTML =
-                    '<p style="text-align: center; color: #666; margin: 20px 0;">Chưa có URL nào. Thêm URL để bắt đầu phân tích.</p>';
-            } else {
-                urlList.innerHTML = urls
-                    .map(
-                        url => `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 8px; border-bottom: 1px solid #eee;">
-                        <span style="font-size: 12px; word-break: break-all; flex: 1;">${url}</span>
-                        <button onclick="removeUrl('${url}')" style="background: #f44336; color: white; border: none; border-radius: 4px; padding: 4px 8px; cursor: pointer; font-size: 12px; margin-left: 8px;">Xóa</button>
-                    </div>
-                `
-                    )
-                    .join('');
-            }
-        }
-    }
-
-    function saveUrls() {
-        chrome.storage.local.set({ urls });
-    }
-
-    function fillFormData() {
-        const textarea = document.getElementById('form-data-input') as HTMLTextAreaElement;
-        if (!textarea) return;
-
-        const jsonData = textarea.value.trim();
-        if (!jsonData) {
-            // Fill with example data if empty
-            const exampleData = {
-                data: [
-                    {
-                        '1': 'Nguyễn Văn A',
-                        '2': 'helloword@gmail.com',
-                        '3': '0856768739',
-                        '4': '123 Đường ABC, Quận 1',
-                        '5': 'Hồ Chí Minh',
-                        '6': 'Việt Nam',
-                        '7': '700000',
-                        '8': 'quocdung112001@gmail.com',
-                        '9': '0856768739',
-                        '10': 'Công ty TNHH ABC',
-                        '11': '09/07/2025',
-                        '12': 'Giám đốc',
-                        '13': 'IT',
-                        '14': '6836bc24cfd0c57611ffb663',
-                        '15': 'ABC123456',
-                        '16': 'Ngân hàng Vietcombank',
-                        '17': 'P8 Vĩnh Long',
-                        '18': 'Chi nhánh Sài Gòn',
-                        '19': '1000000',
-                        '20': 'VND',
-                        '21': 'Chuyển khoản',
-                        '22': 'Thanh toán hóa đơn',
-                        '23': 'Hàng tháng',
-                        '24': 'Cao',
-                        '25': 'Đã xác nhận',
-                        '26': 'Đây là nơi ghi chú',
-                        '27': '2025-07-09',
-                        '28': '14:30',
-                        '29': 'Nam',
-                        '30': '1990-01-01',
-                        '31': 'Kỹ sư phần mềm',
-                        '32': 'Đại học Bách Khoa',
-                        '33': 'Cử nhân',
-                        '34': 'Độc thân',
-                        '35': 'Không',
-                        '36': 'A+',
-                        '37': '175cm',
-                        '38': '70kg',
-                        '39': 'Tốt',
-                        '40': 'Không có',
-                        '41': 'Tiếng Anh',
-                        '42': 'Trung cấp',
-                        '43': '5def47c5f47614018c000092',
-                        '44': 'JavaScript, Python',
-                        '45': '5 năm',
-                        '46': 'Senior Developer',
-                        '47': 'Remote',
-                        '48': 'Full-time',
-                        '49': 'Có thể',
-                        '50': 'Linh hoạt',
-                        '51': 'Laptop Dell',
-                        '52': 'Windows 11',
-                        '53': 'Visual Studio Code',
-                        '54': 'Git, Docker',
-                        '55': 'React, Node.js',
-                        '56': 'MySQL, MongoDB',
-                        '57': 'AWS, Azure',
-                        '58': 'Agile, Scrum',
-                        '59': 'Jira, Trello',
-                        '60': 'Slack, Teams',
-                        '61': 'Photoshop',
-                        '62': 'Figma',
-                        '63': 'Adobe XD',
-                        '64': 'Sketch',
-                        '65': 'InVision',
-                        '66': 'Zeplin',
-                        '67': 'Principle',
-                        '68': 'Framer',
-                        '69': 'After Effects',
-                        '70': 'Premiere Pro',
-                        '71': 'Illustrator',
-                        '72': 'InDesign',
-                        '73': 'Lightroom',
-                        '74': 'Cinema 4D',
-                        '75': 'Blender',
-                        '76': 'Unity',
-                        '77': 'Unreal Engine',
-                        '78': 'Maya',
-                        '79': '3ds Max',
-                        '80': 'ZBrush',
-                        '81': 'Substance Painter',
-                        '82': 'Houdini',
-                        '83': 'Nuke',
-                        '84': 'DaVinci Resolve',
-                        '85': 'Pro Tools',
-                        '86': 'Logic Pro',
-                        '87': 'Ableton Live',
-                        '88': 'FL Studio',
-                        '89': 'Cubase',
-                        '90': 'Reaper',
-                        '91': 'Audacity',
-                        '92': 'GarageBand',
-                        '93': 'Reason',
-                        '94': 'Studio One',
-                        '95': 'Bitwig',
-                        '96': 'Maschine',
-                        '97': 'Kontakt',
-                        '98': 'Omnisphere',
-                        '99': 'Serum',
-                        '100': 'Massive X'
-                    }
-                ]
-            };
-            textarea.value = JSON.stringify(exampleData, null, 2);
-            showNotification('Đã điền dữ liệu mẫu. Bạn có thể chỉnh sửa và thử lại.', 'success');
-            return;
-        }
-
-        try {
-            const data = JSON.parse(jsonData) as FormFillData;
-            if (!data.data || !Array.isArray(data.data)) {
-                alert('Dữ liệu JSON không đúng định dạng. Cần có thuộc tính "data" là một mảng.');
-                return;
-            }
-
-            // Send message to fill form
-            handleFillFormData(data).catch(error => {
-                console.error('Error filling form:', error);
-                alert('Có lỗi xảy ra khi điền form: ' + error.message);
-            });
-        } catch (error) {
-            alert('Dữ liệu JSON không hợp lệ: ' + (error as Error).message);
-        }
-    }
-
-    function clearFormData() {
-        const textarea = document.getElementById('form-data-input') as HTMLTextAreaElement;
-        if (textarea) {
-            textarea.value = '';
-        }
-    }
-
-    function showInputsList() {
-        // Use the FormFiller utils to get elements with indices
-        const elementsWithIndices = getElementsWithIndices({ includeHidden: true });
-
-        // Create a detailed list
-        let inputsList = `📋 DANH SÁCH INPUT ELEMENTS (${elementsWithIndices.length} elements):\n\n`;
-
-        elementsWithIndices.forEach(({ index, info }) => {
-            inputsList += `[${index}] ${info}\n\n`;
-        });
-
-        // Show in console
-        console.log(inputsList);
-
-        // Show notification
-        showNotification(
-            `Đã tìm thấy ${elementsWithIndices.length} input elements. Xem console để biết chi tiết.`,
-            'success'
-        );
-
-        // Also create a modal to show the list
-        showInputsModal(elementsWithIndices.map(item => item.element));
-    }
-
-    function showInputsModal(
-        inputs: (HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement)[]
-    ) {
-        // Create modal overlay
-        const modal = document.createElement('div');
-        modal.id = 'inputs-list-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 2147483648;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-        `;
-
-        // Create modal content
-        const modalContent = document.createElement('div');
-        modalContent.style.cssText = `
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 80%;
-            max-height: 80%;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        `;
-
-        let content = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0; font-size: 18px; font-weight: 600;">📋 Danh sách Input Elements (${inputs.length})</h2>
-                <button id="close-inputs-modal" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px;">×</button>
-            </div>
-            <div style="font-size: 12px; font-family: monospace; line-height: 1.4;">
-        `;
-
-        inputs.forEach((input, index) => {
-            const tagName = input.tagName.toLowerCase();
-            const type = input.type || 'text';
-            const id = input.id || 'no-id';
-            const name = input.name || 'no-name';
-            const placeholder = (input as HTMLInputElement).placeholder || 'no-placeholder';
-            const value = input.value || 'empty';
-
-            content += `
-                <div style="border: 1px solid #eee; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: #f9f9f9;">
-                    <strong style="color: #1976d2;">[${index}] ${tagName}[${type}]</strong><br>
-                    <span style="color: #666;">ID:</span> ${id}<br>
-                    <span style="color: #666;">Name:</span> ${name}<br>
-                    <span style="color: #666;">Placeholder:</span> ${placeholder}<br>
-                    <span style="color: #666;">Value:</span> ${value.substring(0, 100)}${value.length > 100 ? '...' : ''}
-                </div>
-            `;
-        });
-
-        content += `</div>`;
-        modalContent.innerHTML = content;
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-
-        // Close modal event
-        document.getElementById('close-inputs-modal')?.addEventListener('click', () => {
-            if (modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-            }
-        });
-
-        // Close on overlay click
-        modal.addEventListener('click', e => {
-            if (e.target === modal) {
-                if (modal.parentNode) {
-                    modal.parentNode.removeChild(modal);
-                }
-            }
-        });
-    }
-
-    function showClickableElementsList() {
-        // Use the new clickable elements function
-        const clickableElements = getClickableElements({
-            includeTableRows: true,
-            includeListItems: true,
-            includeGridItems: true,
-            includeCustomSelectors: ['.vue-grid-item', '.data-row', '.list-row', '.editor-click']
-        });
-
-        // Create a detailed list
-        let elementsList = `🖱️ DANH SÁCH CLICKABLE ELEMENTS (${clickableElements.length} elements):\n\n`;
-
-        clickableElements.forEach(({ index, info, xpath, cssSelector }) => {
-            elementsList += `[${index}] ${info}\n`;
-            elementsList += `    XPath: ${xpath}\n`;
-            elementsList += `    CSS: ${cssSelector}\n\n`;
-        });
-
-        // Show in console
-        console.log(elementsList);
-
-        // Show notification
-        showNotification(
-            `Đã tìm thấy ${clickableElements.length} clickable elements. Xem console để biết chi tiết.`,
-            'success'
-        );
-
-        // Also create a modal to show the list
-        showClickableElementsModal(clickableElements);
-    }
-
-    function showClickableElementsModal(
-        clickableElements: ReturnType<typeof getClickableElements>
-    ) {
-        // Create modal overlay
-        const modal = document.createElement('div');
-        modal.id = 'clickable-elements-modal';
-        modal.style.cssText = `
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0,0,0,0.5);
-            z-index: 2147483648;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-        `;
-
-        // Create modal content
-        const modalContent = document.createElement('div');
-        modalContent.style.cssText = `
-            background: white;
-            border-radius: 12px;
-            padding: 20px;
-            max-width: 80%;
-            max-height: 80%;
-            overflow-y: auto;
-            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
-        `;
-
-        let content = `
-            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                <h2 style="margin: 0; font-size: 18px; font-weight: 600;">🖱️ Danh sách Clickable Elements (${clickableElements.length})</h2>
-                <button id="close-clickable-modal" style="background: none; border: none; font-size: 20px; cursor: pointer; padding: 4px;">×</button>
-            </div>
-            <div style="font-size: 12px; font-family: monospace; line-height: 1.4;">
-        `;
-
-        clickableElements.forEach(({ element, index, info, xpath, cssSelector }) => {
-            const tagName = element.tagName.toLowerCase();
-            const textContent = element.textContent?.trim().substring(0, 100) || 'empty';
-
-            content += `
-                <div style="border: 1px solid #eee; border-radius: 4px; padding: 8px; margin-bottom: 8px; background: #f9f9f9;">
-                    <strong style="color: #ff5722;">[${index}] ${tagName}</strong><br>
-                    <span style="color: #666;">Info:</span> ${info}<br>
-                    <span style="color: #666;">Text:</span> ${textContent}<br>
-                    <span style="color: #666;">XPath:</span> ${xpath}<br>
-                    <span style="color: #666;">CSS:</span> ${cssSelector}
-                </div>
-            `;
-        });
-
-        content += `</div>`;
-        modalContent.innerHTML = content;
-        modal.appendChild(modalContent);
-        document.body.appendChild(modal);
-
-        // Close modal event
-        document.getElementById('close-clickable-modal')?.addEventListener('click', () => {
-            if (modal.parentNode) {
-                modal.parentNode.removeChild(modal);
-            }
-        });
-
-        // Close on overlay click
-        modal.addEventListener('click', e => {
-            if (e.target === modal) {
-                if (modal.parentNode) {
-                    modal.parentNode.removeChild(modal);
-                }
-            }
-        });
-    }
-
-    function toggleClickMode() {
-        const button = document.getElementById('enable-click-mode-btn') as HTMLButtonElement;
-
-        if (!clickModeEnabled) {
-            // Enable click mode
-            clickModeCleanup = enableRowClickHandler({
-                highlightOnHover: true,
-                highlightColor: '#e3f2fd',
-                includeTableRows: true,
-                includeListItems: true,
-                includeGridItems: true,
-                includeCustomSelectors: [
-                    '.vue-grid-item',
-                    '.data-row',
-                    '.list-row',
-                    '.editor-click'
-                ],
-                clickCallback: (element, index) => {
-                    // Custom click behavior
-                    const elementInfo = `${element.tagName.toLowerCase()}[${index}]`;
-                    const textContent = element.textContent?.trim().substring(0, 50) || '';
-
-                    console.log(`🖱️ Clicked on element [${index}]:`, element);
-                    showNotification(
-                        `Clicked: [${index}] ${elementInfo} - "${textContent}"`,
-                        'info',
-                        { duration: 2000 }
-                    );
-
-                    // You can add more custom logic here
-                    // For example: extract data, fill forms, etc.
-                }
-            });
-
-            clickModeEnabled = true;
-            button.textContent = '🛑 Tắt chế độ Click';
-            button.style.background = '#f44336';
-
-            showNotification(
-                'Đã bật chế độ Click! Hover và click vào các elements để tương tác.',
-                'success'
-            );
-        } else {
-            // Disable click mode
-            if (clickModeCleanup) {
-                clickModeCleanup();
-                clickModeCleanup = null;
-            }
-
-            clickModeEnabled = false;
-            button.textContent = '⚡ Bật chế độ Click';
-            button.style.background = '#4caf50';
-
-            showNotification('Đã tắt chế độ Click.', 'info');
-        }
-    }
-
-    function enableClassClick() {
-        const input = document.getElementById('target-class-input') as HTMLInputElement;
-        const button = document.getElementById('enable-class-click-btn') as HTMLButtonElement;
-
-        if (!input || !button) return;
-
-        const className = input.value.trim();
-        if (!className) {
-            showNotification('Vui lòng nhập class name!', 'warning');
-            return;
-        }
-
-        // Add dot prefix if not present
-        const selector = className.startsWith('.') ? className : `.${className}`;
-
-        // Check if elements with this class exist
-        const elements = document.querySelectorAll(selector);
-        if (elements.length === 0) {
-            showNotification(`Không tìm thấy elements với class "${className}"`, 'warning');
-            return;
-        }
-
-        // Disable current click mode if active
-        if (clickModeEnabled && clickModeCleanup) {
-            clickModeCleanup();
-            clickModeCleanup = null;
-            clickModeEnabled = false;
-
-            // Reset general click mode button
-            const generalButton = document.getElementById(
-                'enable-click-mode-btn'
-            ) as HTMLButtonElement;
-            if (generalButton) {
-                generalButton.textContent = '⚡ Bật chế độ Click tổng quát';
-                generalButton.style.background = '#4caf50';
-            }
-        }
-
-        // Enable click mode for specific class
-        clickModeCleanup = enableRowClickHandler({
-            highlightOnHover: true,
-            highlightColor: '#ffeb3b',
-            includeTableRows: false,
-            includeListItems: false,
-            includeGridItems: false,
-            includeCustomSelectors: [selector],
-            clickCallback: (element, index) => {
-                const elementInfo = `${element.tagName.toLowerCase()}[${index}]`;
-                const textContent = element.textContent?.trim().substring(0, 50) || '';
-
-                console.log(`🎯 Clicked on ${className} element [${index}]:`, element);
-                showNotification(
-                    `Clicked ${className}: [${index}] ${elementInfo} - "${textContent}"`,
-                    'success',
-                    { duration: 3000 }
-                );
-
-                // You can add custom logic here for specific class
-                // For example: extract data, trigger actions, etc.
-            }
-        });
-
-        clickModeEnabled = true;
-        button.textContent = `🛑 Tắt click ${className}`;
-        button.style.background = '#f44336';
-
-        showNotification(
-            `Đã bật click mode cho class "${className}" (${elements.length} elements)`,
-            'success'
-        );
-
-        // Update button click handler to toggle
-        button.onclick = () => {
-            if (clickModeCleanup) {
-                clickModeCleanup();
-                clickModeCleanup = null;
-            }
-
-            clickModeEnabled = false;
-            button.textContent = 'Bật Click';
-            button.style.background = '#ff5722';
-            button.onclick = enableClassClick;
-
-            showNotification(`Đã tắt click mode cho class "${className}"`, 'info');
-        };
-    }
-
-    function startSequentialClick() {
-        const input = document.getElementById('target-class-input') as HTMLInputElement;
-        const delayInput = document.getElementById('sequence-delay-input') as HTMLInputElement;
-        const interactiveCheckbox = document.getElementById(
-            'interactive-mode-checkbox'
-        ) as HTMLInputElement;
-        const dataInput = document.getElementById('sequence-data-input') as HTMLTextAreaElement;
-
-        if (!input || !delayInput) return;
-
-        const className = input.value.trim();
-        if (!className) {
-            showNotification('Vui lòng nhập class name trước!', 'warning');
-            return;
-        }
-
-        const delay = parseInt(delayInput.value) || 1000;
-        const selector = className.startsWith('.') ? className : `.${className}`;
-
-        // Get elements to click
-        sequenceElements = Array.from(document.querySelectorAll(selector));
-        if (sequenceElements.length === 0) {
-            showNotification(`Không tìm thấy elements với class "${className}"`, 'warning');
-            return;
-        }
-
-        // Check interactive mode
-        interactiveMode = interactiveCheckbox?.checked || false;
-
-        // Parse sequence data if provided
-        sequenceData = [];
-        if (dataInput?.value.trim()) {
-            try {
-                const parsedData = JSON.parse(dataInput.value);
-                if (parsedData.data && Array.isArray(parsedData.data)) {
-                    sequenceData = parsedData.data;
-                }
-            } catch (error) {
-                showNotification('Dữ liệu JSON không hợp lệ!', 'warning');
-                return;
-            }
-        }
-
-        // Reset state
-        sequenceRunning = true;
-        sequencePaused = false;
-        currentSequenceIndex = 0;
-        sequenceTimeouts = [];
-        currentElement = null;
-
-        // Update UI
-        updateSequenceButtons();
-
-        const modeText = interactiveMode ? 'Interactive Mode' : 'Auto Mode';
-        showNotification(
-            `Bắt đầu ${modeText} cho ${sequenceElements.length} elements với delay ${delay}ms`,
-            'info'
-        );
-
-        // Start the sequence
-        if (interactiveMode) {
-            executeInteractiveSequence();
-        } else {
-            executeSequence(delay);
-        }
-    }
-
-    function executeSequence(delay: number) {
-        if (!sequenceRunning || sequencePaused) return;
-
-        if (currentSequenceIndex >= sequenceElements.length) {
-            // Sequence completed
-            stopSequentialClick();
-            showNotification('Hoàn thành click sequence!', 'success');
-            return;
-        }
-
-        const element = sequenceElements[currentSequenceIndex];
-
-        // Highlight current element
-        const originalStyle = element.getAttribute('style') || '';
-        (element as HTMLElement).style.cssText =
-            originalStyle +
-            '; background-color: #ff5722 !important; transition: background-color 0.3s ease;';
-
-        // Click the element
-        setTimeout(() => {
-            if (!sequenceRunning || sequencePaused) return;
-
-            // Trigger click event
-            const clickEvent = new MouseEvent('click', {
-                bubbles: true,
-                cancelable: true,
-                view: window
-            });
-            element.dispatchEvent(clickEvent);
-
-            console.log(
-                `🔄 Sequential click [${currentSequenceIndex + 1}/${sequenceElements.length}]:`,
-                element
-            );
-            showNotification(
-                `Click [${currentSequenceIndex + 1}/${sequenceElements.length}]: ${element.tagName.toLowerCase()}`,
-                'info',
-                { duration: 1000 }
-            );
-
-            // Restore original style
-            setTimeout(() => {
-                (element as HTMLElement).style.cssText = originalStyle;
-            }, 300);
-
-            currentSequenceIndex++;
-
-            // Schedule next click
-            if (currentSequenceIndex < sequenceElements.length) {
-                const timeoutId = window.setTimeout(() => executeSequence(delay), delay);
-                sequenceTimeouts.push(timeoutId);
-            } else {
-                // Sequence completed
-                stopSequentialClick();
-                showNotification('Hoàn thành click sequence!', 'success');
-            }
-        }, 100);
-    }
-
-    function stopSequentialClick() {
-        sequenceRunning = false;
-        sequencePaused = false;
-
-        // Clear all timeouts
-        sequenceTimeouts.forEach(id => clearTimeout(id));
-        sequenceTimeouts = [];
-
-        // Reset interactive mode state
-        if (currentElement) {
-            // Restore original style
-            const originalStyle =
-                currentElement
-                    .getAttribute('style')
-                    ?.replace(
-                        /background-color: #ff5722 !important; border: 3px solid #f44336 !important; transition: all 0.3s ease;/g,
-                        ''
-                    ) || '';
-            (currentElement as HTMLElement).style.cssText = originalStyle;
-        }
-
-        // Reset state
-        currentSequenceIndex = 0;
-        currentElement = null;
-        interactiveMode = false;
-        sequenceData = [];
-
-        // Update UI
-        updateSequenceButtons();
-
-        showNotification('Đã dừng click sequence', 'info');
-    }
-
-    function pauseSequentialClick() {
-        if (!sequenceRunning) return;
-
-        sequencePaused = true;
-
-        // Clear pending timeouts
-        sequenceTimeouts.forEach(id => clearTimeout(id));
-        sequenceTimeouts = [];
-
-        // Update UI
-        updateSequenceButtons();
-
-        showNotification('Đã tạm dừng click sequence', 'warning');
-    }
-
-    function resumeSequentialClick() {
-        if (!sequenceRunning || !sequencePaused) return;
-
-        sequencePaused = false;
-
-        // Update UI
-        updateSequenceButtons();
-
-        // Get delay and continue
-        const delayInput = document.getElementById('sequence-delay-input') as HTMLInputElement;
-        const delay = parseInt(delayInput.value) || 1000;
-
-        showNotification('Tiếp tục click sequence', 'info');
-
-        // Continue sequence
-        executeSequence(delay);
-    }
-
-    function updateSequenceButtons() {
-        const startBtn = document.getElementById('start-sequence-btn') as HTMLButtonElement;
-        const stopBtn = document.getElementById('stop-sequence-btn') as HTMLButtonElement;
-        const pauseBtn = document.getElementById('pause-sequence-btn') as HTMLButtonElement;
-        const resumeBtn = document.getElementById('resume-sequence-btn') as HTMLButtonElement;
-        const nextBtn = document.getElementById('next-step-btn') as HTMLButtonElement;
-        const fillBtn = document.getElementById('fill-current-btn') as HTMLButtonElement;
-
-        if (startBtn) startBtn.disabled = sequenceRunning;
-        if (stopBtn) stopBtn.disabled = !sequenceRunning;
-        if (pauseBtn) pauseBtn.disabled = !sequenceRunning || sequencePaused || interactiveMode;
-        if (resumeBtn) resumeBtn.disabled = !sequenceRunning || !sequencePaused || interactiveMode;
-        if (nextBtn) nextBtn.disabled = !sequenceRunning || !interactiveMode || !currentElement;
-        if (fillBtn) fillBtn.disabled = !sequenceRunning || !interactiveMode || !currentElement;
-    }
-
-    function executeInteractiveSequence() {
-        if (!sequenceRunning || currentSequenceIndex >= sequenceElements.length) {
-            stopSequentialClick();
-            showNotification('Hoàn thành interactive sequence!', 'success');
-            return;
-        }
-
-        // Get current element
-        currentElement = sequenceElements[currentSequenceIndex];
-
-        // Highlight current element
-        const originalStyle = currentElement.getAttribute('style') || '';
-        (currentElement as HTMLElement).style.cssText =
-            originalStyle +
-            '; background-color: #ff5722 !important; border: 3px solid #f44336 !important; transition: all 0.3s ease;';
-
-        // Update UI
-        updateSequenceButtons();
-
-        // Show notification
-        showNotification(
-            `Dừng tại element [${currentSequenceIndex + 1}/${sequenceElements.length}]. Điền dữ liệu và click "Tiếp tục"`,
-            'info',
-            { duration: 5000 }
-        );
-
-        console.log(
-            `🛑 Interactive stop at element [${currentSequenceIndex + 1}/${sequenceElements.length}]:`,
-            currentElement
-        );
-
-        // Scroll to element
-        currentElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
-
-    function nextSequenceStep() {
-        if (!sequenceRunning || !interactiveMode || !currentElement) return;
-
-        // Restore original style
-        const originalStyle =
-            currentElement
-                .getAttribute('style')
-                ?.replace(
-                    /background-color: #ff5722 !important; border: 3px solid #f44336 !important; transition: all 0.3s ease;/g,
-                    ''
-                ) || '';
-        (currentElement as HTMLElement).style.cssText = originalStyle;
-
-        // Move to next element
-        currentSequenceIndex++;
-        currentElement = null;
-
-        // Continue sequence
-        executeInteractiveSequence();
-    }
-
-    function fillCurrentElement() {
-        if (!sequenceRunning || !interactiveMode || !currentElement) return;
-
-        // Get data for current index
-        const dataValue =
-            sequenceData[currentSequenceIndex] || `Dữ liệu ${currentSequenceIndex + 1}`;
-
-        // Try to fill the element
-        const element = currentElement;
-
-        if (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement) {
-            // Direct input element
-            element.focus();
-            element.value = dataValue;
-
-            // Trigger events for Vue.js compatibility
-            const events = ['focus', 'input', 'change', 'blur'];
-            events.forEach(eventType => {
-                const event = new Event(eventType, { bubbles: true, cancelable: true });
-                element.dispatchEvent(event);
-            });
-
-            showNotification(`Đã điền: "${dataValue}"`, 'success');
-        } else {
-            // Try to find input inside the element
-            const input = element.querySelector('input, textarea, select') as
-                | HTMLInputElement
-                | HTMLTextAreaElement
-                | HTMLSelectElement;
-
-            if (input) {
-                input.focus();
-                input.value = dataValue;
-
-                // Trigger events
-                const events = ['focus', 'input', 'change', 'blur'];
-                events.forEach(eventType => {
-                    const event = new Event(eventType, { bubbles: true, cancelable: true });
-                    input.dispatchEvent(event);
-                });
-
-                showNotification(`Đã điền vào input con: "${dataValue}"`, 'success');
-            } else {
-                // Set text content as fallback
-                if (element.textContent !== null) {
-                    element.textContent = dataValue;
-                    showNotification(`Đã set text content: "${dataValue}"`, 'info');
-                } else {
-                    showNotification('Không thể điền dữ liệu vào element này', 'warning');
-                }
-            }
-        }
-
-        console.log(
-            `📝 Filled element [${currentSequenceIndex + 1}] with data:`,
-            dataValue,
-            element
-        );
-    }
-
-    async function analyzeUrls() {
-        const analyzeBtn = document.getElementById('analyze-btn') as HTMLButtonElement;
-        if (analyzeBtn) {
-            analyzeBtn.textContent = 'Đang phân tích...';
-            analyzeBtn.disabled = true;
-        }
-
-        try {
-            await chrome.runtime.sendMessage({
-                type: 'ANALYZE_URLS',
-                payload: { urls }
-            });
-        } catch (error) {
-            console.error('Error analyzing URLs:', error);
-        } finally {
-            if (analyzeBtn) {
-                analyzeBtn.textContent = 'Phân tích';
-                analyzeBtn.disabled = urls.length === 0;
-            }
-        }
-    }
-
-    async function openDashboard() {
-        try {
-            await chrome.runtime.sendMessage({
-                type: 'OPEN_DASHBOARD'
-            });
-            console.log('Dashboard open request sent');
-        } catch (error) {
-            console.error('Error opening dashboard:', error);
-        }
-    }
-
-    // Make removeUrl globally accessible
-    (window as unknown as { removeUrl: typeof removeUrl }).removeUrl = removeUrl;
+    document.getElementById('debug-vue-btn')?.addEventListener('click', () => {
+        debugVueStructure();
+        showSimpleNotification('Debug information logged to console', 'info');
+    });
+
+    document.getElementById('test-direct-btn')?.addEventListener('click', () => {
+        testDirectVueAccess();
+        showSimpleNotification('Direct test executed - check console', 'info');
+    });
+
+    document.getElementById('dashboard-btn')?.addEventListener('click', () => {
+        chrome.runtime.sendMessage({ type: 'OPEN_DASHBOARD' });
+    });
 
     // Hover effects
     floatingCard.addEventListener('mouseenter', () => {
@@ -1315,13 +1182,13 @@ function createFloatingUI() {
     });
 }
 
-// Initialize floating UI when DOM is ready
+// Initialize when DOM is ready
 if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', createFloatingUI);
 } else {
     createFloatingUI();
 }
 
-console.debug('Chrome plugin content script loaded with floating UI');
+console.debug('Chrome extension content script loaded with Vue.js Grid Data Inserter');
 
 export {};
