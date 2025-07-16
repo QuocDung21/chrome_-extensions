@@ -1,7 +1,7 @@
 // Vue.js Grid Data Injector - Runs in page context
 // This script has access to page's JavaScript objects including Vue.js
 
-console.log('🚀 Vue Grid Injector loaded in page context');
+console.log('🚀 Hello word');
 
 // Listen for messages from content script
 window.addEventListener('message', function(event) {

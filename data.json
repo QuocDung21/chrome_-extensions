@@ -143,13 +143,19 @@
 ]
 
 
-{
-  "data": [
-    "hello word",
-    "hello word",
-    "hello word",
-    "hello word",
-    "hello word",
-    "hello word"
-  ]
-}
+
+
+
+[
+  {"index": 0, "value": "6150539198"},
+  {"index": 1, "value": "Ban QLDA 1 tỉnh Sóc Trăng"},
+  {"index": 2, "value": "Chuyển tiền xăng đi công tác"},
+  {"index": 3, "value": "BIDV"},
+  {"index": 4, "value": ""},
+  {"index": 5, "value": ""},
+  {"index": 6, "value": ""},
+  {"index": 7, "value": ""}
+]
+
+
+// Diễn dãi

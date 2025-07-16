@@ -16,13 +16,21 @@ function insertDataToVueGrid(targetSelector?: string, customData?: any[]) {
             budget_kind_item_id: '624baeae-92e0-41e0-aa3b-85b51dbacccc',
             budget_source_group_property_type: 1,
             budget_source_id: '4c26e114-1fec-4a53-9eaa-dce78de34b2a',
-            budget_source_name: 'Ngân sách Huyện tự chủ 1',
+            budget_source_name: 'Ngân sách Huyện tự chủ',
             budget_sub_kind_item_code: '341',
             budget_sub_kind_item_id: 'ff8833d8-84e9-416d-81e9-f1bbc080ce4d',
             cash_withdraw_type_id: 7,
             cash_withdraw_type_name: 'Nhận dự toán',
-            debit_account: '00822',
-            description: 'Dòng dữ liệu thứ 1',
+            // Tài khoản nợ
+            debit_account: '6422',
+
+            // "credit_account" tài khoản có
+            credit_account: '1121',
+            // Diễn dãi description
+            //2.220.450 Số tiền "amount_oc"
+            amount_oc: 2220450,
+
+            description: 'Chuyển tiền xăng đi công tác ',
             method_distribute_name: 'Dự toán',
             method_distribute_type: 0,
             project_code: null,
@@ -31,7 +39,10 @@ function insertDataToVueGrid(targetSelector?: string, customData?: any[]) {
             selected: true,
             sort_order: null,
             state: 4,
-            org_ref_no: 'Số chứng từ gốc 1'
+
+            // Số chứng từ gốc
+            org_ref_no: ''
+            //94000094-001121 tài khoản nhận
         }
     ];
 
@@ -919,12 +930,190 @@ window.addEventListener('message', event => {
     }
 });
 
+// Input field data insertion by index
+function insertDataToInputsByIndex(inputData: Array<{ index: number; value: string }>) {
+    console.log('🚀 Starting input field data insertion by index...');
+    console.log('📊 Input data:', inputData);
+
+    try {
+        // Find all input elements on the page
+        const allInputs = document.querySelectorAll('input, textarea, select');
+        console.log(`🔍 Found ${allInputs.length} input elements on page`);
+
+        let successCount = 0;
+        let failCount = 0;
+
+        // Process each data entry
+        inputData.forEach(({ index, value }) => {
+            try {
+                if (index < 0 || index >= allInputs.length) {
+                    console.warn(`⚠️ Index ${index} is out of range (0-${allInputs.length - 1})`);
+                    failCount++;
+                    return;
+                }
+
+                const targetInput = allInputs[index] as
+                    | HTMLInputElement
+                    | HTMLTextAreaElement
+                    | HTMLSelectElement;
+                console.log(`📝 Filling input at index ${index} with value: "${value}"`);
+
+                // Fill the input with the value
+                fillInputByIndex(targetInput, value);
+                successCount++;
+                console.log(`✅ Successfully filled input at index ${index}`);
+            } catch (error) {
+                console.error(`❌ Error filling input at index ${index}:`, error);
+                failCount++;
+            }
+        });
+
+        // Show result notification
+        if (successCount === inputData.length) {
+            showSimpleNotification(
+                `✅ Thành công! Đã điền ${successCount} input field!`,
+                'success'
+            );
+        } else if (successCount > 0) {
+            showSimpleNotification(
+                `⚠️ Điền thành công ${successCount}/${inputData.length} field. ${failCount} field thất bại.`,
+                'info'
+            );
+        } else {
+            showSimpleNotification('❌ Không thể điền dữ liệu vào input fields', 'error');
+        }
+    } catch (error) {
+        console.error('❌ Error in input field data insertion:', error);
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        showSimpleNotification('❌ Lỗi: ' + errorMessage, 'error');
+    }
+}
+
+// Fill individual input by index with proper event handling
+async function fillInputByIndex(
+    input: HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement,
+    value: string
+): Promise<void> {
+    console.log(`📝 Filling input element with value: "${value}"`);
+
+    try {
+        // Scroll element into view
+        input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        await sleep(100);
+
+        // Focus the input
+        input.focus();
+        await sleep(50);
+
+        // Clear existing value
+        if (input instanceof HTMLInputElement || input instanceof HTMLTextAreaElement) {
+            if (input.select) {
+                input.select();
+            } else if (input.setSelectionRange) {
+                input.setSelectionRange(0, input.value.length);
+            }
+        }
+        await sleep(50);
+
+        // Set the value using multiple methods for compatibility
+        const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+            window.HTMLInputElement.prototype,
+            'value'
+        )?.set;
+
+        if (nativeInputValueSetter && input instanceof HTMLInputElement) {
+            nativeInputValueSetter.call(input, value);
+        } else {
+            input.value = value;
+        }
+
+        // Dispatch comprehensive events to ensure compatibility
+        const events = [
+            new Event('input', { bubbles: true, cancelable: true }),
+            new Event('change', { bubbles: true, cancelable: true }),
+            new Event('blur', { bubbles: true, cancelable: true }),
+            new KeyboardEvent('keydown', { bubbles: true, cancelable: true }),
+            new KeyboardEvent('keyup', { bubbles: true, cancelable: true })
+        ];
+
+        for (const event of events) {
+            input.dispatchEvent(event);
+            await sleep(10);
+        }
+
+        // Additional Vue.js specific event handling
+        if ((input as any).__vue__) {
+            try {
+                const vueInstance = (input as any).__vue__;
+                if (vueInstance && vueInstance.$emit) {
+                    vueInstance.$emit('input', value);
+                    vueInstance.$emit('change', value);
+                }
+            } catch {
+                console.log('Vue.js event triggering failed (expected in content script)');
+            }
+        }
+
+        console.log(`✅ Successfully filled input with value: "${value}"`);
+    } catch (error) {
+        console.error('❌ Error filling input:', error);
+        throw error;
+    }
+}
+
+// Get all input elements with their index information for debugging
+function getInputElementsInfo() {
+    console.log('🔍 Getting input elements information...');
+
+    const allInputs = document.querySelectorAll('input, textarea, select');
+    const inputsInfo = Array.from(allInputs).map((input, index) => {
+        const element = input as HTMLElement;
+        return {
+            index: index,
+            tagName: element.tagName.toLowerCase(),
+            type: (input as HTMLInputElement).type || 'N/A',
+            name: (input as HTMLInputElement).name || '',
+            id: element.id || '',
+            placeholder: (input as HTMLInputElement).placeholder || '',
+            className: element.className || '',
+            value: (input as HTMLInputElement).value || '',
+            visible: element.offsetParent !== null,
+            enabled: !(input as HTMLInputElement).disabled
+        };
+    });
+
+    console.table(inputsInfo);
+    showSimpleNotification(
+        `📊 Found ${inputsInfo.length} input elements. Check console for details.`,
+        'info'
+    );
+
+    return inputsInfo;
+}
+
 // Chrome extension message handling
 chrome.runtime.onMessage.addListener(message => {
     console.debug('Received message', message);
 
     if (message.type === 'INSERT_GRID_DATA') {
         insertDataToVueGrid();
+        return false;
+    }
+
+    if (message.type === 'INSERT_INPUT_DATA') {
+        if (message.data && Array.isArray(message.data)) {
+            insertDataToInputsByIndex(message.data);
+        } else {
+            showSimpleNotification(
+                '❌ Invalid input data format. Expected array of {index, value}',
+                'error'
+            );
+        }
+        return false;
+    }
+
+    if (message.type === 'GET_INPUT_INFO') {
+        getInputElementsInfo();
         return false;
     }
 
@@ -1042,7 +1231,7 @@ function createFloatingUI() {
         left: 50%;
         transform: translate(-50%, -50%);
         width: 400px;
-        max-height: 600px;
+        max-height: 800px;
         background: white;
         border-radius: 12px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.3);
@@ -1098,6 +1287,40 @@ function createFloatingUI() {
                 <div style="background: #f5f5f5; padding: 12px; border-radius: 4px; font-size: 12px; font-family: monospace;">
                     <strong>Method:</strong> Web Accessible Resource Injection<br>
                     <strong>Current Target:</strong> <span id="current-target-display">tr.ms-tr.custom-class</span>
+                </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+                <h3 style="margin: 0 0 10px 0; font-size: 14px; font-weight: 600;">Input Fields Data Insertion</h3>
+                <p style="font-size: 12px; color: #666; margin-bottom: 16px;">
+                    Điền dữ liệu vào các input field dựa trên index. Format: [{"index": 0, "value": "text"}]
+                </p>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">
+                        Input Data (JSON Array):
+                    </label>
+                    <textarea
+                        id="input-data-textarea"
+                        placeholder='[{"index": 0, "value": "Sample text"}, {"index": 1, "value": "Another value"}]'
+                        style="width: 100%; height: 80px; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 11px; font-family: monospace; box-sizing: border-box; resize: vertical;"
+                    ></textarea>
+                    <div style="font-size: 10px; color: #666; margin-top: 4px;">
+                        Ví dụ: [{"index": 0, "value": "Text 1"}, {"index": 2, "value": "Text 2"}]
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <button id="insert-input-data-btn" style="padding: 12px 24px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
+                        📝 Fill Input Fields
+                    </button>
+                    <button id="get-input-info-btn" style="padding: 12px 24px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
+                        🔍 Get Input Info
+                    </button>
+                </div>
+
+                <div style="background: #e3f2fd; padding: 12px; border-radius: 4px; font-size: 12px;">
+                    <strong>Tip:</strong> Sử dụng "Get Input Info" để xem danh sách tất cả input fields và index của chúng.
                 </div>
             </div>
 
@@ -1164,6 +1387,51 @@ function createFloatingUI() {
     document.getElementById('test-direct-btn')?.addEventListener('click', () => {
         testDirectVueAccess();
         showSimpleNotification('Direct test executed - check console', 'info');
+    });
+
+    // Input fields data insertion event handlers
+    document.getElementById('insert-input-data-btn')?.addEventListener('click', () => {
+        const textarea = document.getElementById('input-data-textarea') as HTMLTextAreaElement;
+        const inputDataText = textarea?.value.trim();
+
+        if (!inputDataText) {
+            showSimpleNotification('❌ Please enter input data in JSON format', 'error');
+            return;
+        }
+
+        try {
+            const inputData = JSON.parse(inputDataText);
+
+            if (!Array.isArray(inputData)) {
+                showSimpleNotification('❌ Input data must be an array', 'error');
+                return;
+            }
+
+            // Validate data format
+            const isValidFormat = inputData.every(
+                item =>
+                    typeof item === 'object' &&
+                    typeof item.index === 'number' &&
+                    typeof item.value === 'string'
+            );
+
+            if (!isValidFormat) {
+                showSimpleNotification(
+                    '❌ Invalid format. Expected: [{"index": number, "value": "string"}]',
+                    'error'
+                );
+                return;
+            }
+
+            insertDataToInputsByIndex(inputData);
+        } catch (error) {
+            showSimpleNotification('❌ Invalid JSON format', 'error');
+            console.error('JSON parse error:', error);
+        }
+    });
+
+    document.getElementById('get-input-info-btn')?.addEventListener('click', () => {
+        getInputElementsInfo();
     });
 
     document.getElementById('dashboard-btn')?.addEventListener('click', () => {
