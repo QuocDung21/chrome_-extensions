@@ -1,9 +1,89 @@
 // Vue.js Grid Data Insertion Logic - Multiple rows support
-function insertDataToVueGrid(targetSelector?: string, customData?: any[]) {
+function insertDataToVueGrid(targetSelector?: string, customData?: any[], gridIndex?: number) {
     console.log('🚀 Starting Vue.js Grid Data Insertion...');
 
     // Default data to insert (sample data for 2 rows)
     const defaultDataToInsert = [
+        {
+            accounting_object_code: null,
+            accounting_object_id: null,
+            accounting_object_name: null,
+            activity_id: 'd01d000f-83df-4f9d-bb4d-ba0babaa5a0c',
+            activity_name: 'Hoạt động từ nguồn NSNN cấp',
+            budget_chapter_code: '622',
+            budget_chapter_id: '3cf8f3ad-6e72-400b-9cf6-24650a3dc8da',
+            budget_kind_item_code: '340',
+            budget_kind_item_id: '624baeae-92e0-41e0-aa3b-85b51dbacccc',
+            budget_source_group_property_type: 1,
+            budget_source_id: '4c26e114-1fec-4a53-9eaa-dce78de34b2a',
+            budget_source_name: 'Ngân sách Huyện tự chủ',
+            budget_sub_kind_item_code: '341',
+            budget_sub_kind_item_id: 'ff8833d8-84e9-416d-81e9-f1bbc080ce4d',
+            cash_withdraw_type_id: 7,
+            cash_withdraw_type_name: 'Nhận dự toán',
+            // Tài khoản nợ
+            debit_account: '6422',
+
+            // "credit_account" tài khoản có
+            credit_account: '1121',
+            // Diễn dãi description
+            //2.220.450 Số tiền "amount_oc"
+            amount_oc: 2220450,
+
+            description: 'Chuyển tiền xăng đi công tác ',
+            method_distribute_name: 'Dự toán',
+            method_distribute_type: 0,
+            project_code: null,
+            project_id: null,
+            ref_detail_id: 'a67aaf75-61f7-4d25-8f22-4eefa2272172',
+            selected: true,
+            sort_order: null,
+            state: 4,
+
+            // Số chứng từ gốc
+            org_ref_no: ''
+            //94000094-001121 tài khoản nhận
+        },
+        {
+            accounting_object_code: null,
+            accounting_object_id: null,
+            accounting_object_name: null,
+            activity_id: 'd01d000f-83df-4f9d-bb4d-ba0babaa5a0c',
+            activity_name: 'Hoạt động từ nguồn NSNN cấp',
+            budget_chapter_code: '622',
+            budget_chapter_id: '3cf8f3ad-6e72-400b-9cf6-24650a3dc8da',
+            budget_kind_item_code: '340',
+            budget_kind_item_id: '624baeae-92e0-41e0-aa3b-85b51dbacccc',
+            budget_source_group_property_type: 1,
+            budget_source_id: '4c26e114-1fec-4a53-9eaa-dce78de34b2a',
+            budget_source_name: 'Ngân sách Huyện tự chủ',
+            budget_sub_kind_item_code: '341',
+            budget_sub_kind_item_id: 'ff8833d8-84e9-416d-81e9-f1bbc080ce4d',
+            cash_withdraw_type_id: 7,
+            cash_withdraw_type_name: 'Nhận dự toán',
+            // Tài khoản nợ
+            debit_account: '6422',
+
+            // "credit_account" tài khoản có
+            credit_account: '1121',
+            // Diễn dãi description
+            //2.220.450 Số tiền "amount_oc"
+            amount_oc: 2220450,
+
+            description: 'Chuyển tiền xăng đi công tác ',
+            method_distribute_name: 'Dự toán',
+            method_distribute_type: 0,
+            project_code: null,
+            project_id: null,
+            ref_detail_id: 'a67aaf75-61f7-4d25-8f22-4eefa2272172',
+            selected: true,
+            sort_order: null,
+            state: 4,
+
+            // Số chứng từ gốc
+            org_ref_no: ''
+            //94000094-001121 tài khoản nhận
+        },
         {
             accounting_object_code: null,
             accounting_object_id: null,
@@ -51,16 +131,24 @@ function insertDataToVueGrid(targetSelector?: string, customData?: any[]) {
 
     // Use user-specified selector or default
     const selector = targetSelector || 'tr.ms-tr.custom-class';
+    const selectedGridIndex = gridIndex !== undefined ? gridIndex : 0;
+
     console.log('🎯 Target selector:', selector);
+    console.log('🎯 Target grid index:', selectedGridIndex);
     console.log('📊 Data rows to insert:', dataToInsert.length);
 
-    // Try insertion with specified selector
-    tryMultipleDataInsertionWithSelector(dataToInsert, selector);
+    // Try insertion with specified selector and grid index
+    tryMultipleDataInsertionWithSelector(dataToInsert, selector, selectedGridIndex);
 }
 
 // Multiple data insertion function with user-specified selector
-async function tryMultipleDataInsertionWithSelector(dataArray: any[], selector: string) {
+async function tryMultipleDataInsertionWithSelector(
+    dataArray: any[],
+    selector: string,
+    gridIndex: number = 0
+) {
     console.log('🚀 Starting multiple data insertion with selector:', selector);
+    console.log('🎯 Target grid index:', gridIndex);
     console.log('📊 Number of rows to insert:', dataArray.length);
 
     try {
@@ -73,8 +161,13 @@ async function tryMultipleDataInsertionWithSelector(dataArray: any[], selector: 
             console.log(`🔄 Inserting row ${i + 1}/${dataArray.length}...`);
 
             try {
-                // Try web accessible resource injection with custom selector
-                const success = await tryWebAccessibleResourceInjection(data, selector, i);
+                // Try web accessible resource injection with custom selector and grid index
+                const success = await tryWebAccessibleResourceInjection(
+                    data,
+                    selector,
+                    i,
+                    gridIndex
+                );
                 if (success) {
                     successCount++;
                     console.log(`✅ Row ${i + 1} insertion succeeded`);
@@ -189,7 +282,8 @@ async function tryDirectDOMManipulation(data: any): Promise<boolean> {
 async function tryWebAccessibleResourceInjection(
     data: any,
     selector: string = 'tr.ms-tr.custom-class',
-    rowIndex?: number
+    rowIndex?: number,
+    gridIndex: number = 0
 ): Promise<boolean> {
     const logPrefix = rowIndex !== undefined ? `[Row ${rowIndex + 1}]` : '';
     console.log(
@@ -206,7 +300,7 @@ async function tryWebAccessibleResourceInjection(
         const existingScript = document.getElementById('vue-grid-injector');
         if (existingScript) {
             console.log(`✅ ${logPrefix} Script already injected, sending message...`);
-            sendVueInsertMessage(data, selector, rowIndex);
+            sendVueInsertMessage(data, selector, rowIndex, gridIndex);
 
             // Set up timeout for response
             const timeout = setTimeout(() => {
@@ -247,7 +341,7 @@ async function tryWebAccessibleResourceInjection(
             console.log(`✅ ${logPrefix} Web accessible resource script loaded successfully`);
             // Wait a bit for script to initialize, then send message
             setTimeout(() => {
-                sendVueInsertMessage(data, selector, rowIndex);
+                sendVueInsertMessage(data, selector, rowIndex, gridIndex);
 
                 // Listen for success/failure
                 const messageHandler = (event: MessageEvent) => {
@@ -843,7 +937,8 @@ function generateVueInsertionScript(data: any): string {
 function sendVueInsertMessage(
     data: any,
     selector: string = 'tr.ms-tr.custom-class',
-    rowIndex?: number
+    rowIndex?: number,
+    gridIndex: number = 0
 ) {
     const logPrefix = rowIndex !== undefined ? `[Row ${rowIndex + 1}]` : '';
     console.log(`📤 ${logPrefix} Sending Vue insert message to injected script...`);
@@ -852,7 +947,8 @@ function sendVueInsertMessage(
         type: 'VUE_GRID_INSERT_REQUEST',
         data: data,
         selector: selector,
-        rowIndex: rowIndex
+        rowIndex: rowIndex,
+        gridIndex: gridIndex
     };
 
     // Send message to page context
@@ -915,6 +1011,129 @@ function debugVueStructure() {
             console.log(`  Has getVueInstance: ${!!(el as any).getVueInstance}`);
         });
     });
+}
+
+// Debug function to analyze rows and their content
+function debugRowsStructure() {
+    console.log('📊 === Rows Structure Debug ===');
+
+    // Find all tables
+    const tables = document.querySelectorAll('table.ms-table');
+    console.log(`🔍 Found ${tables.length} table.ms-table elements`);
+
+    tables.forEach((table, tableIndex) => {
+        console.log(`\n📊 Table ${tableIndex}:`);
+        const rows = table.querySelectorAll('tr.ms-tr.custom-class');
+        console.log(`  - Total custom rows: ${rows.length}`);
+
+        rows.forEach((row, rowIndex) => {
+            const inputs = row.querySelectorAll('input, textarea, select');
+            const filledInputs = Array.from(inputs).filter(
+                input =>
+                    (input as HTMLInputElement).value &&
+                    (input as HTMLInputElement).value.trim() !== ''
+            );
+
+            console.log(`  Row ${rowIndex}:`);
+            console.log(`    - Total inputs: ${inputs.length}`);
+            console.log(`    - Filled inputs: ${filledInputs.length}`);
+            console.log(`    - Empty: ${filledInputs.length === 0}`);
+
+            if (filledInputs.length > 0) {
+                console.log(
+                    `    - Sample values:`,
+                    Array.from(filledInputs)
+                        .slice(0, 3)
+                        .map(input => (input as HTMLInputElement).value)
+                );
+            }
+        });
+    });
+
+    showSimpleNotification('📊 Rows debug info logged to console', 'info');
+}
+
+// Function to detect available grids and update UI
+function detectAvailableGrids() {
+    console.log('🔍 === Detecting Available Grids ===');
+
+    const modal = document.querySelector('.vfm__content.modal-content');
+    if (!modal) {
+        showSimpleNotification('❌ Modal not found', 'error');
+        return;
+    }
+
+    const tables = modal.querySelectorAll('table.ms-table');
+    console.log(`🔍 Found ${tables.length} table.ms-table elements in modal`);
+
+    // Update the select options
+    const gridSelect = document.getElementById('grid-index-select') as HTMLSelectElement;
+    if (gridSelect) {
+        // Clear existing options
+        gridSelect.innerHTML = '';
+
+        // Add options for each detected table
+        tables.forEach((table, index) => {
+            const rows = table.querySelectorAll('tr.ms-tr.custom-class');
+            const option = document.createElement('option');
+            option.value = index.toString();
+            option.textContent = `Grid ${index} (${rows.length} rows)`;
+            gridSelect.appendChild(option);
+        });
+
+        showSimpleNotification(`✅ Detected ${tables.length} grids. Select updated!`, 'success');
+    }
+
+    // Log detailed info
+    tables.forEach((table, index) => {
+        const rows = table.querySelectorAll('tr.ms-tr.custom-class');
+        const emptyRows = Array.from(rows).filter(row => {
+            const inputs = row.querySelectorAll('input, textarea, select');
+            return Array.from(inputs).every(
+                input =>
+                    !(input as HTMLInputElement).value ||
+                    (input as HTMLInputElement).value.trim() === ''
+            );
+        });
+
+        console.log(`📊 Grid ${index}:`);
+        console.log(`  - Total rows: ${rows.length}`);
+        console.log(`  - Empty rows: ${emptyRows.length}`);
+        console.log(`  - Filled rows: ${rows.length - emptyRows.length}`);
+    });
+}
+
+// Function to test grid selection specifically
+function testGridSelection(gridIndex: number) {
+    console.log(`🧪 === Testing Grid Selection for Grid ${gridIndex} ===`);
+
+    const modal = document.querySelector('.vfm__content.modal-content');
+    if (!modal) {
+        console.log('❌ Modal not found');
+        return;
+    }
+
+    const tables = modal.querySelectorAll('table.ms-table');
+    console.log(`🔍 Found ${tables.length} tables`);
+
+    if (gridIndex >= tables.length) {
+        console.log(`❌ Grid ${gridIndex} not found. Only ${tables.length} grids available.`);
+        return;
+    }
+
+    const selectedTable = tables[gridIndex];
+    const rows = selectedTable.querySelectorAll('tr.ms-tr.custom-class');
+
+    console.log(`📊 Grid ${gridIndex} details:`);
+    console.log(`  - Table element:`, selectedTable);
+    console.log(`  - Rows found: ${rows.length}`);
+    console.log(`  - First row:`, rows[0]);
+
+    // Test selector within this specific table
+    const selectorTest = selectedTable.querySelector('tr.ms-tr.custom-class');
+    console.log(`  - Selector test result:`, selectorTest);
+
+    showSimpleNotification(`🧪 Grid ${gridIndex} test completed. Check console.`, 'info');
 }
 
 // Message listener for communication with injected script
@@ -1256,20 +1475,47 @@ function createFloatingUI() {
                     Chèn nhiều dòng dữ liệu vào lưới Vue.js. Hiện tại sẽ chèn 2 dòng mẫu.
                 </p>
 
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">
-                        Target Selector:
-                    </label>
-                    <input
-                        id="target-selector-input"
-                        type="text"
-                        value="tr.ms-tr.custom-class"
-                        placeholder="tr.ms-tr.custom-class"
-                        style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; box-sizing: border-box;"
-                    />
-                    <div style="font-size: 10px; color: #666; margin-top: 4px;">
-                        Ví dụ: tr.ms-tr.custom-class, .grid-row, #specific-row
+                <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                    <div style="flex: 2;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">
+                            Target Selector:
+                        </label>
+                        <input
+                            id="target-selector-input"
+                            type="text"
+                            value="tr.ms-tr.custom-class"
+                            placeholder="tr.ms-tr.custom-class"
+                            style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; font-family: monospace; box-sizing: border-box;"
+                        />
+                        <div style="font-size: 10px; color: #666; margin-top: 4px;">
+                            Ví dụ: tr.ms-tr.custom-class, .grid-row, #specific-row
+                        </div>
                     </div>
+                    <div style="flex: 1;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; margin-bottom: 4px; color: #333;">
+                            Grid Index:
+                        </label>
+                        <select
+                            id="grid-index-select"
+                            style="width: 100%; padding: 8px 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 12px; box-sizing: border-box;"
+                        >
+                            <option value="0">Grid 0 (Lưới đầu tiên)</option>
+                            <option value="1">Grid 1 (Lưới thứ hai)</option>
+                            <option value="2">Grid 2 (Lưới thứ ba)</option>
+                        </select>
+                        <div style="font-size: 10px; color: #666; margin-top: 4px;">
+                            Chọn lưới muốn điền dữ liệu
+                        </div>
+                    </div>
+                </div>
+
+                <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                    <button id="detect-grids-btn" style="padding: 8px 16px; background: #607d8b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                        🔍 Detect Grids
+                    </button>
+                    <button id="test-grid-btn" style="padding: 8px 16px; background: #e91e63; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                        🧪 Test Selected Grid
+                    </button>
                 </div>
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                     <button id="insert-grid-data-btn" style="padding: 12px 24px; background: #4caf50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; flex: 1;">
@@ -1279,6 +1525,9 @@ function createFloatingUI() {
                 <div style="display: flex; gap: 8px; margin-bottom: 16px;">
                     <button id="debug-vue-btn" style="padding: 8px 16px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
                         🔍 Debug Vue Structure
+                    </button>
+                    <button id="debug-rows-btn" style="padding: 8px 16px; background: #795548; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
+                        📊 Debug Rows
                     </button>
                     <button id="test-direct-btn" style="padding: 8px 16px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px; flex: 1;">
                         🧪 Test Direct Access
@@ -1358,30 +1607,79 @@ function createFloatingUI() {
 
     document.getElementById('insert-grid-data-btn')?.addEventListener('click', () => {
         const selectorInput = document.getElementById('target-selector-input') as HTMLInputElement;
+        const gridIndexSelect = document.getElementById('grid-index-select') as HTMLSelectElement;
+
         const selector = selectorInput?.value.trim() || 'tr.ms-tr.custom-class';
+        const gridIndex = parseInt(gridIndexSelect?.value) || 0;
+
+        // Debug: Log the selected grid
+        console.log('🎯 User selected Grid Index:', gridIndex);
+        console.log('🎯 User selected Selector:', selector);
 
         // Update display
         const displayElement = document.getElementById('current-target-display');
         if (displayElement) {
-            displayElement.textContent = selector;
+            displayElement.textContent = `${selector} (Grid ${gridIndex})`;
         }
 
-        insertDataToVueGrid(selector);
+        // Verify grid selection before insertion
+        const modal = document.querySelector('.vfm__content.modal-content');
+        if (modal) {
+            const tables = modal.querySelectorAll('table.ms-table');
+            console.log(`🔍 Available grids: ${tables.length}, Selected: ${gridIndex}`);
+
+            if (gridIndex >= tables.length) {
+                showSimpleNotification(
+                    `❌ Grid ${gridIndex} not found. Only ${tables.length} grids available.`,
+                    'error'
+                );
+                return;
+            }
+
+            const selectedTable = tables[gridIndex];
+            const rows = selectedTable.querySelectorAll('tr.ms-tr.custom-class');
+            console.log(`📊 Selected Grid ${gridIndex} has ${rows.length} rows`);
+        }
+
+        insertDataToVueGrid(selector, undefined, gridIndex);
     });
 
     // Update display when input changes
-    document.getElementById('target-selector-input')?.addEventListener('input', e => {
-        const target = e.target as HTMLInputElement;
-        const selector = target.value.trim() || 'tr.ms-tr.custom-class';
+    function updateTargetDisplay() {
+        const selectorInput = document.getElementById('target-selector-input') as HTMLInputElement;
+        const gridIndexSelect = document.getElementById('grid-index-select') as HTMLSelectElement;
+
+        const selector = selectorInput?.value.trim() || 'tr.ms-tr.custom-class';
+        const gridIndex = parseInt(gridIndexSelect?.value) || 0;
+
         const displayElement = document.getElementById('current-target-display');
         if (displayElement) {
-            displayElement.textContent = selector;
+            displayElement.textContent = `${selector} (Grid ${gridIndex})`;
         }
-    });
+    }
+
+    document
+        .getElementById('target-selector-input')
+        ?.addEventListener('input', updateTargetDisplay);
+    document.getElementById('grid-index-select')?.addEventListener('change', updateTargetDisplay);
 
     document.getElementById('debug-vue-btn')?.addEventListener('click', () => {
         debugVueStructure();
         showSimpleNotification('Debug information logged to console', 'info');
+    });
+
+    document.getElementById('debug-rows-btn')?.addEventListener('click', () => {
+        debugRowsStructure();
+    });
+
+    document.getElementById('detect-grids-btn')?.addEventListener('click', () => {
+        detectAvailableGrids();
+    });
+
+    document.getElementById('test-grid-btn')?.addEventListener('click', () => {
+        const gridIndexSelect = document.getElementById('grid-index-select') as HTMLSelectElement;
+        const gridIndex = parseInt(gridIndexSelect?.value) || 0;
+        testGridSelection(gridIndex);
     });
 
     document.getElementById('test-direct-btn')?.addEventListener('click', () => {
