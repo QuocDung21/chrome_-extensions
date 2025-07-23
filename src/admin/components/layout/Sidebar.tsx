@@ -12,7 +12,8 @@ import {
     QrCode as QRIcon,
     AppRegistration as RegisterIcon,
     RoomService as ServiceIcon,
-    CloudUpload as UploadIcon
+    CloudUpload as UploadIcon,
+    EditNote as WordMapperIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -59,10 +60,18 @@ const scanningItems: NavigationItem[] = [
         path: '/qr-cccd'
     },
     {
-        id: 'forms',
+        id: 'word-mapper',
         label: 'Mẫu đơn, tờ khai',
-        icon: <FormIcon />,
+        icon: <WordMapperIcon />,
         path: '/forms'
+        // badge: 'NEW'
+    },
+    {
+        id: 'word-mapper',
+        label: 'Mẫu đơn, tờ khai',
+        icon: <WordMapperIcon />,
+        path: '/word-mapper',
+        badge: 'NEW'
     }
 ];
 

@@ -12,22 +12,39 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 
+const WordMapperIndexLazyRouteImport = createFileRoute('/word-mapper/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
+const ServicesIndexLazyRouteImport = createFileRoute('/services/')()
 const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
 const OcrIndexLazyRouteImport = createFileRoute('/ocr/')()
 const InfoIndexLazyRouteImport = createFileRoute('/info/')()
+const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
 const ExtensionIndexLazyRouteImport = createFileRoute('/extension/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 const AdminProceduresIndexLazyRouteImport =
   createFileRoute('/admin-procedures/')()
 
+const WordMapperIndexLazyRoute = WordMapperIndexLazyRouteImport.update({
+  id: '/word-mapper/',
+  path: '/word-mapper/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/word-mapper/index.lazy').then((d) => d.Route),
+)
 const SettingsIndexLazyRoute = SettingsIndexLazyRouteImport.update({
   id: '/settings/',
   path: '/settings/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
   import('./routes/settings/index.lazy').then((d) => d.Route),
+)
+const ServicesIndexLazyRoute = ServicesIndexLazyRouteImport.update({
+  id: '/services/',
+  path: '/services/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/services/index.lazy').then((d) => d.Route),
 )
 const ProductsIndexLazyRoute = ProductsIndexLazyRouteImport.update({
   id: '/products/',
@@ -46,6 +63,11 @@ const InfoIndexLazyRoute = InfoIndexLazyRouteImport.update({
   path: '/info/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/info/index.lazy').then((d) => d.Route))
+const FormsIndexLazyRoute = FormsIndexLazyRouteImport.update({
+  id: '/forms/',
+  path: '/forms/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/forms/index.lazy').then((d) => d.Route))
 const ExtensionIndexLazyRoute = ExtensionIndexLazyRouteImport.update({
   id: '/extension/',
   path: '/extension/',
@@ -81,20 +103,26 @@ export interface FileRoutesByFullPath {
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/extension': typeof ExtensionIndexLazyRoute
+  '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
+  '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
+  '/word-mapper': typeof WordMapperIndexLazyRoute
 }
 export interface FileRoutesByTo {
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/extension': typeof ExtensionIndexLazyRoute
+  '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
+  '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
+  '/word-mapper': typeof WordMapperIndexLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -102,10 +130,13 @@ export interface FileRoutesById {
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
   '/extension/': typeof ExtensionIndexLazyRoute
+  '/forms/': typeof FormsIndexLazyRoute
   '/info/': typeof InfoIndexLazyRoute
   '/ocr/': typeof OcrIndexLazyRoute
   '/products/': typeof ProductsIndexLazyRoute
+  '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
+  '/word-mapper/': typeof WordMapperIndexLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -114,30 +145,39 @@ export interface FileRouteTypes {
     | '/analytics'
     | '/dashboard'
     | '/extension'
+    | '/forms'
     | '/info'
     | '/ocr'
     | '/products'
+    | '/services'
     | '/settings'
+    | '/word-mapper'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
     | '/extension'
+    | '/forms'
     | '/info'
     | '/ocr'
     | '/products'
+    | '/services'
     | '/settings'
+    | '/word-mapper'
   id:
     | '__root__'
     | '/admin-procedures/'
     | '/analytics/'
     | '/dashboard/'
     | '/extension/'
+    | '/forms/'
     | '/info/'
     | '/ocr/'
     | '/products/'
+    | '/services/'
     | '/settings/'
+    | '/word-mapper/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -145,19 +185,36 @@ export interface RootRouteChildren {
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
   ExtensionIndexLazyRoute: typeof ExtensionIndexLazyRoute
+  FormsIndexLazyRoute: typeof FormsIndexLazyRoute
   InfoIndexLazyRoute: typeof InfoIndexLazyRoute
   OcrIndexLazyRoute: typeof OcrIndexLazyRoute
   ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
+  ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
+  WordMapperIndexLazyRoute: typeof WordMapperIndexLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/word-mapper/': {
+      id: '/word-mapper/'
+      path: '/word-mapper'
+      fullPath: '/word-mapper'
+      preLoaderRoute: typeof WordMapperIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/settings/': {
       id: '/settings/'
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof SettingsIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/services/': {
+      id: '/services/'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof ServicesIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/products/': {
@@ -179,6 +236,13 @@ declare module '@tanstack/react-router' {
       path: '/info'
       fullPath: '/info'
       preLoaderRoute: typeof InfoIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/forms/': {
+      id: '/forms/'
+      path: '/forms'
+      fullPath: '/forms'
+      preLoaderRoute: typeof FormsIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/extension/': {
@@ -217,10 +281,13 @@ const rootRouteChildren: RootRouteChildren = {
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
   ExtensionIndexLazyRoute: ExtensionIndexLazyRoute,
+  FormsIndexLazyRoute: FormsIndexLazyRoute,
   InfoIndexLazyRoute: InfoIndexLazyRoute,
   OcrIndexLazyRoute: OcrIndexLazyRoute,
   ProductsIndexLazyRoute: ProductsIndexLazyRoute,
+  ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
+  WordMapperIndexLazyRoute: WordMapperIndexLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

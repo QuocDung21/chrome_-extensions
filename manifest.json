@@ -15,7 +15,8 @@
     "content_scripts": [
         {
             "js": ["src/content/index.ts"],
-            "matches": ["*://*/*"]
+            "matches": ["*://*/*"],
+            "run_at": "document_end"
         }
     ],
     "background": {
@@ -28,7 +29,7 @@
             "extension_ids": []
         },
         {
-            "resources": ["src/injected/vue-injector.js"],
+            "resources": ["src/injected/vue-injector.js", "src/content/styles/floating-ui.css"],
             "matches": ["*://*/*"]
         }
     ],

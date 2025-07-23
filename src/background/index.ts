@@ -30,7 +30,7 @@ chrome.runtime.onMessage.addListener(
     ) => {
         console.debug('Background received message:', message);
 
-        if (message.type === 'OPEN_DASHBOARD') {
+        if (message.type === 'OPEN_DASHBOARD' || message.action === 'openAdmin') {
             chrome.runtime
                 .openOptionsPage()
                 .then(() => {

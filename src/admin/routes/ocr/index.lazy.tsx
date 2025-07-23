@@ -113,9 +113,7 @@ function OCRHistory(): ReactElement {
                     mb: 3
                 }}
             >
-                <Typography variant="h4" sx={{ fontWeight: 600 }}>
-                    OCR Lịch sử
-                </Typography>
+                <Typography variant="h4" sx={{ fontWeight: 600 }}></Typography>
                 <Button variant="contained" startIcon={<FilterList />}>
                     Bộ lọc
                 </Button>

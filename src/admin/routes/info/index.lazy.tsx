@@ -3,7 +3,10 @@ import { useState } from 'react';
 import {
     Add as AddIcon,
     Assessment as AssessmentIcon,
+    Business as BusinessIcon,
     CheckCircle,
+    Code as CodeIcon,
+    Description as DescriptionIcon,
     Edit,
     Error,
     Info as InfoIcon,
@@ -22,7 +25,10 @@ import {
     Grid,
     IconButton,
     Link,
+    Paper,
     Stack,
+    Tab,
+    Tabs,
     TextField,
     Typography
 } from '@mui/material';
@@ -339,7 +345,37 @@ function analyzeInputElements(doc: Document): InputElementInfo[] {
     return inputs;
 }
 
+interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+    const { children, value, index, ...other } = props;
+
+    return (
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`simple-tabpanel-${index}`}
+            aria-labelledby={`simple-tab-${index}`}
+            {...other}
+        >
+            {value === index && <Box sx={{ p: 3 }}>{children}</Box>}
+        </div>
+    );
+}
+
+function a11yProps(index: number) {
+    return {
+        id: `simple-tab-${index}`,
+        'aria-controls': `simple-tabpanel-${index}`
+    };
+}
+
 function InfoPage() {
+    const [tabValue, setTabValue] = useState(0);
     const [adminLinks, setAdminLinks] = useState<ServiceStep[]>([]);
     const [linkCounter, setLinkCounter] = useState(1);
     const [newUrl, setNewUrl] = useState('');
@@ -347,6 +383,10 @@ function InfoPage() {
     const [isCheckingUrl, setIsCheckingUrl] = useState(false);
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editingUrl, setEditingUrl] = useState('');
+
+    const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
+        setTabValue(newValue);
+    };
 
     // Hàm kiểm tra định dạng URL
     const isValidUrl = (url: string): boolean => {
@@ -697,7 +737,237 @@ function InfoPage() {
         setEditingUrl('');
     };
 
-    return (
+    // Component cho tab Thông tin ứng dụng
+    const AppInfoTab = () => (
+        <Stack spacing={3}>
+            {/* Thông tin cơ bản */}
+            <Card elevation={2}>
+                <CardHeader
+                    avatar={<InfoIcon color="primary" />}
+                    title="Thông tin cơ bản"
+                    sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Box>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                Tên ứng dụng
+                            </Typography>
+                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                NTSOFT Document AI
+                            </Typography>
+                        </Box>
+                        <Box>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                Chức năng
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{ fontWeight: 600, color: 'primary.main' }}
+                            >
+                                Quét mã QR, nhận dạng văn bản (OCR) và tự động điền dữ liệu vào giao
+                                diện các phần mềm
+                            </Typography>
+                        </Box>
+                        <Box>
+                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
+                                Mô tả chi tiết
+                            </Typography>
+                            <Typography
+                                variant="body2"
+                                sx={{ lineHeight: 1.6, textAlign: 'justify' }}
+                            >
+                                NTSOFT Document AI được phát triển nhằm hỗ trợ người dùng tự động
+                                thu thập, trích xuất và điền dữ liệu vào các hệ thống phần mềm chạy
+                                trên nền web, đặc biệt là các biểu mẫu điện tử thuộc cổng dịch vụ
+                                công quốc gia, phần mềm quản lý hành chính chuyên ngành và các nền
+                                tảng số hóa khác. Ứng dụng tích hợp hai công nghệ chính: quét mã QR
+                                và nhận dạng ký tự quang học (OCR), giúp giảm thiểu thao tác thủ
+                                công, nâng cao hiệu quả xử lý và đảm bảo độ chính xác của dữ liệu
+                                đầu vào.
+                            </Typography>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Chức năng chi tiết */}
+            <Card elevation={2}>
+                <CardHeader
+                    avatar={<CodeIcon color="primary" />}
+                    title="Chức năng chi tiết"
+                    sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent>
+                    <Stack spacing={3}>
+                        <Box>
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
+                            >
+                                1. Quét mã QR và xử lý nội dung
+                            </Typography>
+                            <Stack spacing={1} sx={{ ml: 2 }}>
+                                <Typography variant="body2">
+                                    • Cho phép người dùng sử dụng camera thiết bị hoặc tải lên hình
+                                    ảnh chứa mã QR.
+                                </Typography>
+                                <Typography variant="body2">
+                                    • Hệ thống tự động giải mã dữ liệu (thường ở định dạng JSON hoặc
+                                    chuỗi định danh có cấu trúc).
+                                </Typography>
+                                <Typography variant="body2">
+                                    • Thông tin được phân tích và ánh xạ đến các trường nhập liệu
+                                    tương ứng trên giao diện web.
+                                </Typography>
+                            </Stack>
+                        </Box>
+
+                        <Box>
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
+                            >
+                                2. Nhận dạng văn bản từ hình ảnh hoặc tệp PDF
+                            </Typography>
+                            <Stack spacing={1} sx={{ ml: 2 }}>
+                                <Typography variant="body2">
+                                    • Hỗ trợ người dùng tải lên tài liệu định dạng hình ảnh (JPG,
+                                    PNG) hoặc PDF có chứa thông tin cần xử lý.
+                                </Typography>
+                                <Typography variant="body2">
+                                    • Áp dụng công nghệ nhận dạng ký tự quang học để trích xuất nội
+                                    dung văn bản từ hình ảnh.
+                                </Typography>
+                                <Typography variant="body2">
+                                    • Văn bản sau khi nhận dạng sẽ được hệ thống xử lý gồm: làm sạch
+                                    dữ liệu, chuẩn hóa định dạng và tổ chức lại thành cấu trúc phù
+                                    hợp, đảm bảo khả năng ánh xạ chính xác đến các trường thông tin
+                                    của biểu mẫu.
+                                </Typography>
+                            </Stack>
+                        </Box>
+
+                        <Box>
+                            <Typography
+                                variant="h6"
+                                sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
+                            >
+                                3. Tự động điền dữ liệu vào biểu mẫu web
+                            </Typography>
+                            <Stack spacing={1} sx={{ ml: 2 }}>
+                                <Typography variant="body2">
+                                    • Hệ thống gán nội dung đã trích xuất vào các trường nhập liệu
+                                    tương ứng:
+                                </Typography>
+                                <Stack spacing={0.5} sx={{ ml: 2 }}>
+                                    <Typography variant="body2">
+                                        ○ Nhập mẫu đơn hoặc tờ khai đăng ký thủ tục hành chính.
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        ○ Hạch toán chứng từ kế toán vào phần mềm kế toán.
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        ○ Nhập liệu vào các phần mềm quản lý chuyên ngành.
+                                    </Typography>
+                                    <Typography variant="body2">
+                                        ○ Nhập các trường thông tin mô tả hồ sơ, tài liệu số hóa
+                                        theo Thông tư số 05/2025/TT-BNV, ngày 14/5/2025 của Bộ Nội
+                                        vụ.
+                                    </Typography>
+                                </Stack>
+                            </Stack>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Lưu trữ và bảo mật */}
+            <Card elevation={2}>
+                <CardHeader
+                    avatar={<BusinessIcon color="primary" />}
+                    title="4. Lưu trữ lịch sử trên bộ nhớ cục bộ"
+                    sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent>
+                    <Stack spacing={2}>
+                        <Typography variant="body2">
+                            • Ứng dụng hỗ trợ ghi lại lịch sử thao tác và dữ liệu đã xử lý dưới dạng
+                            nhật ký hoạt động (activity log) được lưu trữ trực tiếp tại bộ nhớ cục
+                            bộ của thiết bị người dùng (trình duyệt hoặc máy tính cá nhân).
+                        </Typography>
+                        <Typography variant="body2">
+                            • Các thông tin được lưu bao gồm: thời gian thao tác, nguồn dữ liệu đầu
+                            vào (QR hoặc file OCR), kết quả trích xuất và các trường đã được điền
+                            vào biểu mẫu – nhằm mục đích hỗ trợ người dùng theo dõi, kiểm tra hoặc
+                            khôi phục nội dung nếu cần.
+                        </Typography>
+                        <Box sx={{ p: 2, bgcolor: 'success.light', borderRadius: 1, mt: 2 }}>
+                            <Typography
+                                variant="subtitle2"
+                                sx={{ fontWeight: 600, color: 'success.dark', mb: 1 }}
+                            >
+                                Cam kết bảo mật:
+                            </Typography>
+                            <Typography variant="body2" sx={{ color: 'success.dark' }}>
+                                Tất cả lịch sử xử lý chỉ được lưu tại thiết bị của người dùng, không
+                                có hành vi gửi dữ liệu ra bên ngoài, không đồng bộ lên máy chủ, và
+                                tuyệt đối không thu thập, không tạo bản sao, hoặc lưu trữ bất kỳ tài
+                                liệu gốc nào (hình ảnh CCCD, PDF tài liệu, mã QR...) trên hệ thống
+                                của nhà phát triển ứng dụng.
+                            </Typography>
+                        </Box>
+                        <Typography variant="body2">
+                            • Người dùng có thể chủ động xem, xuất hoặc xóa nhật ký này theo nhu cầu
+                            sử dụng.
+                        </Typography>
+                    </Stack>
+                </CardContent>
+            </Card>
+
+            {/* Lợi ích */}
+            <Card elevation={2}>
+                <CardHeader
+                    avatar={<DescriptionIcon color="primary" />}
+                    title="Lợi ích mang lại"
+                    sx={{ pb: 1 }}
+                />
+                <Divider />
+                <CardContent>
+                    <Stack spacing={2}>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                            <Chip label="1" color="primary" size="small" sx={{ minWidth: 32 }} />
+                            <Typography variant="body2">
+                                Tự động hóa quy trình nhập liệu từ giấy tờ hành chính, CCCD, hợp
+                                đồng, biểu mẫu và các tài liệu định dạng số khác.
+                            </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                            <Chip label="2" color="primary" size="small" sx={{ minWidth: 32 }} />
+                            <Typography variant="body2">
+                                Tiết kiệm thời gian, nâng cao hiệu suất trong các nghiệp vụ mang
+                                tính lặp lại hoặc đòi hỏi nhập liệu chính xác cao.
+                            </Typography>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
+                            <Chip label="3" color="primary" size="small" sx={{ minWidth: 32 }} />
+                            <Typography variant="body2">
+                                Giảm thiểu sai sót phát sinh trong quá trình thao tác thủ công, đặc
+                                biệt trong các môi trường có yêu cầu nghiêm ngặt về độ chính xác dữ
+                                liệu.
+                            </Typography>
+                        </Box>
+                    </Stack>
+                </CardContent>
+            </Card>
+        </Stack>
+    );
+
+    // Component cho tab Thiết lập (nội dung cũ)
+    const SettingsTab = () => (
         <Box>
             {/* CSS for spinner animation */}
             <style>
@@ -1119,6 +1389,48 @@ function InfoPage() {
                     </Button>
                 </Box>
             </Grid>
+        </Box>
+    );
+
+    return (
+        <Box p={0}>
+            {/* Tabs */}
+            <Paper sx={{ width: '100%' }}>
+                <Tabs
+                    value={tabValue}
+                    onChange={handleTabChange}
+                    aria-label="info tabs"
+                    sx={{
+                        borderBottom: 1,
+                        borderColor: 'divider',
+                        '& .MuiTab-root': {
+                            textTransform: 'none',
+                            fontWeight: 600,
+                            fontSize: '1rem'
+                        }
+                    }}
+                >
+                    <Tab
+                        icon={<SettingsIcon />}
+                        iconPosition="start"
+                        label="Thiết lập"
+                        {...a11yProps(0)}
+                    />
+                    <Tab
+                        icon={<InfoIcon />}
+                        iconPosition="start"
+                        label="Thông tin ứng dụng"
+                        {...a11yProps(1)}
+                    />
+                </Tabs>
+
+                <TabPanel value={tabValue} index={0}>
+                    <SettingsTab />
+                </TabPanel>
+                <TabPanel value={tabValue} index={1}>
+                    <AppInfoTab />
+                </TabPanel>
+            </Paper>
         </Box>
     );
 }

@@ -41,10 +41,26 @@ export default defineConfig({
     build: {
         outDir: 'dist',
         emptyOutDir: true,
+        chunkSizeWarningLimit: 1000, // Increase warning limit to 1MB
         rollupOptions: {
             input: {
                 popup: path.resolve(__dirname, 'src/popup/index.html'),
                 admin: path.resolve(__dirname, 'src/admin/index.html')
+            },
+            output: {
+                manualChunks: {
+                    // Separate large libraries into their own chunks
+                    'word-processing': ['mammoth', 'docxtemplater', 'pizzip'],
+                    'ui-libs': [
+                        '@mui/material',
+                        '@mui/icons-material',
+                        '@emotion/react',
+                        '@emotion/styled'
+                    ],
+                    'canvas-libs': ['fabric', 'html2canvas'],
+                    'pdf-libs': ['jspdf', 'pdf-lib', '@react-pdf/renderer'],
+                    vendor: ['react', 'react-dom', '@tanstack/react-router']
+                }
             }
         }
     }
