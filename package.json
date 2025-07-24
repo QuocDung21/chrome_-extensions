@@ -26,6 +26,7 @@
         "docx-templates": "^4.14.1",
         "docxtemplater": "^3.65.2",
         "fabric": "^6.7.0",
+        "file-saver": "^2.0.5",
         "html-react-parser": "^5.2.6",
         "html2canvas": "^1.4.1",
         "jspdf": "^3.0.1",

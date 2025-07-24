@@ -578,14 +578,554 @@
 //             )}
 //         </Box>
 //     );
+// // }
+// ////////////////////
+// import React, { useCallback, useRef, useState } from 'react';
+// import { saveAs } from 'file-saver';
+// import PizZip from 'pizzip';
+// import { PlayArrow as PlayArrowIcon, Upload as UploadIcon } from '@mui/icons-material';
+// // --- Material UI Imports ---
+// import {
+//     Alert,
+//     Box,
+//     Button,
+//     Chip,
+//     CircularProgress,
+//     Paper,
+//     TextField,
+//     Typography
+// } from '@mui/material';
+// import { createLazyFileRoute } from '@tanstack/react-router';
+// // --- State và Type Definitions ---
+// interface DocumentState {
+//     file: File | null;
+//     isLoading: boolean;
+//     error: string | null;
+//     jsonData: string;
 // }
+// // --- Logic xử lý chính ---
+// const fieldMappings = {
+//     ho_ten: [
+//         'Họ và tên',
+//         'Họ, chữ đệm, tên',
+//         'Họ tên',
+//         'Họ, chữ đệm, tên người yêu cầu',
+//         'Tên(2)',
+//         'Tên'
+//     ],
+//     ngay_sinh: ['Ngày, tháng, năm sinh', 'Sinh ngày', 'Ngày sinh', 'Năm sinh'],
+//     so_cccd: [
+//         'Số CCCD',
+//         'CCCD',
+//         'Căn cước công dân',
+//         'Số căn cước',
+//         'Số căn cước công dân',
+//         'Số CMND hoặc căn cước công dân',
+//         'Số CMND/CCCD/Hộ chiếu/TCC'
+//     ],
+//     noi_cu_tru: [
+//         'Nơi cư trú',
+//         'Địa chỉ cư trú',
+//         'Chỗ ở hiện tại',
+//         'Nơi ở hiện nay',
+//         'Địa chỉ(2)',
+//         'Địa chỉ'
+//     ],
+//     ngay_cap_cccd: ['Ngày cấp CCCD', 'Ngày cấp', 'Cấp ngày', 'Ngày cấp căn cước']
+// };
+// /**
+//  * Xử lý file Word bằng cách tìm và thay thế ở cấp độ đoạn văn (ĐÃ TỐI ƯU VÀ SỬA LỖI).
+//  * @param file File .docx người dùng tải lên.
+//  * @param jsonData Đối tượng JSON chứa dữ liệu để điền.
+//  */
+// const processDocumentByParagraph = async (file: File, jsonData: { [key: string]: any }) => {
+//     const arrayBuffer = await file.arrayBuffer();
+//     const zip = new PizZip(arrayBuffer);
+//     const docXml = zip.file('word/document.xml');
+//     if (!docXml)
+//         throw new Error('File docx không hợp lệ hoặc bị hỏng (không tìm thấy word/document.xml).');
+//     const xmlString = docXml.asText();
+//     const parser = new DOMParser();
+//     const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
+//     const paragraphs = xmlDoc.getElementsByTagName('w:p');
+//     let replacementsMade = 0;
+//     for (let i = 0; i < paragraphs.length; i++) {
+//         const p = paragraphs[i];
+//         const textNodes = p.getElementsByTagName('w:t');
+//         let fullText = '';
+//         for (let j = 0; j < textNodes.length; j++) {
+//             fullText += textNodes[j].textContent;
+//         }
+//         let newText = fullText;
+//         let hasBeenModified = false;
+//         // Xử lý nhiều lần thay thế trên cùng một đoạn văn
+//         for (const [jsonKey, labels] of Object.entries(fieldMappings)) {
+//             if (jsonData[jsonKey]) {
+//                 for (const label of labels) {
+//                     // TỐI ƯU REGEX: Tìm kiếm label theo sau bởi ít nhất 2 ký tự placeholder (., _, …) hoặc khoảng trắng.
+//                     // Điều này ngăn việc thay thế các dòng đã có dữ liệu.
+//                     // Thêm 'g' để thay thế tất cả các trường hợp khớp trên một dòng.
+//                     const escapedLabel = label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+//                     const regex = new RegExp(`(${escapedLabel}:[\\s]*)([._…\\s]{2,})`, 'g');
+//                     if (regex.test(newText)) {
+//                         newText = newText.replace(regex, `$1${jsonData[jsonKey]}`);
+//                         hasBeenModified = true;
+//                     }
+//                 }
+//             }
+//         }
+//         // Nếu đoạn văn đã được sửa đổi, cập nhật lại nội dung XML
+//         if (hasBeenModified) {
+//             replacementsMade++;
+//             while (p.firstChild) {
+//                 p.removeChild(p.firstChild);
+//             }
+//             const newRun = xmlDoc.createElementNS(
+//                 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+//                 'w:r'
+//             );
+//             const newTextNode = xmlDoc.createElementNS(
+//                 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+//                 'w:t'
+//             );
+//             newTextNode.textContent = newText;
+//             const spaceAttr = xmlDoc.createAttribute('xml:space');
+//             spaceAttr.value = 'preserve';
+//             newTextNode.setAttributeNode(spaceAttr);
+//             newRun.appendChild(newTextNode);
+//             p.appendChild(newRun);
+//             console.log(`Đã cập nhật đoạn văn: "${newText}"`);
+//         }
+//     }
+//     if (replacementsMade === 0) {
+//         throw new Error(
+//             'Không tìm thấy trường nào để thay thế. File có thể có cấu trúc phức tạp hoặc không chứa các nhãn cần tìm.'
+//         );
+//     }
+//     const serializer = new XMLSerializer();
+//     const newXmlString = serializer.serializeToString(xmlDoc);
+//     zip.file('word/document.xml', newXmlString);
+//     const out = zip.generate({ type: 'blob' });
+//     saveAs(out, `processed_${file.name}`);
+// };
+// // --- React Component ---
+// function WordMapperComponent() {
+//     const [state, setState] = useState<DocumentState>({
+//         file: null,
+//         isLoading: false,
+//         error: null,
+//         jsonData: JSON.stringify(
+//             {
+//                 ho_ten: 'Nguyễn Văn A',
+//                 ngay_sinh: '01/01/1990',
+//                 so_cccd: '123456789012',
+//                 noi_cu_tru: '123 Đường ABC, Quận 1, TP.HCM',
+//                 ngay_cap_cccd: '15/05/2020'
+//             },
+//             null,
+//             2
+//         )
+//     });
+//     const fileInputRef = useRef<HTMLInputElement>(null);
+//     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+//         const file = event.target.files?.[0];
+//         if (!file) return;
+//         if (file.name.toLowerCase().endsWith('.doc')) {
+//             setState(prev => ({
+//                 ...prev,
+//                 error: 'File .doc không được hỗ trợ trực tiếp. Vui lòng chuyển đổi sang .docx trước khi tải lên.'
+//             }));
+//             return;
+//         }
+//         if (!file.name.toLowerCase().endsWith('.docx')) {
+//             setState(prev => ({ ...prev, error: 'Chỉ hỗ trợ file .docx' }));
+//             return;
+//         }
+//         setState(prev => ({ ...prev, file: file, error: null }));
+//     }, []);
+//     const handleJsonDataChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+//         setState(prev => ({ ...prev, jsonData: event.target.value }));
+//     }, []);
+//     const handleGenerateDocument = async () => {
+//         if (!state.file) {
+//             setState(prev => ({ ...prev, error: 'Vui lòng tải lên một file Word trước.' }));
+//             return;
+//         }
+//         setState(prev => ({ ...prev, isLoading: true, error: null }));
+//         try {
+//             const jsonData = JSON.parse(state.jsonData);
+//             await processDocumentByParagraph(state.file, jsonData);
+//         } catch (error) {
+//             const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+//             setState(prev => ({ ...prev, error: errorMessage }));
+//             console.error(error);
+//         } finally {
+//             setState(prev => ({ ...prev, isLoading: false }));
+//         }
+//     };
+//     return (
+//         <Box sx={{ p: 3, maxWidth: 800, margin: 'auto' }}>
+//             <Typography variant="h4" gutterBottom>
+//                 Word Document Filler
+//             </Typography>
+//             <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+//                 Tải lên file .docx và điền dữ liệu từ JSON mà không cần sửa đổi file mẫu.
+//             </Typography>
+//             {/* Upload Section */}
+//             <Paper sx={{ p: 3, mb: 3 }}>
+//                 <Typography variant="h6" gutterBottom>
+//                     Bước 1: Tải lên file Word (.docx)
+//                 </Typography>
+//                 <input
+//                     type="file"
+//                     ref={fileInputRef}
+//                     onChange={handleFileUpload}
+//                     accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+//                     style={{ display: 'none' }}
+//                 />
+//                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+//                     <Button
+//                         variant="contained"
+//                         startIcon={<UploadIcon />}
+//                         onClick={() => fileInputRef.current?.click()}
+//                     >
+//                         Chọn File
+//                     </Button>
+//                     {state.file && (
+//                         <Chip
+//                             label={state.file.name}
+//                             color="success"
+//                             variant="outlined"
+//                             onDelete={() => setState(p => ({ ...p, file: null }))}
+//                         />
+//                     )}
+//                 </Box>
+//             </Paper>
+//             {/* JSON Data & Generate Section */}
+//             {state.file && (
+//                 <Paper sx={{ p: 3, mb: 3 }}>
+//                     <Typography variant="h6" gutterBottom>
+//                         Bước 2: Cung cấp dữ liệu JSON
+//                     </Typography>
+//                     <TextField
+//                         label="JSON Data"
+//                         multiline
+//                         rows={10}
+//                         fullWidth
+//                         value={state.jsonData}
+//                         onChange={handleJsonDataChange}
+//                         placeholder="Enter JSON data here..."
+//                         sx={{ fontFamily: 'monospace', mb: 2 }}
+//                     />
+//                     <Button
+//                         variant="contained"
+//                         startIcon={
+//                             state.isLoading ? (
+//                                 <CircularProgress size={20} color="inherit" />
+//                             ) : (
+//                                 <PlayArrowIcon />
+//                             )
+//                         }
+//                         onClick={handleGenerateDocument}
+//                         disabled={state.isLoading}
+//                         size="large"
+//                     >
+//                         {state.isLoading ? 'Đang xử lý...' : 'Tạo và Tải tài liệu'}
+//                     </Button>
+//                 </Paper>
+//             )}
+//             {/* Error Display */}
+//             {state.error && (
+//                 <Alert severity="error" sx={{ mt: 2 }}>
+//                     {state.error}
+//                 </Alert>
+//             )}
+//         </Box>
+//     );
+// }
+// // --- TanStack Router Export ---
+// export const Route = createLazyFileRoute('/word-mapper/')({
+//     component: WordMapperComponent
+// });
+// import React, { useCallback, useRef, useState } from 'react';
+// import { saveAs } from 'file-saver';
+// import PizZip from 'pizzip';
+// import { PlayArrow as PlayArrowIcon, Upload as UploadIcon } from '@mui/icons-material';
+// // --- Material UI Imports ---
+// import {
+//     Alert,
+//     Box,
+//     Button,
+//     Chip,
+//     CircularProgress,
+//     Paper,
+//     TextField,
+//     Typography
+// } from '@mui/material';
+// import { createLazyFileRoute } from '@tanstack/react-router';
+// // --- State và Type Definitions ---
+// interface DocumentState {
+//     file: File | null;
+//     isLoading: boolean;
+//     error: string | null;
+//     jsonData: string;
+// }
+// // --- Logic xử lý chính ---
+// const fieldMappings = {
+//     ho_ten: [
+//         'Họ và tên',
+//         'Họ, chữ đệm, tên',
+//         'Họ tên',
+//         'Họ, chữ đệm, tên người yêu cầu',
+//         'Tên(2)',
+//         'Tên'
+//     ],
+//     ngay_sinh: ['Ngày, tháng, năm sinh', 'Sinh ngày', 'Ngày sinh', 'Năm sinh'],
+//     so_cccd: [
+//         'Số CCCD',
+//         'CCCD',
+//         'Căn cước công dân',
+//         'Số căn cước',
+//         'Số căn cước công dân',
+//         'Số CMND hoặc căn cước công dân',
+//         'Số CMND/CCCD/Hộ chiếu/TCC'
+//     ],
+//     noi_cu_tru: [
+//         'Nơi cư trú',
+//         'Địa chỉ cư trú',
+//         'Chỗ ở hiện tại',
+//         'Nơi ở hiện nay',
+//         'Địa chỉ(2)',
+//         'Địa chỉ'
+//     ],
+//     ngay_cap_cccd: ['Ngày cấp CCCD', 'Ngày cấp', 'Cấp ngày', 'Ngày cấp căn cước']
+// };
+// /**
+//  * Xử lý file Word bằng cách tìm và thay thế ở cấp độ đoạn văn (ĐÃ TỐI ƯU VÀ SỬA LỖI).
+//  * @param file File .docx người dùng tải lên.
+//  * @param jsonData Đối tượng JSON chứa dữ liệu để điền.
+//  */
+// const processDocumentByParagraph = async (file: File, jsonData: { [key: string]: any }) => {
+//     const arrayBuffer = await file.arrayBuffer();
+//     const zip = new PizZip(arrayBuffer);
+//     const docXml = zip.file('word/document.xml');
+//     if (!docXml)
+//         throw new Error('File docx không hợp lệ hoặc bị hỏng (không tìm thấy word/document.xml).');
+//     const xmlString = docXml.asText();
+//     const parser = new DOMParser();
+//     const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
+//     const paragraphs = xmlDoc.getElementsByTagName('w:p');
+//     let replacementsMade = 0;
+//     for (let i = 0; i < paragraphs.length; i++) {
+//         const p = paragraphs[i];
+//         const textNodes = p.getElementsByTagName('w:t');
+//         let fullText = '';
+//         for (let j = 0; j < textNodes.length; j++) {
+//             fullText += textNodes[j].textContent;
+//         }
+//         let newText = fullText;
+//         let hasBeenModified = false;
+//         // Xử lý nhiều lần thay thế trên cùng một đoạn văn
+//         for (const [jsonKey, labels] of Object.entries(fieldMappings)) {
+//             if (jsonData[jsonKey]) {
+//                 for (const label of labels) {
+//                     const escapedLabel = label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+//                     const regex = new RegExp(`(${escapedLabel}:[\\s]*)([._…\\s]*)`, 'g');
+//                     if (regex.test(newText)) {
+//                         newText = newText.replace(regex, `$1${jsonData[jsonKey]}`);
+//                         hasBeenModified = true;
+//                     }
+//                 }
+//             }
+//         }
+//         // Nếu đoạn văn đã được sửa đổi, cập nhật lại nội dung XML
+//         if (hasBeenModified) {
+//             replacementsMade++;
+//             // SỬA LỖI "NHẢY DÒNG": Giữ lại thuộc tính định dạng của đoạn văn (<w:pPr>)
+//             const pPr = p.getElementsByTagName('w:pPr')[0];
+//             // Xóa tất cả nội dung cũ
+//             while (p.firstChild) {
+//                 p.removeChild(p.firstChild);
+//             }
+//             // Thêm lại thuộc tính định dạng đã lưu
+//             if (pPr) {
+//                 p.appendChild(pPr);
+//             }
+//             // Tạo và thêm nội dung text mới
+//             const newRun = xmlDoc.createElementNS(
+//                 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+//                 'w:r'
+//             );
+//             const newTextNode = xmlDoc.createElementNS(
+//                 'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+//                 'w:t'
+//             );
+//             newTextNode.textContent = newText;
+//             const spaceAttr = xmlDoc.createAttribute('xml:space');
+//             spaceAttr.value = 'preserve';
+//             newTextNode.setAttributeNode(spaceAttr);
+//             newRun.appendChild(newTextNode);
+//             p.appendChild(newRun);
+//             console.log(`Đã cập nhật đoạn văn: "${newText}"`);
+//         }
+//     }
+//     if (replacementsMade === 0) {
+//         throw new Error(
+//             'Không tìm thấy trường nào để thay thế. File có thể có cấu trúc phức tạp hoặc không chứa các nhãn cần tìm.'
+//         );
+//     }
+//     const serializer = new XMLSerializer();
+//     const newXmlString = serializer.serializeToString(xmlDoc);
+//     zip.file('word/document.xml', newXmlString);
+//     const out = zip.generate({ type: 'blob' });
+//     saveAs(out, `processed_${file.name}`);
+// };
+// // --- React Component ---
+// function WordMapperComponent() {
+//     const [state, setState] = useState<DocumentState>({
+//         file: null,
+//         isLoading: false,
+//         error: null,
+//         jsonData: JSON.stringify(
+//             {
+//                 ho_ten: 'Nguyễn Văn A',
+//                 ngay_sinh: '01/01/1990',
+//                 so_cccd: '123456789012',
+//                 noi_cu_tru: '123 Đường ABC, Quận 1, TP.HCM',
+//                 ngay_cap_cccd: '15/05/2020'
+//             },
+//             null,
+//             2
+//         )
+//     });
+//     const fileInputRef = useRef<HTMLInputElement>(null);
+//     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+//         const file = event.target.files?.[0];
+//         if (!file) return;
+//         if (file.name.toLowerCase().endsWith('.doc')) {
+//             setState(prev => ({
+//                 ...prev,
+//                 error: 'File .doc không được hỗ trợ trực tiếp. Vui lòng chuyển đổi sang .docx trước khi tải lên.'
+//             }));
+//             return;
+//         }
+//         if (!file.name.toLowerCase().endsWith('.docx')) {
+//             setState(prev => ({ ...prev, error: 'Chỉ hỗ trợ file .docx' }));
+//             return;
+//         }
+//         setState(prev => ({ ...prev, file: file, error: null }));
+//     }, []);
+//     const handleJsonDataChange = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
+//         setState(prev => ({ ...prev, jsonData: event.target.value }));
+//     }, []);
+//     const handleGenerateDocument = async () => {
+//         if (!state.file) {
+//             setState(prev => ({ ...prev, error: 'Vui lòng tải lên một file Word trước.' }));
+//             return;
+//         }
+//         setState(prev => ({ ...prev, isLoading: true, error: null }));
+//         try {
+//             const jsonData = JSON.parse(state.jsonData);
+//             await processDocumentByParagraph(state.file, jsonData);
+//         } catch (error) {
+//             const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+//             setState(prev => ({ ...prev, error: errorMessage }));
+//             console.error(error);
+//         } finally {
+//             setState(prev => ({ ...prev, isLoading: false }));
+//         }
+//     };
+//     return (
+//         <Box sx={{ p: 3, maxWidth: 800, margin: 'auto' }}>
+//             <Typography variant="h4" gutterBottom>
+//                 Word Document Filler
+//             </Typography>
+//             <Typography variant="body1" color="textSecondary" sx={{ mb: 3 }}>
+//                 Tải lên file .docx và điền dữ liệu từ JSON mà không cần sửa đổi file mẫu.
+//             </Typography>
+//             {/* Upload Section */}
+//             <Paper sx={{ p: 3, mb: 3 }}>
+//                 <Typography variant="h6" gutterBottom>
+//                     Bước 1: Tải lên file Word (.docx)
+//                 </Typography>
+//                 <input
+//                     type="file"
+//                     ref={fileInputRef}
+//                     onChange={handleFileUpload}
+//                     accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+//                     style={{ display: 'none' }}
+//                 />
+//                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+//                     <Button
+//                         variant="contained"
+//                         startIcon={<UploadIcon />}
+//                         onClick={() => fileInputRef.current?.click()}
+//                     >
+//                         Chọn File
+//                     </Button>
+//                     {state.file && (
+//                         <Chip
+//                             label={state.file.name}
+//                             color="success"
+//                             variant="outlined"
+//                             onDelete={() => setState(p => ({ ...p, file: null }))}
+//                         />
+//                     )}
+//                 </Box>
+//             </Paper>
+//             {/* JSON Data & Generate Section */}
+//             {state.file && (
+//                 <Paper sx={{ p: 3, mb: 3 }}>
+//                     <Typography variant="h6" gutterBottom>
+//                         Bước 2: Cung cấp dữ liệu JSON
+//                     </Typography>
+//                     <TextField
+//                         label="JSON Data"
+//                         multiline
+//                         rows={10}
+//                         fullWidth
+//                         value={state.jsonData}
+//                         onChange={handleJsonDataChange}
+//                         placeholder="Enter JSON data here..."
+//                         sx={{ fontFamily: 'monospace', mb: 2 }}
+//                     />
+//                     <Button
+//                         variant="contained"
+//                         startIcon={
+//                             state.isLoading ? (
+//                                 <CircularProgress size={20} color="inherit" />
+//                             ) : (
+//                                 <PlayArrowIcon />
+//                             )
+//                         }
+//                         onClick={handleGenerateDocument}
+//                         disabled={state.isLoading}
+//                         size="large"
+//                     >
+//                         {state.isLoading ? 'Đang xử lý...' : 'Tạo và Tải tài liệu'}
+//                     </Button>
+//                 </Paper>
+//             )}
+//             {/* Error Display */}
+//             {state.error && (
+//                 <Alert severity="error" sx={{ mt: 2 }}>
+//                     {state.error}
+//                 </Alert>
+//             )}
+//         </Box>
+//     );
+// }
+// // --- TanStack Router Export ---
+// export const Route = createLazyFileRoute('/word-mapper/')({
+//     component: WordMapperComponent
+// });
 import React, { useCallback, useRef, useState } from 'react';
 
 import { saveAs } from 'file-saver';
 import PizZip from 'pizzip';
 
 import { PlayArrow as PlayArrowIcon, Upload as UploadIcon } from '@mui/icons-material';
-// --- Material UI Imports (bạn có thể thay thế bằng thư viện UI khác) ---
+// --- Material UI Imports ---
 import {
     Alert,
     Box,
@@ -607,29 +1147,46 @@ interface DocumentState {
 }
 
 // --- Logic xử lý chính ---
-
-// Chuyển field_mappings của bạn sang dạng JavaScript
+// Thêm các key riêng cho ngày, tháng, năm
 const fieldMappings = {
+    ho_ten: [
+        'Họ và tên',
+        'Họ, chữ đệm, tên',
+        'Họ tên',
+        'Họ, chữ đệm, tên người yêu cầu',
+        'Tên(2)',
+        'Tên'
+    ],
+    ngay_sinh_full: ['Ngày, tháng, năm sinh', 'Ngày sinh'], // Dùng cho trường hợp điền cả cụm
     so_cccd: [
         'Số CCCD',
         'CCCD',
         'Căn cước công dân',
         'Số căn cước',
         'Số căn cước công dân',
-        'Số CMND hoặc căn cước công dân'
+        'Số CMND hoặc căn cước công dân',
+        'Số CMND/CCCD/Hộ chiếu/TCC'
     ],
-    so_cmnd: ['Số CMND', 'CMND', 'Chứng minh nhân dân', 'Số chứng minh', 'Số chứng minh nhân dân'],
-    ho_ten: ['Họ và tên', 'Họ, chữ đệm, tên', 'Họ tên', 'Họ, chữ đệm, tên người yêu cầu', 'Tên'],
-    gioi_tinh: ['Giới tính', 'Phái', 'Nam/Nữ'],
-    ngay_sinh: ['Ngày sinh', 'Ngày, tháng, năm sinh', 'Sinh ngày', 'Năm sinh'],
-    noi_cu_tru: ['Nơi cư trú', 'Địa chỉ cư trú', 'Chỗ ở hiện tại', 'Địa chỉ'],
-    ngay_cap_cccd: ['Ngày cấp CCCD', 'Ngày cấp', 'Cấp ngày', 'Ngày cấp căn cước']
+    noi_cu_tru: [
+        'Nơi cư trú',
+        'Địa chỉ cư trú',
+        'Chỗ ở hiện tại',
+        'Nơi ở hiện nay',
+        'Địa chỉ(2)',
+        'Địa chỉ'
+    ],
+    ngay_cap_cccd: ['Ngày cấp CCCD', 'Ngày cấp', 'Cấp ngày', 'Ngày cấp căn cước'],
+    gioi_tinh: ['Giới tính'],
+    // Các key mới để xử lý ngày tháng tách rời
+    ngay: ['Sinh ngày', 'ngày'],
+    thang: ['tháng'],
+    nam: ['năm']
 };
 
 /**
- * Xử lý file Word bằng cách tìm và thay thế ở cấp độ đoạn văn.
+ * Xử lý file Word bằng cách tìm và thay thế ở cấp độ đoạn văn (ĐÃ TỐI ƯU VÀ SỬA LỖI).
  * @param file File .docx người dùng tải lên.
- * @param jsonData Đối tượng JSON chứa dữ liệu để điền.
+ * @param jsonData Đối tượng JSON chứa dữ liệu đã được tách ngày/tháng/năm.
  */
 const processDocumentByParagraph = async (file: File, jsonData: { [key: string]: any }) => {
     const arrayBuffer = await file.arrayBuffer();
@@ -639,7 +1196,7 @@ const processDocumentByParagraph = async (file: File, jsonData: { [key: string]:
     if (!docXml)
         throw new Error('File docx không hợp lệ hoặc bị hỏng (không tìm thấy word/document.xml).');
 
-    const xmlString = await docXml.async('string');
+    const xmlString = docXml.asText();
     const parser = new DOMParser();
     const xmlDoc = parser.parseFromString(xmlString, 'application/xml');
 
@@ -655,48 +1212,61 @@ const processDocumentByParagraph = async (file: File, jsonData: { [key: string]:
             fullText += textNodes[j].textContent;
         }
 
-        let paragraphModified = false;
+        let newText = fullText;
+        let hasBeenModified = false;
+
         for (const [jsonKey, labels] of Object.entries(fieldMappings)) {
             if (jsonData[jsonKey]) {
                 for (const label of labels) {
-                    if (fullText.includes(label + ':')) {
-                        const originalText = fullText;
-                        const newText = originalText.replace(
-                            new RegExp(`(${label}:\\s*).*`, 'i'),
-                            `$1${jsonData[jsonKey]}`
-                        );
+                    // TỐI ƯU REGEX: Tìm label (có hoặc không có dấu hai chấm) theo sau bởi các ký tự placeholder.
+                    const escapedLabel = label.replace(/[-\/\\^$*+?.()|[\]{}]/g, '\\$&');
+                    const regex = new RegExp(`(${escapedLabel}:?)([._…\\s]{2,})`, 'g');
 
-                        if (newText !== originalText) {
-                            while (p.firstChild) {
-                                p.removeChild(p.firstChild);
-                            }
-
-                            const newRun = xmlDoc.createElementNS(
-                                'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
-                                'w:r'
-                            );
-                            const newTextNode = xmlDoc.createElementNS(
-                                'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
-                                'w:t'
-                            );
-                            newTextNode.textContent = newText;
-
-                            const spaceAttr = xmlDoc.createAttribute('xml:space');
-                            spaceAttr.value = 'preserve';
-                            newTextNode.setAttributeNode(spaceAttr);
-
-                            newRun.appendChild(newTextNode);
-                            p.appendChild(newRun);
-
-                            replacementsMade++;
-                            console.log(`Thay thế trong đoạn văn: "${label}" -> "${newText}"`);
-                            paragraphModified = true;
-                            break;
-                        }
+                    if (regex.test(newText)) {
+                        newText = newText.replace(regex, `$1 ${jsonData[jsonKey]}`);
+                        hasBeenModified = true;
                     }
                 }
             }
-            if (paragraphModified) break;
+        }
+
+        if (hasBeenModified) {
+            replacementsMade++;
+
+            const pPr = p.getElementsByTagName('w:pPr')[0];
+            const firstRun = p.getElementsByTagName('w:r')[0];
+            const rPr = firstRun ? firstRun.getElementsByTagName('w:rPr')[0] : null;
+
+            while (p.firstChild) {
+                p.removeChild(p.firstChild);
+            }
+
+            if (pPr) {
+                p.appendChild(pPr.cloneNode(true));
+            }
+
+            const newRun = xmlDoc.createElementNS(
+                'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+                'w:r'
+            );
+
+            if (rPr) {
+                newRun.appendChild(rPr.cloneNode(true));
+            }
+
+            const newTextNode = xmlDoc.createElementNS(
+                'http://schemas.openxmlformats.org/wordprocessingml/2006/main',
+                'w:t'
+            );
+            newTextNode.textContent = newText;
+
+            const spaceAttr = xmlDoc.createAttribute('xml:space');
+            spaceAttr.value = 'preserve';
+            newTextNode.setAttributeNode(spaceAttr);
+
+            newRun.appendChild(newTextNode);
+            p.appendChild(newRun);
+            console.log(`Đã cập nhật đoạn văn: "${newText}"`);
         }
     }
 
@@ -723,9 +1293,13 @@ function WordMapperComponent() {
         jsonData: JSON.stringify(
             {
                 ho_ten: 'Nguyễn Văn A',
-                ngay_sinh: '01/01/1990',
+                ngay: '01',
+                thang: '01',
+                nam: '2001',
                 so_cccd: '123456789012',
-                noi_cu_tru: '123 Đường ABC, Quận 1, TP.HCM'
+                noi_cu_tru: '123 Đường ABC, Quận 1, TP.HCM',
+                ngay_cap_cccd: '15/05/2020',
+                gioi_tinh: 'Nam'
             },
             null,
             2
@@ -737,6 +1311,14 @@ function WordMapperComponent() {
     const handleFileUpload = useCallback((event: React.ChangeEvent<HTMLInputElement>) => {
         const file = event.target.files?.[0];
         if (!file) return;
+
+        if (file.name.toLowerCase().endsWith('.doc')) {
+            setState(prev => ({
+                ...prev,
+                error: 'File .doc không được hỗ trợ trực tiếp. Vui lòng chuyển đổi sang .docx trước khi tải lên.'
+            }));
+            return;
+        }
 
         if (!file.name.toLowerCase().endsWith('.docx')) {
             setState(prev => ({ ...prev, error: 'Chỉ hỗ trợ file .docx' }));
@@ -759,8 +1341,22 @@ function WordMapperComponent() {
         setState(prev => ({ ...prev, isLoading: true, error: null }));
 
         try {
-            const jsonData = JSON.parse(state.jsonData);
-            await processDocumentByParagraph(state.file, jsonData);
+            const parsedJson = JSON.parse(state.jsonData);
+
+            // TÁCH DỮ LIỆU NGÀY THÁNG NĂM TẠI ĐÂY
+            const augmentedData = { ...parsedJson };
+            if (parsedJson.ngay_sinh && typeof parsedJson.ngay_sinh === 'string') {
+                const dateParts = parsedJson.ngay_sinh.split('/');
+                if (dateParts.length === 3) {
+                    augmentedData.ngay = dateParts[0];
+                    augmentedData.thang = dateParts[1];
+                    augmentedData.nam = dateParts[2];
+                }
+                // Thêm một key mới để điền cả cụm nếu cần
+                augmentedData.ngay_sinh_full = parsedJson.ngay_sinh;
+            }
+
+            await processDocumentByParagraph(state.file, augmentedData);
         } catch (error) {
             const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
             setState(prev => ({ ...prev, error: errorMessage }));
@@ -855,7 +1451,6 @@ function WordMapperComponent() {
 }
 
 // --- TanStack Router Export ---
-// Giả sử route của bạn là '/word-mapper'. Hãy thay đổi cho phù hợp.
 export const Route = createLazyFileRoute('/word-mapper/')({
     component: WordMapperComponent
 });
