@@ -66,7 +66,6 @@ function Extension(): ReactElement {
             <Typography variant="h4" sx={{ fontWeight: 600, mb: 3 }}>
                 Extension Management
             </Typography>
-
             <Grid container spacing={3}>
                 {/* Extension Status */}
                 <Grid size={{ xs: 12, md: 6 }}>
@@ -89,7 +88,6 @@ function Extension(): ReactElement {
                                         {extensionInfo.name}
                                     </Typography>
                                 </Box>
-
                                 <Box
                                     sx={{
                                         display: 'flex',
@@ -102,7 +100,6 @@ function Extension(): ReactElement {
                                         {extensionInfo.version}
                                     </Typography>
                                 </Box>
-
                                 <Box
                                     sx={{
                                         display: 'flex',
