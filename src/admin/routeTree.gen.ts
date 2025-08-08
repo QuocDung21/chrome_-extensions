@@ -12,6 +12,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 
+const WordViewerIndexLazyRouteImport = createFileRoute('/word-viewer/')()
 const WordMapperIndexLazyRouteImport = createFileRoute('/word-mapper/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
 const ServicesIndexLazyRouteImport = createFileRoute('/services/')()
@@ -25,6 +26,13 @@ const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 const AdminProceduresIndexLazyRouteImport =
   createFileRoute('/admin-procedures/')()
 
+const WordViewerIndexLazyRoute = WordViewerIndexLazyRouteImport.update({
+  id: '/word-viewer/',
+  path: '/word-viewer/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/word-viewer/index.lazy').then((d) => d.Route),
+)
 const WordMapperIndexLazyRoute = WordMapperIndexLazyRouteImport.update({
   id: '/word-mapper/',
   path: '/word-mapper/',
@@ -110,6 +118,7 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/word-mapper': typeof WordMapperIndexLazyRoute
+  '/word-viewer': typeof WordViewerIndexLazyRoute
 }
 export interface FileRoutesByTo {
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
@@ -123,6 +132,7 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/word-mapper': typeof WordMapperIndexLazyRoute
+  '/word-viewer': typeof WordViewerIndexLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -137,6 +147,7 @@ export interface FileRoutesById {
   '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
   '/word-mapper/': typeof WordMapperIndexLazyRoute
+  '/word-viewer/': typeof WordViewerIndexLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -152,6 +163,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/word-mapper'
+    | '/word-viewer'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin-procedures'
@@ -165,6 +177,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/word-mapper'
+    | '/word-viewer'
   id:
     | '__root__'
     | '/admin-procedures/'
@@ -178,6 +191,7 @@ export interface FileRouteTypes {
     | '/services/'
     | '/settings/'
     | '/word-mapper/'
+    | '/word-viewer/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -192,10 +206,18 @@ export interface RootRouteChildren {
   ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
   WordMapperIndexLazyRoute: typeof WordMapperIndexLazyRoute
+  WordViewerIndexLazyRoute: typeof WordViewerIndexLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/word-viewer/': {
+      id: '/word-viewer/'
+      path: '/word-viewer'
+      fullPath: '/word-viewer'
+      preLoaderRoute: typeof WordViewerIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/word-mapper/': {
       id: '/word-mapper/'
       path: '/word-mapper'
@@ -288,6 +310,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
   WordMapperIndexLazyRoute: WordMapperIndexLazyRoute,
+  WordViewerIndexLazyRoute: WordViewerIndexLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

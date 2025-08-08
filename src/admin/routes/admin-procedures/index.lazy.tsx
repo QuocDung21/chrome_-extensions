@@ -206,6 +206,7 @@ function AdminProcedures(): ReactElement {
                         }}
                     />
                 </Grid>
+
                 <Grid size={{ xs: 12, md: 4 }}>
                     <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                         <Chip
