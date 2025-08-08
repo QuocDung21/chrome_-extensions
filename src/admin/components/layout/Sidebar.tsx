@@ -13,7 +13,8 @@ import {
     AppRegistration as RegisterIcon,
     RoomService as ServiceIcon,
     CloudUpload as UploadIcon,
-    EditNote as WordMapperIcon
+    EditNote as WordMapperIcon,
+    Description as WordViewerIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -72,6 +73,12 @@ const scanningItems: NavigationItem[] = [
         icon: <WordMapperIcon />,
         path: '/word-mapper',
         badge: 'NEW'
+    },
+    {
+        id: 'word-viewer',
+        label: 'Xem Word',
+        icon: <WordViewerIcon />,
+        path: '/word-viewer'
     }
 ];
 
