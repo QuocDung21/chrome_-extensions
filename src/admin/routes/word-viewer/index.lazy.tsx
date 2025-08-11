@@ -8,12 +8,16 @@ import {
     Button,
     Card,
     CardContent,
+    Chip,
     Divider,
     FormControl,
+    FormControlLabel,
     Grid,
     InputLabel,
     MenuItem,
     Paper,
+    Radio,
+    RadioGroup,
     Select,
     TextField,
     Typography
@@ -84,6 +88,15 @@ function WordViewer(): React.ReactElement {
     const [isGeneratingDocx, setIsGeneratingDocx] = useState<boolean>(false);
     const [isFillingDocxWithMapping, setIsFillingDocxWithMapping] = useState<boolean>(false);
 
+    // HTML mode states
+    const [htmlMode, setHtmlMode] = useState<'insert' | 'edit'>('insert');
+    const [htmlRaw, setHtmlRaw] = useState<string>('');
+    const [htmlFilled, setHtmlFilled] = useState<string>('');
+    const [htmlPlaceholders, setHtmlPlaceholders] = useState<string[]>([]);
+    const htmlTextareaRef = useRef<HTMLTextAreaElement | null>(null);
+    const [htmlCaret, setHtmlCaret] = useState<number>(0);
+    const htmlIframeRef = useRef<HTMLIFrameElement | null>(null);
+
     // Helpers to normalize dates
     const ensureDmy = (s: string): string => {
         if (!s) return '';
@@ -137,6 +150,17 @@ function WordViewer(): React.ReactElement {
             isMounted = false;
         };
     }, []);
+
+    // Extract placeholders from HTML whenever htmlRaw changes
+    useEffect(() => {
+        const placeholders = new Set<string>();
+        const regex = /\{([a-zA-Z0-9_]+)\}/g;
+        let match: RegExpExecArray | null;
+        while ((match = regex.exec(htmlRaw)) !== null) {
+            placeholders.add(match[1]);
+        }
+        setHtmlPlaceholders(Array.from(placeholders));
+    }, [htmlRaw]);
 
     const templatePath = useMemo(() => {
         return selectedTemplate ? `/templates/${selectedTemplate}` : '';
@@ -376,6 +400,183 @@ function WordViewer(): React.ReactElement {
             setIsFillingDocxWithMapping(false);
         }
     };
+
+    // Helpers for HTML mode
+    const fillHtmlWithData = (html: string, data: Record<string, any>): string => {
+        return html.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key: string) => {
+            const value = data[key];
+            return value === undefined || value === null ? '' : String(value);
+        });
+    };
+
+    const handleUploadHtmlFile = async (file: File) => {
+        try {
+            const text = await file.text();
+            setHtmlRaw(text);
+        } catch (e) {
+            setError('Không thể đọc tệp HTML');
+        }
+    };
+
+    const handleFillHtmlNow = async () => {
+        try {
+            const base = overrideData || (await documentService.getExtensionData());
+            const filled = fillHtmlWithData(htmlRaw, base || {});
+            setHtmlFilled(filled);
+        } catch (e) {
+            setError('Không thể chèn dữ liệu vào HTML');
+        }
+    };
+
+    const handleDownloadFilledHtml = () => {
+        const blob = new Blob([htmlFilled || htmlRaw], { type: 'text/html;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'tai_lieu.html';
+        a.click();
+        URL.revokeObjectURL(url);
+    };
+
+    const handlePrintHtml = () => {
+        const iframe = htmlIframeRef.current;
+        // Prefer printing exact preview DOM (includes any drag-dropped placeholders)
+        const previewHtml = (() => {
+            try {
+                const doc = iframe?.contentDocument;
+                if (doc) return doc.documentElement.outerHTML;
+            } catch {}
+            return htmlFilled || htmlRaw || '';
+        })();
+
+        const printWindow = window.open('', '_blank');
+        if (!printWindow) return;
+        const htmlToPrint = previewHtml.startsWith('<!DOCTYPE')
+            ? previewHtml
+            : `<!DOCTYPE html><html><head><meta charset="utf-8"/><title>Print</title></head><body>${previewHtml}</body></html>`;
+        printWindow.document.open();
+        printWindow.document.write(htmlToPrint);
+        printWindow.document.close();
+        // Ensure styles render before printing
+        const trigger = () => {
+            try {
+                printWindow.focus();
+                printWindow.print();
+                printWindow.close();
+            } catch {}
+        };
+        // Some browsers need a small delay
+        if (printWindow.document.readyState === 'complete') {
+            setTimeout(trigger, 50);
+        } else {
+            printWindow.onload = () => setTimeout(trigger, 50);
+        }
+    };
+
+    // Drag-drop placeholder into HTML editor
+    const insertAtCaret = (text: string): void => {
+        const el = htmlTextareaRef.current;
+        if (!el) {
+            setHtmlRaw(prev => prev + text);
+            return;
+        }
+        const start = el.selectionStart ?? htmlCaret;
+        const end = el.selectionEnd ?? htmlCaret;
+        const newVal = htmlRaw.slice(0, start) + text + htmlRaw.slice(end);
+        setHtmlRaw(newVal);
+        requestAnimationFrame(() => {
+            const pos = start + text.length;
+            try {
+                el.selectionStart = pos;
+                el.selectionEnd = pos;
+                el.focus();
+            } catch {}
+        });
+    };
+    const handleEditorDrop = (e: React.DragEvent<HTMLTextAreaElement>) => {
+        e.preventDefault();
+        const text = e.dataTransfer.getData('text/plain');
+        if (text) insertAtCaret(text);
+    };
+    const handleEditorDragOver = (e: React.DragEvent<HTMLTextAreaElement>) => {
+        e.preventDefault();
+    };
+    const handleEditorSelect = (e: React.SyntheticEvent<HTMLTextAreaElement>) => {
+        const target = e.target as HTMLTextAreaElement;
+        setHtmlCaret(target.selectionStart || 0);
+    };
+
+    // Enable drag-drop into HTML preview (iframe)
+    const attachPreviewDndHandlers = React.useCallback(() => {
+        const iframe = htmlIframeRef.current;
+        if (!iframe) return;
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+
+        try {
+            // Make preview editable to position caret
+            if (doc.body) doc.body.setAttribute('contenteditable', 'true');
+        } catch {}
+
+        const handleDragOver = (ev: DragEvent) => {
+            ev.preventDefault();
+        };
+        const handleDrop = (ev: DragEvent) => {
+            ev.preventDefault();
+            const text = ev.dataTransfer?.getData('text/plain');
+            if (!text) return;
+
+            const x = ev.clientX;
+            const y = ev.clientY;
+            let range: Range | null = null;
+            const anyDoc = doc as any;
+            if (typeof anyDoc.caretRangeFromPoint === 'function') {
+                range = anyDoc.caretRangeFromPoint(x, y);
+            } else if (typeof (doc as any).caretPositionFromPoint === 'function') {
+                const pos = (doc as any).caretPositionFromPoint(x, y);
+                if (pos) {
+                    range = doc.createRange();
+                    range.setStart(pos.offsetNode, pos.offset);
+                    range.collapse(true);
+                }
+            }
+            if (!range) {
+                const el = doc.elementFromPoint(x, y) || doc.body;
+                if (el) {
+                    range = doc.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                }
+            }
+            if (!range) return;
+
+            const node = doc.createTextNode(text);
+            range.insertNode(node);
+            // Move caret after inserted text
+            try {
+                range.setStartAfter(node);
+                range.collapse(true);
+                const sel = iframe.contentWindow?.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+            } catch {}
+
+            // Sync back to editor source
+            const fullHtml = doc.documentElement?.outerHTML || '';
+            const bodyHtml = doc.body?.innerHTML || '';
+            const next = htmlRaw.trim().startsWith('<') ? fullHtml : bodyHtml;
+            setHtmlRaw(next || bodyHtml);
+            setHtmlFilled('');
+        };
+
+        doc.addEventListener('dragover', handleDragOver);
+        doc.addEventListener('drop', handleDrop);
+
+        return () => {
+            doc.removeEventListener('dragover', handleDragOver);
+            doc.removeEventListener('drop', handleDrop);
+        };
+    }, [htmlRaw]);
 
     return (
         <Box sx={{ p: 2 }}>
@@ -640,6 +841,191 @@ function WordViewer(): React.ReactElement {
                     )}
                 </Box>
             )}
+
+            {/* HTML mode with {field} */}
+            <Box sx={{ mt: 4 }}>
+                <Typography variant="h6" gutterBottom>
+                    Chế độ HTML với {`{field}`}
+                </Typography>
+                <Card sx={{ mb: 2 }}>
+                    <CardContent>
+                        <Grid container spacing={2}>
+                            <Grid size={{ xs: 12, md: 8 }}>
+                                <RadioGroup
+                                    row
+                                    value={htmlMode}
+                                    onChange={(_, v) =>
+                                        setHtmlMode((v as 'insert' | 'edit') || 'insert')
+                                    }
+                                >
+                                    <FormControlLabel
+                                        value="insert"
+                                        control={<Radio />}
+                                        label="Chèn thẳng vào"
+                                    />
+                                    <FormControlLabel
+                                        value="edit"
+                                        control={<Radio />}
+                                        label="Sửa {field} trong HTML"
+                                    />
+                                </RadioGroup>
+                            </Grid>
+                            <Grid
+                                size={{ xs: 12, md: 4 }}
+                                sx={{
+                                    display: 'flex',
+                                    gap: 1,
+                                    justifyContent: { xs: 'flex-start', md: 'flex-end' }
+                                }}
+                            >
+                                <Button variant="outlined" component="label">
+                                    Tải tệp HTML
+                                    <input
+                                        hidden
+                                        type="file"
+                                        accept="text/html,.html,.htm"
+                                        onChange={e => {
+                                            const f = e.target.files?.[0];
+                                            if (f) void handleUploadHtmlFile(f);
+                                        }}
+                                    />
+                                </Button>
+                                <Button
+                                    variant="contained"
+                                    onClick={() => void handleFillHtmlNow()}
+                                    disabled={!htmlRaw}
+                                >
+                                    {htmlMode === 'insert' ? 'Chèn thẳng' : 'Replay điền dữ liệu'}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    onClick={handleDownloadFilledHtml}
+                                    disabled={!htmlRaw}
+                                >
+                                    Tải HTML
+                                </Button>
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                                <Grid container spacing={2}>
+                                    <Grid size={{ xs: 12, md: 3 }}>
+                                        <Typography variant="subtitle2" gutterBottom>
+                                            Kéo thả placeholders
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                            {[
+                                                'ho_ten',
+                                                'ngay_sinh',
+                                                'gioi_tinh',
+                                                'noi_cu_tru',
+                                                'so_cccd',
+                                                'so_cmnd',
+                                                'ngay_cap',
+                                                'ns_ngay',
+                                                'ns_thang',
+                                                'ns_nam',
+                                                'nc_ngay',
+                                                'nc_thang',
+                                                'nc_nam'
+                                            ].map(k => (
+                                                <Chip
+                                                    key={k}
+                                                    size="small"
+                                                    label={`{${k}}`}
+                                                    draggable
+                                                    onDragStart={e =>
+                                                        e.dataTransfer.setData(
+                                                            'text/plain',
+                                                            `{${k}}`
+                                                        )
+                                                    }
+                                                />
+                                            ))}
+                                        </Box>
+                                        {htmlPlaceholders.length > 0 && (
+                                            <>
+                                                <Divider sx={{ my: 1 }} />
+                                                <Typography variant="subtitle2" gutterBottom>
+                                                    Đã phát hiện trong HTML
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        gap: 1,
+                                                        flexWrap: 'wrap'
+                                                    }}
+                                                >
+                                                    {htmlPlaceholders.map(ph => (
+                                                        <Chip
+                                                            key={ph}
+                                                            size="small"
+                                                            label={`{${ph}}`}
+                                                        />
+                                                    ))}
+                                                </Box>
+                                            </>
+                                        )}
+                                    </Grid>
+                                    <Grid size={{ xs: 12, md: 9 }}>
+                                        <TextField
+                                            inputRef={el => (htmlTextareaRef.current = el)}
+                                            label="HTML nguồn (sử dụng placeholders dạng {field})"
+                                            value={htmlRaw}
+                                            onChange={e => setHtmlRaw(e.target.value)}
+                                            onSelect={
+                                                handleEditorSelect as unknown as React.ReactEventHandler<HTMLDivElement>
+                                            }
+                                            onDrop={
+                                                handleEditorDrop as unknown as React.DragEventHandler<HTMLDivElement>
+                                            }
+                                            onDragOver={
+                                                handleEditorDragOver as unknown as React.DragEventHandler<HTMLDivElement>
+                                            }
+                                            fullWidth
+                                            multiline
+                                            minRows={12}
+                                        />
+                                    </Grid>
+                                </Grid>
+                            </Grid>
+                            <Grid size={{ xs: 12 }}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        mt: 2,
+                                        mb: 1
+                                    }}
+                                >
+                                    <Typography variant="subtitle1" gutterBottom sx={{ m: 0 }}>
+                                        Preview
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={handlePrintHtml}
+                                        disabled={!htmlRaw && !htmlFilled}
+                                    >
+                                        In
+                                    </Button>
+                                </Box>
+                                <Paper variant="outlined" sx={{ p: 1, bgcolor: 'grey.50' }}>
+                                    <iframe
+                                        ref={htmlIframeRef}
+                                        title="html-preview"
+                                        sandbox="allow-same-origin"
+                                        style={{ width: '100%', minHeight: '50vh', border: 'none' }}
+                                        srcDoc={htmlFilled || htmlRaw}
+                                        onLoad={() => {
+                                            // re-attach DnD after content changes
+                                            attachPreviewDndHandlers();
+                                        }}
+                                    />
+                                </Paper>
+                            </Grid>
+                        </Grid>
+                    </CardContent>
+                </Card>
+            </Box>
         </Box>
     );
 }
