@@ -9,7 +9,8 @@
         "check-types": "tsc --noEmit",
         "format": "prettier --config prettier.config.js --write .",
         "watch": "vite build --watch",
-        "build": "vite build"
+    "build": "vite build",
+    "organize:templates": "node ./scripts/organize-templates-by-code.mjs"
     },
     "dependencies": {
         "@emotion/react": "^11.14.0",

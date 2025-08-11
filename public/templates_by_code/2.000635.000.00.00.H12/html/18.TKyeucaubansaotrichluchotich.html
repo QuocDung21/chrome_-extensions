@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tờ khai Cấp bản sao Trích lục Hộ tịch</title>
+    <style>
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14pt;
+            line-height: 1.5;
+            color: #000;
+            background-color: #f5f5f5;
+            margin: 0;
+            padding: 20px;
+        }
+        .container {
+            max-width: 800px;
+            margin: 20px auto;
+            padding: 30px 40px;
+            background-color: #fff;
+            border: 1px solid #dcdcdc;
+            box-shadow: 0 0 15px rgba(0,0,0,0.1);
+        }
+        .header, .title {
+            text-align: center;
+            font-weight: bold;
+        }
+        .header {
+            margin-bottom: 20px;
+        }
+        .header .republic {
+            font-size: 1.1em;
+        }
+        .header .motto {
+            border-bottom: 1px solid #000;
+            display: inline-block;
+            padding-bottom: 5px;
+        }
+        .title h1 {
+            font-size: 1.5em;
+            margin-top: 30px;
+            margin-bottom: 15px;
+        }
+        .kinh-gui {
+            text-align: center;
+            font-weight: bold;
+            margin-bottom: 25px;
+        }
+        .form-section {
+            margin-top: 15px;
+        }
+        .form-group {
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .form-group label {
+            font-weight: normal;
+            margin-right: 10px;
+            flex-shrink: 0;
+        }
+        .input-field {
+            flex-grow: 1;
+            border: none;
+            border-bottom: 1px dotted #000;
+            padding: 2px 5px;
+            font-family: inherit;
+            font-size: inherit;
+            min-width: 100px; /* Ensure inputs don't become too small */
+        }
+        .input-field:focus {
+            outline: none;
+            border-bottom: 1px solid #000;
+        }
+        .cam-doan {
+            font-style: italic;
+            text-align: left;
+            margin-top: 25px;
+        }
+        .footer {
+            margin-top: 25px;
+            display: flex;
+            justify-content: flex-end;
+        }
+        .signature-section {
+            text-align: center;
+            width: 45%;
+        }
+        .signature-section .label {
+            font-weight: bold;
+        }
+        .signature-section .guidance {
+            font-style: italic;
+            font-size: 0.9em;
+        }
+        .notes-section {
+            margin-top: 30px;
+            padding-top: 15px;
+            border-top: 1px solid #000;
+            font-size: 0.9em;
+            font-style: italic;
+        }
+        .notes-section h3 {
+            font-weight: bold;
+            font-style: normal;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="republic">CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
+            <div class="motto">Độc lập - Tự do - Hạnh phúc</div>
+        </div>
+
+        <div class="title">
+            <h1>TỜ KHAI CẤP BẢN SAO TRÍCH LỤC HỘ TỊCH</h1>
+        </div>
+
+        <div class="kinh-gui">
+            Kính gửi: (1)
+            <input type="text" class="input-field" style="width: 60%; text-align: center;">
+        </div>
+
+        <div class="form-section">
+            <p><strong>Họ, chữ đệm, tên người yêu cầu:</strong> <input type="text" class="input-field"></p>
+            <p><strong>Ngày, tháng, năm sinh:</strong> <input type="text" class="input-field"></p>
+            <p><strong>Nơi cư trú:</strong> (2) <input type="text" class="input-field"></p>
+            <p><strong>Giấy tờ tùy thân:</strong> (3) <input type="text" class="input-field"></p>
+            <p><strong>Quan hệ với người được cấp bản sao Trích lục hộ tịch:</strong> <input type="text" class="input-field"></p>
+        </div>
+
+        <div class="form-section">
+            <div class="form-group">
+                <label><strong>Đề nghị cơ quan cấp bản sao trích lục</strong>(4)</label>
+                <input type="text" class="input-field">
+                <label>cho người có tên dưới đây:</label>
+            </div>
+            <p><strong>Họ, chữ đệm, tên:</strong> <input type="text" class="input-field"></p>
+            <p><strong>Ngày, tháng, năm sinh:</strong> <input type="text" class="input-field"></p>
+            <div class="form-group">
+                <label><strong>Giới tính:</strong> (2)</label><input type="text" class="input-field" style="flex-grow:0.5;">
+                <label><strong>Dân tộc:</strong> (2)</label><input type="text" class="input-field" style="flex-grow:0.5; margin-left: 10px;">
+                <label><strong>Quốc tịch:</strong> (2)</label><input type="text" class="input-field" style="flex-grow:0.5; margin-left: 10px;">
+            </div>
+            <p><strong>Nơi cư trú:</strong> (2) <input type="text" class="input-field"></p>
+            <p><strong>Giấy tờ tùy thân:</strong> (3) <input type="text" class="input-field"></p>
+            <p><strong>Đã đăng ký tại:</strong> (5) <input type="text" class="input-field"></p>
+            <div class="form-group">
+                <label>ngày</label><input type="text" class="input-field" style="width: 40px; text-align: center; min-width: 40px;">
+                <label>tháng</label><input type="text" class="input-field" style="width: 40px; text-align: center; min-width: 40px;">
+                <label>năm</label><input type="text" class="input-field" style="width: 60px; text-align: center; min-width: 60px;">
+                <label>số</label><input type="text" class="input-field" style="width: 100px; min-width: 100px;">
+                <label>Quyển số:</label><input type="text" class="input-field" style="width: 100px; min-width: 100px;">
+            </div>
+            <p><strong>Thông tin khác:</strong> (6) <input type="text" class="input-field"></p>
+        </div>
+
+        <div class="form-section">
+            <p><strong>Số lượng bản sao yêu cầu cấp:</strong> <input type="text" class="input-field" value="01" style="width: 50px; text-align: center;"> bản(7).</p>
+        </div>
+
+        <p class="cam-doan">Tôi cam đoan những nội dung khai trên đây là đúng sự thật và chịu trách nhiệm trước pháp luật về cam đoan của mình.</p>
+
+        <div class="footer">
+            <div class="signature-section">
+                <p>Làm tại: <input type="text" class="input-field" style="width:100px">, ngày <input type="text" class="input-field" style="width:30px"> tháng <input type="text" class="input-field" style="width:30px"> năm <input type="text" class="input-field" style="width:60px"></p>
+                <p class="label">Người yêu cầu</p>
+                <p class="guidance">(ký và ghi rõ họ, chữ đệm, tên)</p>
+                <br><br><br>
+            </div>
+        </div>
+
+        <div class="notes-section">
+            <h3>Chú thích:</h3>
+            <p>(1) Ghi tên cơ quan đề nghị thực hiện việc cấp bản sao Trích lục hộ tịch.</p>
+            <p>(2) Chỉ ghi trong trường hợp người có yêu cầu đăng ký hộ tịch chưa có/không cung cấp số định danh cá nhân/căn cước công dân/thẻ căn cước/căn cước điện tử. Trường hợp phải cung cấp thông tin “Nơi cư trú” thì ghi theo nơi đăng ký thường trú; nếu không có nơi đăng ký thường trú thì ghi theo nơi đăng ký tạm trú; trường hợp không có nơi đăng ký thường trú và nơi đăng ký tạm trú thì ghi theo nơi ở hiện tại.</p>
+            <p>(3) Ghi số định danh cá nhân/căn cước công dân/thẻ căn cước/căn cước điện tử (ví dụ: Căn cước công dân số 025188001010 do Cục Cảnh sát QLHC về TTXH cấp ngày 20/11/2021). Trường hợp không có số định danh cá nhân/căn cước công dân/thẻ căn cước/căn cước điện tử thì ghi giấy tờ hợp lệ thay thế (hộ chiếu...).</p>
+            <p>(4) Ghi rõ loại việc hộ tịch đã đăng ký trước đây, nay đề nghị cấp bản sao Trích lục hộ tịch.</p>
+            <p>(5) Ghi rõ tên cơ quan đã đăng ký hộ tịch trước đây. Ví dụ: Ủy ban nhân dân phường A, thành phố B hoặc Sở Tư pháp tỉnh A.</p>
+            <p>(6) Trường hợp người yêu cầu không cung cấp được thông tin tại mục (5) thì cung cấp bổ sung thông tin khác để phục vụ việc tra cứu. Ví dụ: Cung cấp thông tin về cha, mẹ để phục vụ việc cấp bản sao Giấy khai sinh; cung cấp thông tin về vợ, chồng để phục vụ việc cấp bản sao Trích lục kết hôn;...</p>
+            <p>(7) Ghi rõ số lượng bản sao đề nghị cấp.</p>
+        </div>
+    </div>
+</body>
+</html>
