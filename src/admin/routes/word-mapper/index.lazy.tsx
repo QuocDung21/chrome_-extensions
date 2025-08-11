@@ -2208,7 +2208,15 @@ function WordFillerComponent() {
                 state.uploadedTemplateName || `${displayTemplateName}.docx`
             ).replace(/\s+/g, '_');
             const fileName = /\.docx$/i.test(safeNameBase) ? safeNameBase : `${safeNameBase}.docx`;
-            const saveRes = await fetch('/api/save-custom-template', {
+            // Resolve API URL (absolute when running from extension/file origin)
+            const isSpecialOrigin =
+                typeof location !== 'undefined' &&
+                (location.protocol === 'chrome-extension:' || location.protocol === 'file:');
+            const apiUrl = isSpecialOrigin
+                ? `http://localhost:5173/api/save-custom-template`
+                : `/api/save-custom-template`;
+
+            const saveRes = await fetch(apiUrl, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code, fileName, fileBase64: base64 })
