@@ -9,21 +9,29 @@ import { Socket, io } from 'socket.io-client';
 
 // --- ICON ---
 import {
+    Badge as BadgeIcon,
+    CalendarToday as CalendarTodayIcon,
     CheckCircle as CheckCircleIcon,
     ContentCopy as ContentCopyIcon,
     Download as DownloadIcon,
     Edit as EditIcon,
     Error as ErrorIcon,
+    EventAvailable as EventAvailableIcon,
+    Event as EventIcon,
     ExpandMore as ExpandMoreIcon,
     GetApp as GetAppIcon,
+    Home as HomeIcon,
     HourglassTop as HourglassTopIcon,
     Info as InfoIcon,
+    Person as PersonIcon,
     Print as PrintIcon,
     RestartAlt as RestartAltIcon,
     Upload as UploadIcon,
     Warning as WarningIcon,
+    Wc as WcIcon,
     Wifi as WifiIcon
-} from '@mui/icons-material';
+ } from '@mui/icons-material';
+import SaveIcon from '@mui/icons-material/Save';
 import {
     Alert,
     Box,
@@ -42,6 +50,7 @@ import {
     Paper,
     Select,
     Snackbar,
+    TextField,
     ToggleButton,
     ToggleButtonGroup,
     Tooltip,
@@ -67,6 +76,7 @@ const SOCKET_RECONNECT_DELAY = 3000;
 // --- TYPE DEFINITIONS ---
 interface DocumentState {
     selectedTemplatePath: string;
+    selectedHtmlUrl?: string | null;
     isLoading: boolean;
     error: string | null;
     socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
@@ -274,7 +284,7 @@ const detectDataFormat = (data: string): DataFormat => {
 
 // Hàm chuyển đổi ScannedInfo sang ProcessingData
 const convertScannedInfoToProcessingData = (scannedInfo: ScannedInfo): ProcessingData => {
-    return {
+    const result: ProcessingData = {
         // Định dạng camelCase
         cccd: scannedInfo.cccd,
         cmnd: scannedInfo.cmnd,
@@ -301,6 +311,43 @@ const convertScannedInfoToProcessingData = (scannedInfo: ScannedInfo): Processin
         noi_cu_tru: scannedInfo.diaChi,
         ngay_thang_nam_cap: scannedInfo.ngayCap
     };
+
+    // Chuẩn hóa số giấy tờ theo tên khóa yêu cầu
+    result.so_cccd = result.so_cccd || scannedInfo.cccd || '';
+    result.so_cmnd = result.so_cmnd || scannedInfo.cmnd || '';
+    result.ho_ten = result.ho_ten || scannedInfo.hoTen || '';
+    result.gioi_tinh = result.gioi_tinh || scannedInfo.gioiTinh || '';
+    result.noi_cu_tru = result.noi_cu_tru || scannedInfo.diaChi || '';
+    result.ngay_sinh = result.ngay_sinh || scannedInfo.ngaySinh || '';
+    result.ngay_cap = result.ngay_cap || scannedInfo.ngayCap || '';
+
+    // Tách ngày/tháng/năm cho ngày sinh và ngày cấp (ns_* và nc_*)
+    const splitDate = (value?: string): [string, string, string] => {
+        if (!value) return ['', '', ''];
+        const parts = String(value)
+            .split(/[\/-]/)
+            .map(s => s.trim());
+        if (parts.length === 3) {
+            // Allow both dd/mm/yyyy or yyyy-mm-dd; pick likely day-first by checking length
+            if (parts[0].length <= 2 && parts[1].length <= 2) {
+                return [parts[0], parts[1], parts[2]] as [string, string, string];
+            }
+            return [parts[2], parts[1], parts[0]] as [string, string, string];
+        }
+        return ['', '', ''];
+    };
+
+    const [ns_d, ns_m, ns_y] = splitDate(result.ngay_sinh);
+    result.ns_ngay = ns_d;
+    result.ns_thang = ns_m;
+    result.ns_nam = ns_y;
+
+    const [nc_d, nc_m, nc_y] = splitDate(result.ngay_cap);
+    result.nc_ngay = nc_d;
+    result.nc_thang = nc_m;
+    result.nc_nam = nc_y;
+
+    return result;
 };
 
 // Hàm xử lý dữ liệu thông minh
@@ -587,6 +634,15 @@ const formatFileSize = (bytes: number): string => {
     return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
 };
 
+// Fill HTML placeholders {field}
+const fillHtmlWithData = (html: string, data: Record<string, any>): string => {
+    if (!html) return '';
+    return html.replace(/\{([a-zA-Z0-9_]+)\}/g, (_, key: string) => {
+        const val = (data as any)[key];
+        return val === undefined || val === null ? '' : String(val);
+    });
+};
+
 // Parse CSV data
 const parseCSVLine = (line: string): string[] => {
     const result: string[] = [];
@@ -657,6 +713,44 @@ const parseCSVData = (csvContent: string): TTHCRecord[] => {
     return records;
 };
 
+// Parse JSON data (converted from CSV)
+const parseJSONData = (jsonArray: any[]): TTHCRecord[] => {
+    if (!Array.isArray(jsonArray)) return [];
+
+    const records: TTHCRecord[] = jsonArray
+        .map(item => {
+            const record: TTHCRecord = {
+                stt: item['STT'] !== undefined && item['STT'] !== null ? String(item['STT']) : '',
+                maTTHC: item['Mã TTHC'] ?? '',
+                tenTTHC: item['Tên TTHC'] ?? '',
+                qdCongBo: item['QĐ Công bố'] ?? '',
+                doiTuong: item['Đối tượng'] ?? '',
+                linhVuc: item['Lĩnh vực'] ?? '',
+                coQuanCongKhai: item['Cơ quan công khai'] ?? '',
+                capThucHien: item['Cấp thực hiện'] ?? '',
+                tinhTrang: item['Tình trạng'] ?? '',
+                tenGiayTo: item['Tên giấy tờ'] ?? '',
+                mauDon: item['Mẫu đơn, tờ khai'] ?? '',
+                tenFile: item['Tên File'] ?? ''
+            } as TTHCRecord;
+
+            // Normalize all fields to string
+            (Object.keys(record) as Array<keyof TTHCRecord>).forEach(key => {
+                (record as any)[key] = record[key] ? String(record[key]) : '';
+            });
+
+            return record;
+        })
+        // Keep only rows that have a doc template reference
+        .filter(
+            r =>
+                (r.tenFile && r.tenFile.toLowerCase().includes('.doc')) ||
+                (r.mauDon && r.mauDon.toLowerCase().includes('.doc'))
+        );
+
+    return records;
+};
+
 const extractTemplateName = (fullPath: string): string => {
     if (!fullPath || !fullPath.includes('/')) return '';
     const parts = fullPath.split('/');
@@ -695,71 +789,41 @@ const createFilterOptions = (records: TTHCRecord[]): FilterOptions => {
     };
 };
 
-// Load available template files
-const loadAvailableTemplates = async (): Promise<string[]> => {
+// Helpers to work with templates_by_code structure
+const sanitizeCodeForPath = (code: string): string => (code || '').replace(/[\\/]/g, '_').trim();
+
+const buildDocxUrlForRecord = (record: TTHCRecord): string => {
+    const code = sanitizeCodeForPath(record.maTTHC);
+    const templateName = record.tenFile || extractTemplateName(record.mauDon);
+    const encodedCode = encodeURIComponent(code);
+    const encodedName = encodeURIComponent(templateName);
+    return `/templates_by_code/${encodedCode}/docx/${encodedName}`;
+};
+
+const buildHtmlUrlForRecord = (record: TTHCRecord): string => {
+    const code = sanitizeCodeForPath(record.maTTHC);
+    const templateName = record.tenFile || extractTemplateName(record.mauDon);
+    const base = templateName.replace(/\.(docx?|DOCX?)$/, '');
+    const encodedCode = encodeURIComponent(code);
+    const encodedHtml = encodeURIComponent(`${base}.html`);
+    return `/templates_by_code/${encodedCode}/html/${encodedHtml}`;
+};
+
+const checkTemplateExists = async (record: TTHCRecord): Promise<boolean> => {
     try {
-        // Updated list based on actual files in public/templates/ directory
-        const knownTemplates = [
-            '1.TKngkkhaisinh.docx',
-            '14. TK đăng ký lại khai sinh.docx',
-            '17.TKthaydoicaichinhbosunghotichxadinhlaidantoc.docx',
-            '18.TKyeucaubansaotrichluchotich.docx',
-            '19.TKcpGiyXNTTHN.docx',
-            '3.TKngkkhait.docx',
-            '6.TKngknhnCMC.docx',
-            'Mẫu số 02_84ND2020.docx',
-            'Mẫu số 03_84ND2020.docx',
-            'Mauso1hkdGiynghngkhkinhdoanh.docx',
-            'MAUSO21.docx',
-            'Mus01 ( xác định lại khuyết tật).docx',
-            'Mus01 (đề nghị hưởng trợ cấp hưu trí xã hội).docx',
-            'Mus01.docx',
-            'Mus02.docx',
-            'Mus04.docx',
-            'Mus1.docx',
-            'Mus15DKLD.docx',
-            'Mus1a.docx',
-            'Mus1b.docx',
-            'Mus1c.docx',
-            'Mus1d.docx',
-            'Phụ lục 03.docx'
-        ];
-
-        // Verify which templates actually exist by trying to fetch them
-        const availableTemplates: string[] = [];
-        for (const template of knownTemplates) {
-            try {
-                const response = await fetch(`/templates/${template}`, { method: 'HEAD' });
-                if (response.ok) {
-                    availableTemplates.push(template);
-                }
-            } catch (error) {
-                // Template doesn't exist, skip it
-                console.warn(`Template ${template} not found`);
-            }
-        }
-
-        return availableTemplates;
-    } catch (error) {
-        console.error('Error loading available templates:', error);
-        return [];
+        const url = buildDocxUrlForRecord(record);
+        const res = await fetch(url, { method: 'HEAD' });
+        return res.ok;
+    } catch {
+        return false;
     }
 };
 
-const enhanceRecordsWithAvailability = (
-    records: TTHCRecord[],
-    availableTemplates: string[]
-): EnhancedTTHCRecord[] => {
-    return records.map(record => {
-        // Use the new tenFile column directly instead of extracting from mauDon
-        const templateName = record.tenFile || extractTemplateName(record.mauDon);
-        const isTemplateAvailable = availableTemplates.includes(templateName);
-
-        return {
-            ...record,
-            isTemplateAvailable
-        };
-    });
+const enhanceRecordsWithAvailability = async (
+    records: TTHCRecord[]
+): Promise<EnhancedTTHCRecord[]> => {
+    const checks = await Promise.all(records.map(r => checkTemplateExists(r)));
+    return records.map((record, idx) => ({ ...record, isTemplateAvailable: checks[idx] }));
 };
 
 const filterRecords = (
@@ -795,6 +859,7 @@ const filterRecords = (
 function WordFillerComponent() {
     const [state, setState] = useState<DocumentState>({
         selectedTemplatePath: '',
+        selectedHtmlUrl: null,
         isLoading: false,
         error: null,
         socketStatus: 'disconnected',
@@ -839,8 +904,20 @@ function WordFillerComponent() {
     const inputRef = useRef<HTMLInputElement>(null);
 
     const previewContainerRef = useRef<HTMLDivElement>(null);
+    const htmlIframeRef = useRef<HTMLIFrameElement>(null);
+    const [htmlRaw, setHtmlRaw] = useState<string>('');
+    const [previewMode, setPreviewMode] = useState<'docx' | 'html'>('docx');
     const templatePathRef = useRef<string>('');
     const [showFieldGuide, setShowFieldGuide] = useState(false);
+    // Removed: HTML editor dialog state
+    const [isPreviewEditMode, setIsPreviewEditMode] = useState(false);
+    const isPreviewEditModeRef = useRef(false);
+    // Insert dialog state for HTML click-to-insert
+    const [insertDialogOpen, setInsertDialogOpen] = useState(false);
+    const [insertMode, setInsertMode] = useState<'field' | 'text'>('field');
+    const [insertText, setInsertText] = useState('');
+    const [insertFieldKey, setInsertFieldKey] = useState<string>('');
+    const htmlClickRangeRef = useRef<Range | null>(null);
 
     // Custom hooks
     const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(API_URL);
@@ -866,6 +943,71 @@ function WordFillerComponent() {
         }
         return selectedTemplateNameFromPath;
     }, [state.uploadedTemplateName, selectedTemplateNameFromPath]);
+
+    // Available field keys for insertion (union of common sets used in guide)
+    const availableFieldKeys = useMemo(
+        () => [
+            'so_cccd',
+            'so_cmnd',
+            'ho_ten',
+            'ngay_sinh',
+            'ns_ngay',
+            'ns_thang',
+            'ns_nam',
+            'gioi_tinh',
+            'noi_cu_tru',
+            'ngay_cap',
+            'nc_ngay',
+            'nc_thang',
+            'nc_nam'
+        ],
+        []
+    );
+
+    const fieldKeyDescriptions: Record<string, string> = useMemo(
+        () => ({
+            so_cccd: 'Số căn cước công dân',
+            so_cmnd: 'Số chứng minh nhân dân',
+            ho_ten: 'Họ và tên',
+            ngay_sinh: 'Ngày sinh (dd/mm/yyyy)',
+            ns_ngay: 'Ngày sinh - Ngày',
+            ns_thang: 'Ngày sinh - Tháng',
+            ns_nam: 'Ngày sinh - Năm',
+            gioi_tinh: 'Giới tính',
+            noi_cu_tru: 'Nơi cư trú',
+            ngay_cap: 'Ngày cấp (dd/mm/yyyy)',
+            nc_ngay: 'Ngày cấp - Ngày',
+            nc_thang: 'Ngày cấp - Tháng',
+            nc_nam: 'Ngày cấp - Năm'
+        }),
+        []
+    );
+
+    const fieldKeyIcons: Record<string, React.ReactNode> = useMemo(
+        () => ({
+            so_cccd: <BadgeIcon fontSize="small" />,
+            so_cmnd: <BadgeIcon fontSize="small" />,
+            ho_ten: <PersonIcon fontSize="small" />,
+            ngay_sinh: <EventIcon fontSize="small" />,
+            ns_ngay: <CalendarTodayIcon fontSize="small" />,
+            ns_thang: <CalendarTodayIcon fontSize="small" />,
+            ns_nam: <CalendarTodayIcon fontSize="small" />,
+            gioi_tinh: <WcIcon fontSize="small" />,
+            noi_cu_tru: <HomeIcon fontSize="small" />,
+            ngay_cap: <EventAvailableIcon fontSize="small" />,
+            nc_ngay: <CalendarTodayIcon fontSize="small" />,
+            nc_thang: <CalendarTodayIcon fontSize="small" />,
+            nc_nam: <CalendarTodayIcon fontSize="small" />
+        }),
+        []
+    );
+
+    useEffect(() => {
+        if (!insertFieldKey && availableFieldKeys.length > 0) {
+            setInsertFieldKey(availableFieldKeys[0]);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [availableFieldKeys.length]);
 
     // Get thủ tục options based on selected lĩnh vực
     const availableThuTuc = useMemo(() => {
@@ -943,31 +1085,44 @@ function WordFillerComponent() {
                 `Định dạng: ${detectedFormat?.name || 'Không xác định'} | Trường: ${Object.keys(processingData).join(', ')}`
             );
 
-            // Reset trạng thái trước khi tạo tài liệu mới
-            setState(prev => ({
-                ...prev,
-                error: null,
-                generatedBlob: null
-            }));
+            // Nếu đang ở chế độ HTML và đã có HTML nguồn, tiến hành chèn trực tiếp
+            if (previewMode === 'html' && htmlRaw) {
+                const filled = fillHtmlWithData(htmlRaw, processingData);
+                // Render filled HTML vào iframe
+                const iframe = htmlIframeRef.current;
+                if (iframe) {
+                    iframe.srcdoc = filled;
+                }
+                setSnackbar({
+                    open: true,
+                    message: 'Đã chèn dữ liệu vào HTML',
+                    severity: 'success'
+                });
+            } else {
+                // Reset trạng thái trước khi tạo tài liệu mới
+                setState(prev => ({
+                    ...prev,
+                    error: null,
+                    generatedBlob: null
+                }));
 
-            // Gọi hàm xử lý và tạo file Word
-            const blob = await processDocument(templatePathRef.current, processingData);
+                // Gọi hàm xử lý và tạo file Word
+                const blob = await processDocument(templatePathRef.current, processingData);
 
-            // Cập nhật state với file đã tạo
-            setState(prev => ({
-                ...prev,
-                generatedBlob: blob
-            }));
+                // Cập nhật state với file đã tạo
+                setState(prev => ({
+                    ...prev,
+                    generatedBlob: blob
+                }));
 
-            setSnackbar({
-                open: true,
-                message: `Đã điền thông tin từ ${state.dataSource === 'socket' ? 'app mobile' : 'máy quét QR'} và tạo tài liệu thành công!`,
-                severity: 'success'
-            });
+                setSnackbar({
+                    open: true,
+                    message: `Đã điền thông tin từ ${state.dataSource === 'socket' ? 'app mobile' : 'máy quét QR'} và tạo tài liệu thành công!`,
+                    severity: 'success'
+                });
+            }
 
-            // Reset dữ liệu đã xử lý
-            setProcessedData(null);
-            setDetectedFormat(null);
+            // Không reset processedData để có thể điền lại HTML nếu cần
         } catch (error) {
             const errorMessage =
                 error instanceof Error ? error.message : 'Lỗi không xác định khi xử lý dữ liệu.';
@@ -1009,27 +1164,24 @@ function WordFillerComponent() {
         } catch {}
     }, []);
 
-    // Load CSV data and templates on component mount
+    // Load JSON data and templates on component mount
     useEffect(() => {
         const loadData = async () => {
             setCsvLoading(true);
             try {
-                // Load CSV data and available templates in parallel
-                const [csvResponse, templates] = await Promise.all([
-                    fetch('/DanhSachTTHC.csv'),
-                    loadAvailableTemplates()
-                ]);
+                // Load JSON data
+                const jsonResponse = await fetch('/DanhSachTTHC.json');
 
-                if (!csvResponse.ok) {
-                    throw new Error('Không thể tải dữ liệu CSV');
+                if (!jsonResponse.ok) {
+                    throw new Error('Không thể tải dữ liệu JSON');
                 }
 
-                const csvContent = await csvResponse.text();
-                const rawRecords = parseCSVData(csvContent);
-                const enhancedRecords = enhanceRecordsWithAvailability(rawRecords, templates);
+                const jsonContent = await jsonResponse.json();
+                const rawRecords = parseJSONData(jsonContent);
+                const enhancedRecords = await enhanceRecordsWithAvailability(rawRecords);
 
                 setCsvRecords(enhancedRecords);
-                setAvailableTemplates(templates);
+                setAvailableTemplates([]);
                 setFilterOptions(createFilterOptions(rawRecords));
                 setFilteredRecords(enhancedRecords);
 
@@ -1078,15 +1230,17 @@ function WordFillerComponent() {
             if (!previewContainerRef.current) return;
 
             try {
-                previewContainerRef.current.innerHTML = '';
-                const response = await fetch(state.selectedTemplatePath);
-                if (!response.ok) {
-                    throw new Error('Không thể tải file mẫu để xem trước');
+                if (previewMode === 'docx') {
+                    previewContainerRef.current.innerHTML = '';
+                    const response = await fetch(state.selectedTemplatePath);
+                    if (!response.ok) {
+                        throw new Error('Không thể tải file mẫu để xem trước');
+                    }
+                    const templateBlob = await response.blob();
+                    await renderAsync(templateBlob, previewContainerRef.current, undefined, {
+                        className: 'docx-preview-container'
+                    });
                 }
-                const templateBlob = await response.blob();
-                await renderAsync(templateBlob, previewContainerRef.current, undefined, {
-                    className: 'docx-preview-container'
-                });
             } catch (err) {
                 console.error('Lỗi khi render preview mẫu:', err);
             }
@@ -1094,7 +1248,191 @@ function WordFillerComponent() {
 
         renderSelectedTemplate();
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedTemplatePath, state.generatedBlob]);
+    }, [state.selectedTemplatePath, state.generatedBlob, previewMode]);
+
+    // Load HTML preview when selectedHtmlUrl changes
+    useEffect(() => {
+        const loadHtml = async () => {
+            const url = state.selectedHtmlUrl;
+            if (!url) return;
+            try {
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('Không thể tải file HTML');
+                const text = await res.text();
+                setHtmlRaw(text);
+                setPreviewMode('html');
+            } catch (e) {
+                console.warn('Không thể tải HTML preview, fallback DOCX');
+                setHtmlRaw('');
+                setPreviewMode('docx');
+            }
+        };
+        loadHtml();
+    }, [state.selectedHtmlUrl]);
+
+    // Attach drag-drop and click handlers to HTML iframe to allow inserting {field} or text
+    const attachHtmlPreviewDndHandlers = useCallback(() => {
+        const iframe = htmlIframeRef.current;
+        if (!iframe) return;
+        const doc = iframe.contentDocument;
+        if (!doc) return;
+        try {
+            if (doc.body)
+                doc.body.setAttribute(
+                    'contenteditable',
+                    isPreviewEditModeRef.current ? 'true' : 'false'
+                );
+        } catch {}
+        const handleDragOver = (ev: DragEvent) => {
+            ev.preventDefault();
+        };
+        const handleDrop = (ev: DragEvent) => {
+            ev.preventDefault();
+            const text = ev.dataTransfer?.getData('text/plain');
+            if (!text) return;
+            const x = ev.clientX;
+            const y = ev.clientY;
+            let range: Range | null = null;
+            const anyDoc = doc as any;
+            try {
+                if (typeof anyDoc.caretRangeFromPoint === 'function') {
+                    range = anyDoc.caretRangeFromPoint(x, y);
+                } else if (typeof (doc as any).caretPositionFromPoint === 'function') {
+                    const pos = (doc as any).caretPositionFromPoint(x, y);
+                    if (pos) {
+                        range = doc.createRange();
+                        range.setStart(pos.offsetNode, pos.offset);
+                        range.collapse(true);
+                    }
+                }
+            } catch {}
+            if (!range) {
+                const el = doc.elementFromPoint(x, y) || doc.body;
+                if (el) {
+                    range = doc.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                }
+            }
+            if (!range) return;
+            const node = doc.createTextNode(text);
+            range.insertNode(node);
+            try {
+                range.setStartAfter(node);
+                range.collapse(true);
+                const sel = iframe.contentWindow?.getSelection();
+                sel?.removeAllRanges();
+                sel?.addRange(range);
+            } catch {}
+            // Persist back to state so the edit survives reloads
+            try {
+                setHtmlRaw(doc.documentElement.outerHTML);
+            } catch {}
+        };
+        const handleClick = (ev: MouseEvent) => {
+            if (isPreviewEditModeRef.current) {
+                return;
+            }
+            // Determine insertion point and open insert dialog
+            const x = (ev as MouseEvent).clientX;
+            const y = (ev as MouseEvent).clientY;
+            let range: Range | null = null;
+            const anyDoc = doc as any;
+            try {
+                if (typeof anyDoc.caretRangeFromPoint === 'function') {
+                    range = anyDoc.caretRangeFromPoint(x, y);
+                } else if (typeof (doc as any).caretPositionFromPoint === 'function') {
+                    const pos = (doc as any).caretPositionFromPoint(x, y);
+                    if (pos) {
+                        range = doc.createRange();
+                        range.setStart(pos.offsetNode, pos.offset);
+                        range.collapse(true);
+                    }
+                }
+            } catch {}
+            if (!range) {
+                const el = doc.elementFromPoint(x, y) || doc.body;
+                if (el) {
+                    range = doc.createRange();
+                    range.selectNodeContents(el);
+                    range.collapse(false);
+                }
+            }
+            if (range) {
+                htmlClickRangeRef.current = range;
+                setInsertDialogOpen(true);
+                ev.preventDefault();
+                ev.stopPropagation();
+            }
+        };
+        doc.addEventListener('dragover', handleDragOver);
+        doc.addEventListener('drop', handleDrop);
+        doc.addEventListener('click', handleClick, true);
+        return () => {
+            doc.removeEventListener('dragover', handleDragOver);
+            doc.removeEventListener('drop', handleDrop);
+            doc.removeEventListener('click', handleClick, true);
+        };
+    }, []);
+
+    useEffect(() => {
+        isPreviewEditModeRef.current = isPreviewEditMode;
+        const iframe = htmlIframeRef.current;
+        const doc = iframe?.contentDocument;
+        try {
+            if (doc?.body)
+                doc.body.setAttribute('contenteditable', isPreviewEditMode ? 'true' : 'false');
+        } catch {}
+    }, [isPreviewEditMode]);
+
+    const insertTextAtHtmlRange = useCallback((textToInsert: string) => {
+        const iframe = htmlIframeRef.current;
+        const doc = iframe?.contentDocument;
+        if (!iframe || !doc) return false;
+        let range = htmlClickRangeRef.current;
+        try {
+            if (!range) {
+                const sel = iframe.contentWindow?.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    range = sel.getRangeAt(0);
+                }
+            }
+        } catch {}
+        if (!range) return false;
+        const node = doc.createTextNode(textToInsert);
+        try {
+            range.insertNode(node);
+            range.setStartAfter(node);
+            range.collapse(true);
+            const sel = iframe.contentWindow?.getSelection();
+            sel?.removeAllRanges();
+            sel?.addRange(range);
+        } catch {
+            return false;
+        }
+        // Persist updated HTML
+        try {
+            setHtmlRaw(doc.documentElement.outerHTML);
+        } catch {}
+        return true;
+    }, []);
+
+    const handleConfirmInsert = useCallback(() => {
+        const content =
+            insertMode === 'field' ? (insertFieldKey ? `{${insertFieldKey}}` : '') : insertText;
+        if (!content) {
+            setInsertDialogOpen(false);
+            return;
+        }
+        insertTextAtHtmlRange(content);
+        setInsertDialogOpen(false);
+        setInsertText('');
+    }, [insertMode, insertFieldKey, insertText, insertTextAtHtmlRange]);
+
+    const handleCancelInsert = useCallback(() => {
+        setInsertDialogOpen(false);
+        setInsertText('');
+    }, []);
 
     // Socket event handlers
     useEffect(() => {
@@ -1188,12 +1526,14 @@ function WordFillerComponent() {
                 return;
             }
 
-            const templateName = record.tenFile || extractTemplateName(record.mauDon);
-            const templatePath = `/templates/${templateName}`;
+            // Build path from templates_by_code
+            const templatePath = buildDocxUrlForRecord(record);
+            const htmlUrl = buildHtmlUrlForRecord(record);
 
             setState(prev => ({
                 ...prev,
                 selectedTemplatePath: templatePath,
+                selectedHtmlUrl: htmlUrl,
                 generatedBlob: null,
                 error: null
             }));
@@ -1222,6 +1562,56 @@ function WordFillerComponent() {
             });
         }
     }, [state.generatedBlob, displayTemplateName]);
+
+    const handlePrintPreview = useCallback(() => {
+        if (previewMode === 'docx') {
+            // For DOCX, printing preview is misleading; prefer opening Word to print
+            handleOpenDocxForPrint();
+            return;
+        }
+        if (previewMode === 'html') {
+            const iframe = htmlIframeRef.current;
+            const doc = iframe?.contentDocument;
+            if (!doc) return;
+            const html = doc.documentElement.outerHTML;
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.open();
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    printWindow.print();
+                    printWindow.close();
+                }, 250);
+            }
+        }
+    }, [previewMode]);
+
+    const handleOpenDocxForPrint = useCallback(() => {
+        // If we already generated a DOCX, download/open that; else open the selected template
+        if (state.generatedBlob) {
+            const baseName = displayTemplateName || 'file';
+            const newName = `${baseName.replace(/\s/g, '_')}.docx`;
+            saveAs(state.generatedBlob, newName);
+            setSnackbar({
+                open: true,
+                message: 'Đang tải file Word. Vui lòng mở trong Word và in.',
+                severity: 'info'
+            });
+            return;
+        }
+        if (state.selectedTemplatePath) {
+            const absUrl = new URL(state.selectedTemplatePath, window.location.origin).href;
+            // Try to open the template URL in new tab (browser will download or open with associated app)
+            window.open(absUrl, '_blank');
+            setSnackbar({
+                open: true,
+                message: 'Đang mở/tải mẫu Word gốc. Vui lòng in từ Word.',
+                severity: 'info'
+            });
+        }
+    }, [state.generatedBlob, state.selectedTemplatePath, displayTemplateName]);
 
     const handlePrint = useCallback(() => {
         if (!previewContainerRef.current) return;
@@ -1777,6 +2167,60 @@ function WordFillerComponent() {
         </Card>
     );
 
+    // Helper: extract mã thủ tục (code) from current selection
+    const extractCurrentCode = useCallback((): string => {
+        const tryExtract = (url: string | null | undefined): string => {
+            if (!url) return '';
+            try {
+                const parts = url.split('/');
+                const idx = parts.indexOf('templates_by_code');
+                if (idx >= 0 && idx + 1 < parts.length) {
+                    return decodeURIComponent(parts[idx + 1] || '').trim();
+                }
+            } catch {}
+            return '';
+        };
+        // Prefer code from selectedTemplatePath; fallback to selectedHtmlUrl
+        const fromDocx = tryExtract(state.selectedTemplatePath);
+        if (fromDocx) return fromDocx;
+        const fromHtml = tryExtract(state.selectedHtmlUrl || undefined);
+        return fromHtml;
+    }, [state.selectedTemplatePath, state.selectedHtmlUrl]);
+
+    const handleSaveCustomTemplate = useCallback(async () => {
+        try {
+            const code = extractCurrentCode();
+            const templateUrl = state.uploadedTemplateUrl || state.selectedTemplatePath;
+            if (!templateUrl || !code) {
+                setSnackbar({
+                    open: true,
+                    message: 'Chưa xác định được mã thủ tục hoặc file mẫu',
+                    severity: 'warning'
+                });
+                return;
+            }
+            const res = await fetch(templateUrl);
+            if (!res.ok) throw new Error('Không thể tải file mẫu hiện tại');
+            const blob = await res.blob();
+            const arrayBuffer = await blob.arrayBuffer();
+            const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
+            const safeNameBase = (state.uploadedTemplateName || `${displayTemplateName}.docx`).replace(/\s+/g, '_');
+            const fileName = /\.docx$/i.test(safeNameBase) ? safeNameBase : `${safeNameBase}.docx`;
+            const saveRes = await fetch('/api/save-custom-template', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ code, fileName, fileBase64: base64 })
+            });
+            const json = await saveRes.json().catch(() => ({ success: false }));
+            if (!saveRes.ok || !json?.success) {
+                throw new Error(json?.error || 'Không thể lưu mẫu');
+            }
+            setSnackbar({ open: true, message: 'Đã lưu mẫu vào thư mục custom', severity: 'success' });
+        } catch (e: any) {
+            setSnackbar({ open: true, message: e?.message || 'Không thể lưu mẫu', severity: 'error' });
+        }
+    }, [displayTemplateName, extractCurrentCode, setSnackbar, state.selectedTemplatePath, state.uploadedTemplateName, state.uploadedTemplateUrl]);
+
     const renderActionButtons = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="body1" sx={{ mb: 1, textAlign: 'center' }}>
@@ -1798,6 +2242,16 @@ function WordFillerComponent() {
                         ({formatFileSize(state.generatedBlob.size)})
                     </Typography>
                 )}
+            </Button>
+            {/* Lưu mẫu đã chỉnh vào templates_by_code/<code>/custom */}
+            <Button
+                variant="contained"
+                color="success"
+                startIcon={<SaveIcon />}
+                onClick={() => void handleSaveCustomTemplate()}
+                fullWidth
+            >
+                Lưu mẫu (custom)
             </Button>
         </Box>
     );
@@ -1901,6 +2355,49 @@ function WordFillerComponent() {
                             {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
                         </Typography>
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <ToggleButtonGroup
+                                size="small"
+                                value={previewMode}
+                                exclusive
+                                onChange={(_, v) => v && setPreviewMode(v)}
+                            >
+                                <ToggleButton value="docx">DOCX</ToggleButton>
+                                <ToggleButton value="html" disabled={!htmlRaw}>
+                                    HTML
+                                </ToggleButton>
+                            </ToggleButtonGroup>
+                            {previewMode === 'html' && (
+                                <ToggleButtonGroup
+                                    size="small"
+                                    value={isPreviewEditMode ? 'edit' : 'view'}
+                                    exclusive
+                                    onChange={(_, v) => {
+                                        if (!v) return;
+                                        setIsPreviewEditMode(v === 'edit');
+                                    }}
+                                >
+                                    <ToggleButton value="view">Xem</ToggleButton>
+                                    <ToggleButton value="edit">Sửa trực tiếp</ToggleButton>
+                                </ToggleButtonGroup>
+                            )}
+                            {/* Removed Sửa HTML button */}
+                            {previewMode === 'docx' ? (
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<PrintIcon />}
+                                    onClick={handleOpenDocxForPrint}
+                                >
+                                    Mở/In Word
+                                </Button>
+                            ) : (
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<PrintIcon />}
+                                    onClick={handlePrintPreview}
+                                >
+                                    In HTML
+                                </Button>
+                            )}
                             <Button
                                 variant="outlined"
                                 color="info"
@@ -1960,7 +2457,21 @@ function WordFillerComponent() {
                             border: '1px solid #e0e0e0'
                         }}
                     >
-                        <div ref={previewContainerRef} className="docx-preview-container" />
+                        {previewMode === 'docx' && (
+                            <div ref={previewContainerRef} className="docx-preview-container" />
+                        )}
+                        {previewMode === 'html' && (
+                            <iframe
+                                ref={htmlIframeRef}
+                                title="html-preview"
+                                sandbox="allow-same-origin"
+                                style={{ width: '100%', minHeight: '70vh', border: 'none' }}
+                                srcDoc={htmlRaw}
+                                onLoad={() => {
+                                    attachHtmlPreviewDndHandlers();
+                                }}
+                            />
+                        )}
                     </Paper>
                 </Paper>
             ) : (
@@ -2188,6 +2699,115 @@ function WordFillerComponent() {
                 <DialogActions>
                     <Button onClick={() => setShowFieldGuide(false)} autoFocus>
                         Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Removed: Dialog Sửa HTML trực tiếp */}
+
+            {/* Dialog: Chèn nội dung vào HTML */}
+            <Dialog open={insertDialogOpen} onClose={handleCancelInsert} maxWidth="sm" fullWidth>
+                <DialogTitle>Chèn nội dung</DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ display: 'flex', gap: 2, mb: 2, alignItems: 'center' }}>
+                        <Typography variant="body2">Chế độ:</Typography>
+                        <ToggleButtonGroup
+                            size="small"
+                            exclusive
+                            value={insertMode}
+                            onChange={(_, v) => v && setInsertMode(v)}
+                        >
+                            <ToggleButton value="field">Chèn thẻ {`{field}`}</ToggleButton>
+                            <ToggleButton value="text">Nhập văn bản</ToggleButton>
+                        </ToggleButtonGroup>
+                    </Box>
+                    {insertMode === 'field' ? (
+                        <FormControl fullWidth size="small">
+                            <InputLabel id="insert-field-key-label">Chọn trường dữ liệu</InputLabel>
+                            <Select
+                                labelId="insert-field-key-label"
+                                label="Chọn trường dữ liệu"
+                                value={insertFieldKey}
+                                onChange={e => setInsertFieldKey(e.target.value as string)}
+                                MenuProps={{ PaperProps: { style: { maxHeight: 360 } } }}
+                                renderValue={selected => {
+                                    const key = selected as string;
+                                    const desc = fieldKeyDescriptions[key] || '';
+                                    return (
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ color: 'text.secondary' }}>
+                                                {fieldKeyIcons[key]}
+                                            </Box>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    lineHeight: 1.2
+                                                }}
+                                            >
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{ fontFamily: 'monospace' }}
+                                                >
+                                                    {key}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {desc}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    );
+                                }}
+                            >
+                                {availableFieldKeys.map(k => (
+                                    <MenuItem key={k} value={k}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <Box sx={{ color: 'text.secondary' }}>
+                                                {fieldKeyIcons[k]}
+                                            </Box>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'column',
+                                                    lineHeight: 1.2
+                                                }}
+                                            >
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{ fontFamily: 'monospace' }}
+                                                >
+                                                    {k}
+                                                </Typography>
+                                                <Typography
+                                                    variant="caption"
+                                                    color="text.secondary"
+                                                >
+                                                    {fieldKeyDescriptions[k] || ''}
+                                                </Typography>
+                                            </Box>
+                                        </Box>
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                    ) : (
+                        <TextField
+                            fullWidth
+                            size="small"
+                            label="Nội dung cần chèn"
+                            value={insertText}
+                            onChange={e => setInsertText(e.target.value)}
+                            placeholder="Nhập văn bản..."
+                        />
+                    )}
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleCancelInsert}>Hủy</Button>
+                    <Button onClick={handleConfirmInsert} variant="contained">
+                        Chèn
                     </Button>
                 </DialogActions>
             </Dialog>
