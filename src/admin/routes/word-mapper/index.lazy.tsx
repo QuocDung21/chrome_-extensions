@@ -30,7 +30,7 @@ import {
     Warning as WarningIcon,
     Wc as WcIcon,
     Wifi as WifiIcon
- } from '@mui/icons-material';
+} from '@mui/icons-material';
 import SaveIcon from '@mui/icons-material/Save';
 import {
     Alert,
@@ -2204,7 +2204,9 @@ function WordFillerComponent() {
             const blob = await res.blob();
             const arrayBuffer = await blob.arrayBuffer();
             const base64 = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
-            const safeNameBase = (state.uploadedTemplateName || `${displayTemplateName}.docx`).replace(/\s+/g, '_');
+            const safeNameBase = (
+                state.uploadedTemplateName || `${displayTemplateName}.docx`
+            ).replace(/\s+/g, '_');
             const fileName = /\.docx$/i.test(safeNameBase) ? safeNameBase : `${safeNameBase}.docx`;
             const saveRes = await fetch('/api/save-custom-template', {
                 method: 'POST',
@@ -2215,11 +2217,26 @@ function WordFillerComponent() {
             if (!saveRes.ok || !json?.success) {
                 throw new Error(json?.error || 'Không thể lưu mẫu');
             }
-            setSnackbar({ open: true, message: 'Đã lưu mẫu vào thư mục custom', severity: 'success' });
+            setSnackbar({
+                open: true,
+                message: 'Đã lưu mẫu vào thư mục custom',
+                severity: 'success'
+            });
         } catch (e: any) {
-            setSnackbar({ open: true, message: e?.message || 'Không thể lưu mẫu', severity: 'error' });
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Không thể lưu mẫu',
+                severity: 'error'
+            });
         }
-    }, [displayTemplateName, extractCurrentCode, setSnackbar, state.selectedTemplatePath, state.uploadedTemplateName, state.uploadedTemplateUrl]);
+    }, [
+        displayTemplateName,
+        extractCurrentCode,
+        setSnackbar,
+        state.selectedTemplatePath,
+        state.uploadedTemplateName,
+        state.uploadedTemplateUrl
+    ]);
 
     const renderActionButtons = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
@@ -2425,6 +2442,14 @@ function WordFillerComponent() {
                                         e.currentTarget.value = '';
                                     }}
                                 />
+                            </Button>
+                            <Button
+                                variant="contained"
+                                color="success"
+                                startIcon={<SaveIcon />}
+                                onClick={() => void handleSaveCustomTemplate()}
+                            >
+                                Lưu mẫu (custom)
                             </Button>
                             {state.generatedBlob && (
                                 <>
