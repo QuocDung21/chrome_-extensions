@@ -10,15 +10,19 @@ import { Socket, io } from 'socket.io-client';
 // --- ICON ---
 import {
     CheckCircle as CheckCircleIcon,
+    ContentCopy as ContentCopyIcon,
     Download as DownloadIcon,
+    Edit as EditIcon,
     Error as ErrorIcon,
+    ExpandMore as ExpandMoreIcon,
+    GetApp as GetAppIcon,
     HourglassTop as HourglassTopIcon,
     Info as InfoIcon,
     Print as PrintIcon,
     RestartAlt as RestartAltIcon,
+    Upload as UploadIcon,
     Warning as WarningIcon,
-    Wifi as WifiIcon,
-    WifiOff as WifiOffIcon
+    Wifi as WifiIcon
 } from '@mui/icons-material';
 import {
     Alert,
@@ -38,8 +42,20 @@ import {
     Paper,
     Select,
     Snackbar,
+    ToggleButton,
+    ToggleButtonGroup,
     Tooltip,
     Typography
+} from '@mui/material';
+import {
+    Accordion,
+    AccordionDetails,
+    AccordionSummary,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Tooltip as MuiTooltip
 } from '@mui/material';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
@@ -63,6 +79,8 @@ interface DocumentState {
         | 'complete';
     progress: number;
     dataSource: 'socket' | 'scanner'; // Thêm nguồn dữ liệu
+    uploadedTemplateUrl?: string | null;
+    uploadedTemplateName?: string | null;
 }
 
 interface ProcessingData {
@@ -783,7 +801,9 @@ function WordFillerComponent() {
         generatedBlob: null,
         processingStep: 'idle',
         progress: 0,
-        dataSource: 'scanner' // Mặc định là scanner
+        dataSource: 'scanner', // Mặc định là scanner
+        uploadedTemplateUrl: null,
+        uploadedTemplateName: null
     });
 
     const [snackbar, setSnackbar] = useState<{
@@ -820,6 +840,7 @@ function WordFillerComponent() {
 
     const previewContainerRef = useRef<HTMLDivElement>(null);
     const templatePathRef = useRef<string>('');
+    const [showFieldGuide, setShowFieldGuide] = useState(false);
 
     // Custom hooks
     const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(API_URL);
@@ -832,12 +853,19 @@ function WordFillerComponent() {
     );
 
     // Extract template name from path for display
-    const selectedTemplateName = useMemo(() => {
+    const selectedTemplateNameFromPath = useMemo(() => {
         if (!state.selectedTemplatePath) return '';
         const parts = state.selectedTemplatePath.split('/');
         const filename = parts[parts.length - 1];
-        return filename.replace(/\.(docx?|DOCX?)$/, ''); // Remove extension
+        return filename.replace(/\.(docx?|DOCX?)$/, '');
     }, [state.selectedTemplatePath]);
+
+    const displayTemplateName = useMemo(() => {
+        if (state.uploadedTemplateName) {
+            return state.uploadedTemplateName.replace(/\.(docx?|DOCX?)$/, '');
+        }
+        return selectedTemplateNameFromPath;
+    }, [state.uploadedTemplateName, selectedTemplateNameFromPath]);
 
     // Get thủ tục options based on selected lĩnh vực
     const availableThuTuc = useMemo(() => {
@@ -971,6 +999,16 @@ function WordFillerComponent() {
         }));
     }, [processingStep, progress, isProcessing]);
 
+    // Read preferred data source from localStorage (set in Info screen)
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('word_mapper_data_source');
+            if (saved === 'scanner' || saved === 'socket') {
+                setState(prev => ({ ...prev, dataSource: saved }));
+            }
+        } catch {}
+    }, []);
+
     // Load CSV data and templates on component mount
     useEffect(() => {
         const loadData = async () => {
@@ -1032,6 +1070,31 @@ function WordFillerComponent() {
             });
         }
     }, [state.generatedBlob]);
+
+    // Render selected template preview when a template is chosen (before generating document)
+    useEffect(() => {
+        const renderSelectedTemplate = async () => {
+            if (!state.selectedTemplatePath || state.generatedBlob) return;
+            if (!previewContainerRef.current) return;
+
+            try {
+                previewContainerRef.current.innerHTML = '';
+                const response = await fetch(state.selectedTemplatePath);
+                if (!response.ok) {
+                    throw new Error('Không thể tải file mẫu để xem trước');
+                }
+                const templateBlob = await response.blob();
+                await renderAsync(templateBlob, previewContainerRef.current, undefined, {
+                    className: 'docx-preview-container'
+                });
+            } catch (err) {
+                console.error('Lỗi khi render preview mẫu:', err);
+            }
+        };
+
+        renderSelectedTemplate();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [state.selectedTemplatePath, state.generatedBlob]);
 
     // Socket event handlers
     useEffect(() => {
@@ -1148,7 +1211,7 @@ function WordFillerComponent() {
 
     const handleDownload = useCallback(() => {
         if (state.generatedBlob) {
-            const baseName = selectedTemplateName || 'file';
+            const baseName = displayTemplateName || 'file';
             const newName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
             saveAs(state.generatedBlob, newName);
 
@@ -1158,7 +1221,7 @@ function WordFillerComponent() {
                 severity: 'success'
             });
         }
-    }, [state.generatedBlob, selectedTemplateName]);
+    }, [state.generatedBlob, displayTemplateName]);
 
     const handlePrint = useCallback(() => {
         if (!previewContainerRef.current) return;
@@ -1195,12 +1258,20 @@ function WordFillerComponent() {
     }, []);
 
     const handleReset = useCallback(() => {
+        // Cleanup uploaded blob URL if any
+        if (state.uploadedTemplateUrl) {
+            try {
+                URL.revokeObjectURL(state.uploadedTemplateUrl);
+            } catch {}
+        }
         setState(prev => ({
             ...prev,
             selectedTemplatePath: '',
             generatedBlob: null,
             error: null,
-            isLoading: false
+            isLoading: false,
+            uploadedTemplateUrl: null,
+            uploadedTemplateName: null
         }));
         resetProcessing();
 
@@ -1220,55 +1291,7 @@ function WordFillerComponent() {
     }, []);
 
     // Render helpers
-    const renderStatusChip = () => {
-        const getStatusColor = () => {
-            switch (socketStatus) {
-                case 'connected':
-                    return 'success';
-                case 'connecting':
-                    return 'warning';
-                case 'error':
-                    return 'error';
-                default:
-                    return 'default';
-            }
-        };
-
-        const getStatusIcon = () => {
-            switch (socketStatus) {
-                case 'connected':
-                    return <WifiIcon />;
-                case 'connecting':
-                    return <CircularProgress size={16} />;
-                case 'error':
-                    return <ErrorIcon />;
-                default:
-                    return <WifiOffIcon />;
-            }
-        };
-
-        const getStatusText = () => {
-            switch (socketStatus) {
-                case 'connected':
-                    return 'Đã kết nối';
-                case 'connecting':
-                    return 'Đang kết nối...';
-                case 'error':
-                    return `Lỗi kết nối (${reconnectAttempts}/${SOCKET_RECONNECT_ATTEMPTS})`;
-                default:
-                    return 'Đang chờ dữ liệu';
-            }
-        };
-
-        return (
-            <Chip
-                icon={getStatusIcon()}
-                label={getStatusText()}
-                color={getStatusColor()}
-                variant={socketStatus === 'error' ? 'outlined' : 'filled'}
-            />
-        );
-    };
+    // Đơn giản hóa: bỏ chip trạng thái socket
 
     const renderFilterControls = () => (
         <Card sx={{ mb: 3 }}>
@@ -1494,7 +1517,7 @@ function WordFillerComponent() {
                 Đang sử dụng mẫu:
             </Typography>
             <Chip
-                label={selectedTemplateName || ''}
+                label={displayTemplateName || ''}
                 color="info"
                 sx={{ p: 2, fontSize: '1rem', maxWidth: '100%' }}
             />
@@ -1577,10 +1600,6 @@ function WordFillerComponent() {
     const renderDataInputSection = () => (
         <Card sx={{ mb: 3 }}>
             <CardContent>
-                <Typography variant="h6" gutterBottom>
-                    Nhập dữ liệu
-                </Typography>
-
                 {state.dataSource === 'scanner' && (
                     <>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
@@ -1746,7 +1765,7 @@ function WordFillerComponent() {
                     <Box sx={{ textAlign: 'center', py: 3 }}>
                         <WifiIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
                         <Typography variant="body1" color="text.secondary">
-                            Đang chờ dữ liệu từ Socket App Mobile...
+                            Đang chờ dữ liệu App Mobile...
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                             Trạng thái:{' '}
@@ -1761,9 +1780,8 @@ function WordFillerComponent() {
     const renderActionButtons = () => (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
             <Typography variant="body1" sx={{ mb: 1, textAlign: 'center' }}>
-                Đã điền xong mẫu: <b>{selectedTemplateName}</b>
+                Đã điền xong mẫu: <b>{displayTemplateName}</b>
             </Typography>
-
             <Button variant="outlined" startIcon={<PrintIcon />} onClick={handlePrint} fullWidth>
                 In tài liệu
             </Button>
@@ -1784,9 +1802,58 @@ function WordFillerComponent() {
         </Box>
     );
 
+    // Download the currently selected template for user to customize
+    const handleDownloadOriginalTemplate = useCallback(async () => {
+        if (!state.selectedTemplatePath) return;
+        try {
+            const res = await fetch(state.selectedTemplatePath);
+            if (!res.ok) throw new Error('Không thể tải file mẫu');
+            const blob = await res.blob();
+            const baseName = (state.uploadedTemplateName || selectedTemplateNameFromPath || 'mau')
+                .replace(/\s/g, '_')
+                .replace(/\.(docx?|DOCX?)$/, '');
+            saveAs(blob, `${baseName}.docx`);
+        } catch (e) {
+            setSnackbar({ open: true, message: 'Không thể tải mẫu gốc', severity: 'error' });
+        }
+    }, [state.selectedTemplatePath, state.uploadedTemplateName, selectedTemplateNameFromPath]);
+
+    // Upload a customized template and use it immediately
+    const handleUploadCustomTemplate = useCallback(
+        (file: File) => {
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.docx')) {
+                setSnackbar({
+                    open: true,
+                    message: 'Vui lòng chọn file .docx',
+                    severity: 'warning'
+                });
+                return;
+            }
+            // Revoke old url if exists
+            if (state.uploadedTemplateUrl) {
+                try {
+                    URL.revokeObjectURL(state.uploadedTemplateUrl);
+                } catch {}
+            }
+            const url = URL.createObjectURL(file);
+            setState(prev => ({
+                ...prev,
+                uploadedTemplateUrl: url,
+                uploadedTemplateName: file.name,
+                selectedTemplatePath: url,
+                generatedBlob: null,
+                error: null
+            }));
+            resetProcessing();
+            setSnackbar({ open: true, message: 'Đã tải lên mẫu đã chỉnh', severity: 'success' });
+        },
+        [resetProcessing, state.uploadedTemplateUrl]
+    );
+
     return (
         <Box sx={{ p: 3, maxWidth: 1400, margin: 'auto' }}>
-            {/* Header với status */}
+            {/* Header gọn, hiển thị tên mẫu và nút chọn mẫu khác */}
             <Box
                 sx={{
                     display: 'flex',
@@ -1795,11 +1862,24 @@ function WordFillerComponent() {
                     mb: 3
                 }}
             >
-                {renderStatusChip()}
+                <Box />
+                {state.selectedTemplatePath && (
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <Chip label={displayTemplateName} color="info" />
+                        <Button
+                            variant="contained"
+                            color="primary"
+                            startIcon={<RestartAltIcon />}
+                            onClick={handleReset}
+                            disabled={isProcessing}
+                        >
+                            Chọn mẫu khác
+                        </Button>
+                    </Box>
+                )}
             </Box>
 
-            {/* Data Source Selector */}
-            {renderDataSourceSelector()}
+            {/* Data Source is configured in Info > Settings; read from localStorage */}
 
             {/* Data Input Section */}
             {state.selectedTemplatePath && renderDataInputSection()}
@@ -1807,75 +1887,310 @@ function WordFillerComponent() {
             {/* Filter Controls */}
             {!state.selectedTemplatePath && renderFilterControls()}
 
-            <Box
-                sx={{
-                    display: 'grid',
-                    gridTemplateColumns: state.generatedBlob ? { xs: '1fr', md: '1fr 1fr' } : '1fr',
-                    gap: 3
-                }}
-            >
+            {/* Preview section only, status panel removed for simpler UI */}
+            {state.selectedTemplatePath ? (
                 <Paper sx={{ p: 3, height: 'fit-content' }}>
-                    <Typography variant="h6" gutterBottom>
-                        {state.generatedBlob
-                            ? 'Hoàn tất'
-                            : state.selectedTemplatePath
-                              ? 'Trạng thái'
-                              : 'Chọn mẫu đơn'}
-                    </Typography>
-                    <Divider sx={{ mb: 3 }} />
-
-                    {!state.selectedTemplatePath && (
-                        <Box sx={{ textAlign: 'center', py: 4 }}>
-                            <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                                Chọn mẫu đơn từ danh sách thủ tục hành chính
-                            </Typography>
-                            <Typography variant="body2" color="text.secondary">
-                                Sử dụng bộ lọc ở trên để tìm và chọn mẫu đơn phù hợp
-                            </Typography>
-                        </Box>
-                    )}
-                    {state.selectedTemplatePath && (
-                        <Box>
-                            {!state.generatedBlob && renderProcessingStatus()}
-                            {state.generatedBlob && renderActionButtons()}
-
-                            <Divider sx={{ my: 2 }} />
-                            <Button
-                                variant="contained"
-                                color="primary"
-                                startIcon={<RestartAltIcon />}
-                                onClick={handleReset}
-                                fullWidth
-                                disabled={isProcessing}
-                            >
-                                Chọn mẫu khác
-                            </Button>
-                        </Box>
-                    )}
-                </Paper>
-
-                {/* Preview column */}
-                {state.generatedBlob && (
-                    <Paper sx={{ p: 3, height: 'fit-content' }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}
+                    >
                         <Typography variant="h6" gutterBottom>
-                            Xem trước tài liệu
+                            {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
                         </Typography>
-                        <Divider sx={{ mb: 2 }} />
-                        <Paper
-                            variant="outlined"
-                            sx={{
-                                p: 2,
-                                bgcolor: 'grey.50',
-                                minHeight: '70vh',
-                                overflowY: 'auto',
-                                border: '1px solid #e0e0e0'
-                            }}
-                        >
-                            <div ref={previewContainerRef} className="docx-preview-container" />
-                        </Paper>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                            <Button
+                                variant="outlined"
+                                color="info"
+                                startIcon={<InfoIcon />}
+                                onClick={() => setShowFieldGuide(true)}
+                            >
+                                Hướng dẫn chèn {`{field}`}
+                            </Button>
+                            <Button
+                                variant="outlined"
+                                startIcon={<DownloadIcon />}
+                                onClick={handleDownloadOriginalTemplate}
+                            >
+                                Tải mẫu gốc
+                            </Button>
+                            <Button component="label" variant="outlined" startIcon={<UploadIcon />}>
+                                Tải mẫu đã chỉnh
+                                <input
+                                    type="file"
+                                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                    hidden
+                                    onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadCustomTemplate(file);
+                                        e.currentTarget.value = '';
+                                    }}
+                                />
+                            </Button>
+                            {state.generatedBlob && (
+                                <>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<PrintIcon />}
+                                        onClick={handlePrint}
+                                    >
+                                        In tài liệu
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<DownloadIcon />}
+                                        onClick={handleDownload}
+                                    >
+                                        Tải file đã điền
+                                    </Button>
+                                </>
+                            )}
+                        </Box>
+                    </Box>
+                    <Divider sx={{ mb: 2 }} />
+                    <Paper
+                        variant="outlined"
+                        sx={{
+                            p: 2,
+                            bgcolor: 'grey.50',
+                            minHeight: '70vh',
+                            overflowY: 'auto',
+                            border: '1px solid #e0e0e0'
+                        }}
+                    >
+                        <div ref={previewContainerRef} className="docx-preview-container" />
                     </Paper>
-                )}
-            </Box>
+                </Paper>
+            ) : (
+                <Paper sx={{ p: 3 }}>
+                    <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                        Chọn mẫu đơn từ danh sách thủ tục hành chính
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        Sử dụng bộ lọc ở trên để tìm và chọn mẫu đơn phù hợp
+                    </Typography>
+                </Paper>
+            )}
+
+            {/* Dialog: Hướng dẫn chèn {field} */}
+            <Dialog
+                open={showFieldGuide}
+                onClose={() => setShowFieldGuide(false)}
+                maxWidth="md"
+                fullWidth
+            >
+                <DialogTitle>Hướng dẫn chèn {`{field}`} vào mẫu Word (.docx)</DialogTitle>
+                <DialogContent dividers>
+                    {/* Quick actions */}
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+                        <Button
+                            size="small"
+                            startIcon={<GetAppIcon />}
+                            onClick={handleDownloadOriginalTemplate}
+                        >
+                            Tải mẫu gốc
+                        </Button>
+                        <Button size="small" component="label" startIcon={<EditIcon />}>
+                            Tải mẫu đã chỉnh
+                            <input
+                                type="file"
+                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                hidden
+                                onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadCustomTemplate(file);
+                                    e.currentTarget.value = '';
+                                }}
+                            />
+                        </Button>
+                    </Box>
+
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
+                        3 bước đơn giản
+                    </Typography>
+                    <Box
+                        sx={{
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
+                            gap: 2,
+                            mb: 2
+                        }}
+                    >
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                Bước 1: Chèn thẻ
+                            </Typography>
+                            <Typography variant="body2">
+                                Mở file Word và gõ các thẻ như {`{hoTen}`}, {`{cccd}`}, {`{ngay}`}/
+                                {`{thang}`}/{`{nam}`} vào vị trí cần điền.
+                            </Typography>
+                        </Paper>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                Bước 2: Lưu và tải lên
+                            </Typography>
+                            <Typography variant="body2">
+                                Lưu file .docx rồi bấm “Tải mẫu đã chỉnh” để sử dụng ngay.
+                            </Typography>
+                        </Paper>
+                        <Paper variant="outlined" sx={{ p: 2 }}>
+                            <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                Bước 3: Nhập dữ liệu
+                            </Typography>
+                            <Typography variant="body2">
+                                Quét QR/nhập dữ liệu. Hệ thống sẽ tự điền vào đúng vị trí trên mẫu.
+                            </Typography>
+                        </Paper>
+                    </Box>
+
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+                        Ví dụ nhanh
+                    </Typography>
+                    <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+                        <Typography
+                            variant="body2"
+                            sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}
+                            align="left"
+                        >
+                            {`
+                            Họ và tên: {ho_ten}
+                            Số CCCD: {cccd}
+                            Ngày sinh: {ns_ngay}/{ns_thang}/{ns_nam}  (hoặc {ngay_sinh})
+                            Giới tính: {gioi_tinh}
+                            Địa chỉ: {noi_cu_tru}
+                            Ngày cấp: {nc_ngay}/{nc_thang}/{nc_nam}  (hoặc {ngay_cap})
+                            `}
+                        </Typography>
+                    </Paper>
+
+                    <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
+                        Danh sách trường hỗ trợ (bấm để sao chép)
+                    </Typography>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        Nhóm chính:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                        {['cccd', 'cmnd', 'hoTen', 'ngaySinh', 'gioiTinh', 'diaChi', 'ngayCap'].map(
+                            k => (
+                                <MuiTooltip key={k} title="Bấm để sao chép">
+                                    <Chip
+                                        label={`{${k}}`}
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                    />
+                                </MuiTooltip>
+                            )
+                        )}
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        Tương thích (snake_case):
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                        {[
+                            'ho_ten',
+                            'ngay_sinh',
+                            'gioi_tinh',
+                            'dia_chi',
+                            'ngay_cap',
+                            'noi_cu_tru'
+                        ].map(k => (
+                            <MuiTooltip key={k} title="Bấm để sao chép">
+                                <Chip
+                                    label={`{${k}}`}
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                    onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                    deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                />
+                            </MuiTooltip>
+                        ))}
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        Bí danh/tiện dụng:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                        {[
+                            'ten',
+                            'hoten',
+                            'ho_va_ten',
+                            'so_cccd',
+                            'so_cmnd',
+                            'ngay_thang_nam_sinh',
+                            'ngay_thang_nam_cap'
+                        ].map(k => (
+                            <MuiTooltip key={k} title="Bấm để sao chép">
+                                <Chip
+                                    label={`{${k}}`}
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                    onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                    deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                />
+                            </MuiTooltip>
+                        ))}
+                    </Box>
+                    <Typography variant="body2" sx={{ mb: 1 }}>
+                        Tách ngày/tháng/năm tự động:
+                    </Typography>
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                        {[
+                            'ngay',
+                            'thang',
+                            'nam',
+                            'ngay_sinh_full',
+                            'ngayCap_full',
+                            'ngay_cap_full',
+                            'ngay_cap_ngay',
+                            'ngay_cap_thang',
+                            'ngay_cap_nam'
+                        ].map(k => (
+                            <MuiTooltip key={k} title="Bấm để sao chép">
+                                <Chip
+                                    label={`{${k}}`}
+                                    variant="outlined"
+                                    size="small"
+                                    onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                    onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                    deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                />
+                            </MuiTooltip>
+                        ))}
+                    </Box>
+
+                    <Accordion sx={{ mt: 2 }}>
+                        <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                            <Typography variant="subtitle2">Câu hỏi thường gặp</Typography>
+                        </AccordionSummary>
+                        <AccordionDetails>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                • Không thấy dữ liệu hiện lên? Hãy kiểm tra chính tả của thẻ, ví dụ{' '}
+                                {`{hoTen}`} không phải {`{hoten}`}. Bạn có thể dùng các thẻ trong
+                                danh sách phía trên để copy cho chính xác.
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                • Có thể ghi tiếng Việt có dấu không? Có, thẻ {`{field}`} chỉ là tên
+                                khóa, bạn có thể đặt văn bản mô tả xung quanh tùy ý.
+                            </Typography>
+                            <Typography variant="body2" sx={{ mb: 1 }}>
+                                • Thay đổi mẫu nhiều lần được không? Được, bạn có thể bấm “Tải mẫu
+                                gốc” rồi “Tải mẫu đã chỉnh” để cập nhật bất cứ khi nào.
+                            </Typography>
+                        </AccordionDetails>
+                    </Accordion>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setShowFieldGuide(false)} autoFocus>
+                        Đóng
+                    </Button>
+                </DialogActions>
+            </Dialog>
 
             {/* Error Alert */}
             {state.error && (
