@@ -1,17 +1,24 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+
+import { saveAs } from 'file-saver';
 
 import {
     Add as AddIcon,
     Assessment as AssessmentIcon,
     Business as BusinessIcon,
     CheckCircle,
+    CloudUpload as CloudUploadIcon,
     Code as CodeIcon,
+    Delete as DeleteIcon,
     Description as DescriptionIcon,
+    Download as DownloadIcon,
     Edit,
-    Error,
+    Error as ErrorIcon,
     Info as InfoIcon,
     Link as LinkIcon,
-    Settings as SettingsIcon
+    Print as PrintIcon,
+    Settings as SettingsIcon,
+    Wifi as WifiIcon
 } from '@mui/icons-material';
 import SaveIcon from '@mui/icons-material/Save';
 import {
@@ -20,20 +27,27 @@ import {
     Card,
     CardContent,
     CardHeader,
+    Checkbox,
     Chip,
     Divider,
     Grid,
     IconButton,
     Link,
+    MenuItem,
     Paper,
     Stack,
     Tab,
     Tabs,
     TextField,
+    ToggleButton,
+    ToggleButtonGroup,
     Typography
 } from '@mui/material';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
+import templateStorageService, {
+    type StoredTemplate
+} from '@/admin/services/templateStorageService';
 import checkUrlExists from '@/utils/checkUrlExists';
 import { getXPath } from '@/utils/getXPath';
 
@@ -376,6 +390,7 @@ function a11yProps(index: number) {
 
 function InfoPage() {
     const [tabValue, setTabValue] = useState(0);
+    const [dataSource, setDataSource] = useState<'scanner' | 'socket'>('scanner');
     const [adminLinks, setAdminLinks] = useState<ServiceStep[]>([]);
     const [linkCounter, setLinkCounter] = useState(1);
     const [newUrl, setNewUrl] = useState('');
@@ -384,9 +399,45 @@ function InfoPage() {
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editingUrl, setEditingUrl] = useState('');
 
+    // Template setup state
+    const [templates, setTemplates] = useState<StoredTemplate[]>([]);
+    const [isUploading, setIsUploading] = useState(false);
+    const [storageInfo, setStorageInfo] = useState<{
+        used: number;
+        total: number;
+        templates: number;
+    } | null>(null);
+    const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
+    const [editingTemplateName, setEditingTemplateName] = useState<string>('');
+    const [editingTemplateCategory, setEditingTemplateCategory] = useState<string>('');
+    const [editingTemplateDescription, setEditingTemplateDescription] = useState<string>('');
+
+    // Template list controls
+    const [templateSearch, setTemplateSearch] = useState<string>('');
+    const [templateStatusFilter, setTemplateStatusFilter] = useState<'all' | 'active' | 'inactive'>(
+        'all'
+    );
+    const [templateSort, setTemplateSort] = useState<
+        'date_desc' | 'date_asc' | 'name_asc' | 'name_desc'
+    >('date_desc');
+    const [selectedTemplateIds, setSelectedTemplateIds] = useState<Set<string>>(new Set());
+    const [isImporting, setIsImporting] = useState(false);
+
     const handleTabChange = (event: React.SyntheticEvent, newValue: number) => {
         setTabValue(newValue);
     };
+
+    // Load persisted data source on mount
+    useEffect(() => {
+        try {
+            const saved = localStorage.getItem('word_mapper_data_source');
+            if (saved === 'scanner' || saved === 'socket') {
+                setDataSource(saved);
+            }
+        } catch {}
+        // Load templates and storage usage
+        void loadTemplatesAndUsage();
+    }, []);
 
     // Hàm kiểm tra định dạng URL
     const isValidUrl = (url: string): boolean => {
@@ -395,6 +446,221 @@ function InfoPage() {
             return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
         } catch {
             return false;
+        }
+    };
+
+    // ===== Template setup helpers =====
+    const formatBytes = (bytes: number): string => {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB', 'TB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return `${parseFloat((bytes / Math.pow(k, i)).toFixed(2))} ${sizes[i]}`;
+    };
+
+    const generateId = (): string => {
+        return 'tpl_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
+    };
+
+    const loadTemplatesAndUsage = async (): Promise<void> => {
+        try {
+            const [list, usage] = await Promise.all([
+                templateStorageService.getTemplates(),
+                templateStorageService.getStorageInfo()
+            ]);
+            setTemplates(list);
+            setStorageInfo(usage);
+        } catch (e) {
+            console.warn('Không thể tải danh sách mẫu:', e);
+        }
+    };
+
+    const handleUploadTemplates = async (files: FileList | null): Promise<void> => {
+        if (!files || files.length === 0) return;
+        setIsUploading(true);
+        try {
+            for (const file of Array.from(files)) {
+                const id = generateId();
+                const name = file.name.replace(/\.[^.]+$/, '');
+                const sizeLabel = formatBytes(file.size);
+                const template: Omit<StoredTemplate, 'templateData'> = {
+                    id,
+                    name,
+                    description: '',
+                    fileName: file.name,
+                    fileSize: sizeLabel,
+                    uploadDate: new Date().toISOString(),
+                    status: 'active',
+                    category: 'default'
+                };
+                await templateStorageService.saveTemplateWithFile(template, file);
+            }
+            await loadTemplatesAndUsage();
+        } catch (e) {
+            alert('Lỗi khi tải lên mẫu. Vui lòng thử lại.');
+        } finally {
+            setIsUploading(false);
+        }
+    };
+
+    const handleDeleteTemplate = async (templateId: string): Promise<void> => {
+        if (!confirm('Xóa mẫu này?')) return;
+        await templateStorageService.deleteTemplate(templateId);
+        await loadTemplatesAndUsage();
+    };
+
+    const handleToggleStatus = async (
+        templateId: string,
+        current: 'active' | 'inactive'
+    ): Promise<void> => {
+        const next = current === 'active' ? 'inactive' : 'active';
+        await templateStorageService.updateTemplateStatus(templateId, next);
+        await loadTemplatesAndUsage();
+    };
+
+    const handleExportTemplate = async (tpl: StoredTemplate): Promise<void> => {
+        const data = await templateStorageService.getTemplateFileData(tpl.id);
+        if (!data) return;
+        const blob = new Blob([data], {
+            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+        });
+        saveAs(blob, tpl.fileName);
+    };
+
+    const handleClearAllTemplates = async (): Promise<void> => {
+        if (!confirm('Xóa tất cả mẫu đã lưu?')) return;
+        await templateStorageService.clearAllTemplates();
+        await loadTemplatesAndUsage();
+    };
+
+    const handleStartEditTemplateName = (tpl: StoredTemplate): void => {
+        setEditingTemplateId(tpl.id);
+        setEditingTemplateName(tpl.name || '');
+        setEditingTemplateCategory(tpl.category || '');
+        setEditingTemplateDescription(tpl.description || '');
+    };
+
+    const handleCancelEditTemplateName = (): void => {
+        setEditingTemplateId(null);
+        setEditingTemplateName('');
+        setEditingTemplateCategory('');
+        setEditingTemplateDescription('');
+    };
+
+    const handleSaveEditTemplateName = async (): Promise<void> => {
+        const id = editingTemplateId;
+        const newName = editingTemplateName.trim();
+        if (!id) return;
+        if (!newName) {
+            alert('Tên mẫu không được để trống');
+            return;
+        }
+        try {
+            const existing = await templateStorageService.getTemplate(id);
+            if (!existing) return;
+            await templateStorageService.saveTemplate({
+                ...existing,
+                name: newName,
+                category: editingTemplateCategory,
+                description: editingTemplateDescription
+            });
+            await loadTemplatesAndUsage();
+            handleCancelEditTemplateName();
+        } catch (e) {
+            alert('Không thể lưu tên mẫu. Vui lòng thử lại.');
+        }
+    };
+
+    // Helpers: filter, sort, selection, bulk, import/export
+    const getFilteredSortedTemplates = (): StoredTemplate[] => {
+        const query = templateSearch.trim().toLowerCase();
+        let list = templates.filter(tpl => {
+            const matchQuery =
+                !query ||
+                tpl.name.toLowerCase().includes(query) ||
+                tpl.fileName.toLowerCase().includes(query) ||
+                (tpl.category || '').toLowerCase().includes(query) ||
+                (tpl.description || '').toLowerCase().includes(query);
+            const matchStatus =
+                templateStatusFilter === 'all' || tpl.status === templateStatusFilter;
+            return matchQuery && matchStatus;
+        });
+
+        list = list.sort((a, b) => {
+            if (templateSort === 'name_asc') return a.name.localeCompare(b.name);
+            if (templateSort === 'name_desc') return b.name.localeCompare(a.name);
+            const da = new Date(a.uploadDate).getTime();
+            const db = new Date(b.uploadDate).getTime();
+            if (templateSort === 'date_asc') return da - db;
+            return db - da; // date_desc
+        });
+        return list;
+    };
+
+    const toggleSelected = (id: string): void => {
+        setSelectedTemplateIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    };
+
+    const selectAllCurrent = (): void => {
+        const ids = getFilteredSortedTemplates().map(t => t.id);
+        setSelectedTemplateIds(new Set(ids));
+    };
+
+    const clearSelection = (): void => setSelectedTemplateIds(new Set());
+
+    const bulkSetStatus = async (status: 'active' | 'inactive'): Promise<void> => {
+        for (const id of selectedTemplateIds) {
+            await templateStorageService.updateTemplateStatus(id, status);
+        }
+        await loadTemplatesAndUsage();
+        clearSelection();
+    };
+
+    const bulkDelete = async (): Promise<void> => {
+        if (!confirm('Xóa các mẫu đã chọn?')) return;
+        for (const id of selectedTemplateIds) {
+            await templateStorageService.deleteTemplate(id);
+        }
+        await loadTemplatesAndUsage();
+        clearSelection();
+    };
+
+    const handleExportAllTemplates = async (): Promise<void> => {
+        const all = await templateStorageService.getTemplates();
+        const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+        saveAs(blob, 'templates-export.json');
+    };
+
+    const handleExportSelectedTemplates = async (): Promise<void> => {
+        const all = await templateStorageService.getTemplates();
+        const selected = all.filter(t => selectedTemplateIds.has(t.id));
+        if (selected.length === 0) return;
+        const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+        saveAs(blob, 'templates-selected.json');
+    };
+
+    const handleImportTemplatesFromJson = async (files: FileList | null): Promise<void> => {
+        if (!files || files.length === 0) return;
+        const file = files[0];
+        setIsImporting(true);
+        try {
+            const text = await file.text();
+            const data = JSON.parse(text) as StoredTemplate[];
+            if (!Array.isArray(data)) throw new Error('File không hợp lệ');
+            for (const tpl of data) {
+                if (!tpl || typeof tpl !== 'object' || !tpl.id) continue;
+                await templateStorageService.saveTemplate(tpl);
+            }
+            await loadTemplatesAndUsage();
+        } catch {
+            alert('Không thể import file JSON. Vui lòng kiểm tra định dạng.');
+        } finally {
+            setIsImporting(false);
         }
     };
 
@@ -737,14 +1003,13 @@ function InfoPage() {
         setEditingUrl('');
     };
 
-    // Component cho tab Thông tin ứng dụng
-    const AppInfoTab = () => (
+    // Tab: Thông tin gói dịch vụ
+    const PackageInfoTab = () => (
         <Stack spacing={3}>
-            {/* Thông tin cơ bản */}
             <Card elevation={2}>
                 <CardHeader
                     avatar={<InfoIcon color="primary" />}
-                    title="Thông tin cơ bản"
+                    title="Thông tin gói dịch vụ"
                     sx={{ pb: 1 }}
                 />
                 <Divider />
@@ -752,77 +1017,14 @@ function InfoPage() {
                     <Stack spacing={3}>
                         <Box>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                Tên ứng dụng
-                            </Typography>
-                            <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                                NTSOFT Document AI
-                            </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                Chức năng
+                                Tên gói dịch vụ
                             </Typography>
                             <Typography
-                                variant="body2"
-                                sx={{ fontWeight: 600, color: 'primary.main' }}
+                                variant="body1"
+                                sx={{ fontStyle: 'italic', color: 'text.secondary' }}
                             >
-                                Quét mã QR, nhận dạng văn bản (OCR) và tự động điền dữ liệu vào giao
-                                diện các phần mềm
+                                Chưa có thông tin
                             </Typography>
-                        </Box>
-                        <Box>
-                            <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                                Mô tả chi tiết
-                            </Typography>
-                            <Typography
-                                variant="body2"
-                                sx={{ lineHeight: 1.6, textAlign: 'justify' }}
-                            >
-                                NTSOFT Document AI được phát triển nhằm hỗ trợ người dùng tự động
-                                thu thập, trích xuất và điền dữ liệu vào các hệ thống phần mềm chạy
-                                trên nền web, đặc biệt là các biểu mẫu điện tử thuộc cổng dịch vụ
-                                công quốc gia, phần mềm quản lý hành chính chuyên ngành và các nền
-                                tảng số hóa khác. Ứng dụng tích hợp hai công nghệ chính: quét mã QR
-                                và nhận dạng ký tự quang học (OCR), giúp giảm thiểu thao tác thủ
-                                công, nâng cao hiệu quả xử lý và đảm bảo độ chính xác của dữ liệu
-                                đầu vào.
-                            </Typography>
-                        </Box>
-                    </Stack>
-                </CardContent>
-            </Card>
-
-            {/* Chức năng chi tiết */}
-            <Card elevation={2}>
-                <CardHeader
-                    avatar={<CodeIcon color="primary" />}
-                    title="Chức năng chi tiết"
-                    sx={{ pb: 1 }}
-                />
-                <Divider />
-                <CardContent>
-                    <Stack spacing={3}>
-                        <Box>
-                            <Typography
-                                variant="h6"
-                                sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
-                            >
-                                1. Quét mã QR và xử lý nội dung
-                            </Typography>
-                            <Stack spacing={1} sx={{ ml: 2 }}>
-                                <Typography variant="body2">
-                                    • Cho phép người dùng sử dụng camera thiết bị hoặc tải lên hình
-                                    ảnh chứa mã QR.
-                                </Typography>
-                                <Typography variant="body2">
-                                    • Hệ thống tự động giải mã dữ liệu (thường ở định dạng JSON hoặc
-                                    chuỗi định danh có cấu trúc).
-                                </Typography>
-                                <Typography variant="body2">
-                                    • Thông tin được phân tích và ánh xạ đến các trường nhập liệu
-                                    tương ứng trên giao diện web.
-                                </Typography>
-                            </Stack>
                         </Box>
 
                         <Box>
@@ -830,24 +1032,31 @@ function InfoPage() {
                                 variant="h6"
                                 sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
                             >
-                                2. Nhận dạng văn bản từ hình ảnh hoặc tệp PDF
+                                Thủ tục hành chính
                             </Typography>
-                            <Stack spacing={1} sx={{ ml: 2 }}>
-                                <Typography variant="body2">
-                                    • Hỗ trợ người dùng tải lên tài liệu định dạng hình ảnh (JPG,
-                                    PNG) hoặc PDF có chứa thông tin cần xử lý.
-                                </Typography>
-                                <Typography variant="body2">
-                                    • Áp dụng công nghệ nhận dạng ký tự quang học để trích xuất nội
-                                    dung văn bản từ hình ảnh.
-                                </Typography>
-                                <Typography variant="body2">
-                                    • Văn bản sau khi nhận dạng sẽ được hệ thống xử lý gồm: làm sạch
-                                    dữ liệu, chuẩn hóa định dạng và tổ chức lại thành cấu trúc phù
-                                    hợp, đảm bảo khả năng ánh xạ chính xác đến các trường thông tin
-                                    của biểu mẫu.
-                                </Typography>
-                            </Stack>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="body1">
+                                        Số lượng thủ tục hành chính của phần mềm dịch vụ công
+                                    </Typography>
+                                    <Chip
+                                        label={`${serviceInfo.adminFunctions} thủ tục`}
+                                        color="primary"
+                                        size="small"
+                                        sx={{ mt: 1 }}
+                                    />
+                                </Box>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<AddIcon />}
+                                    sx={{
+                                        bgcolor: 'success.main',
+                                        '&:hover': { bgcolor: 'success.dark' }
+                                    }}
+                                >
+                                    Tạo
+                                </Button>
+                            </Box>
                         </Box>
 
                         <Box>
@@ -855,110 +1064,32 @@ function InfoPage() {
                                 variant="h6"
                                 sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
                             >
-                                3. Tự động điền dữ liệu vào biểu mẫu web
+                                Form nhập liệu
                             </Typography>
-                            <Stack spacing={1} sx={{ ml: 2 }}>
-                                <Typography variant="body2">
-                                    • Hệ thống gán nội dung đã trích xuất vào các trường nhập liệu
-                                    tương ứng:
-                                </Typography>
-                                <Stack spacing={0.5} sx={{ ml: 2 }}>
-                                    <Typography variant="body2">
-                                        ○ Nhập mẫu đơn hoặc tờ khai đăng ký thủ tục hành chính.
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Box sx={{ flex: 1 }}>
+                                    <Typography variant="body1">
+                                        Số lượng form nhập liệu phần mềm kế toán, quản lý chuyên
+                                        ngành và số hóa
                                     </Typography>
-                                    <Typography variant="body2">
-                                        ○ Hạch toán chứng từ kế toán vào phần mềm kế toán.
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        ○ Nhập liệu vào các phần mềm quản lý chuyên ngành.
-                                    </Typography>
-                                    <Typography variant="body2">
-                                        ○ Nhập các trường thông tin mô tả hồ sơ, tài liệu số hóa
-                                        theo Thông tư số 05/2025/TT-BNV, ngày 14/5/2025 của Bộ Nội
-                                        vụ.
-                                    </Typography>
-                                </Stack>
-                            </Stack>
-                        </Box>
-                    </Stack>
-                </CardContent>
-            </Card>
-
-            {/* Lưu trữ và bảo mật */}
-            <Card elevation={2}>
-                <CardHeader
-                    avatar={<BusinessIcon color="primary" />}
-                    title="4. Lưu trữ lịch sử trên bộ nhớ cục bộ"
-                    sx={{ pb: 1 }}
-                />
-                <Divider />
-                <CardContent>
-                    <Stack spacing={2}>
-                        <Typography variant="body2">
-                            • Ứng dụng hỗ trợ ghi lại lịch sử thao tác và dữ liệu đã xử lý dưới dạng
-                            nhật ký hoạt động (activity log) được lưu trữ trực tiếp tại bộ nhớ cục
-                            bộ của thiết bị người dùng (trình duyệt hoặc máy tính cá nhân).
-                        </Typography>
-                        <Typography variant="body2">
-                            • Các thông tin được lưu bao gồm: thời gian thao tác, nguồn dữ liệu đầu
-                            vào (QR hoặc file OCR), kết quả trích xuất và các trường đã được điền
-                            vào biểu mẫu – nhằm mục đích hỗ trợ người dùng theo dõi, kiểm tra hoặc
-                            khôi phục nội dung nếu cần.
-                        </Typography>
-                        <Box sx={{ p: 2, bgcolor: 'success.light', borderRadius: 1, mt: 2 }}>
-                            <Typography
-                                variant="subtitle2"
-                                sx={{ fontWeight: 600, color: 'success.dark', mb: 1 }}
-                            >
-                                Cam kết bảo mật:
-                            </Typography>
-                            <Typography variant="body2" sx={{ color: 'success.dark' }}>
-                                Tất cả lịch sử xử lý chỉ được lưu tại thiết bị của người dùng, không
-                                có hành vi gửi dữ liệu ra bên ngoài, không đồng bộ lên máy chủ, và
-                                tuyệt đối không thu thập, không tạo bản sao, hoặc lưu trữ bất kỳ tài
-                                liệu gốc nào (hình ảnh CCCD, PDF tài liệu, mã QR...) trên hệ thống
-                                của nhà phát triển ứng dụng.
-                            </Typography>
-                        </Box>
-                        <Typography variant="body2">
-                            • Người dùng có thể chủ động xem, xuất hoặc xóa nhật ký này theo nhu cầu
-                            sử dụng.
-                        </Typography>
-                    </Stack>
-                </CardContent>
-            </Card>
-
-            {/* Lợi ích */}
-            <Card elevation={2}>
-                <CardHeader
-                    avatar={<DescriptionIcon color="primary" />}
-                    title="Lợi ích mang lại"
-                    sx={{ pb: 1 }}
-                />
-                <Divider />
-                <CardContent>
-                    <Stack spacing={2}>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                            <Chip label="1" color="primary" size="small" sx={{ minWidth: 32 }} />
-                            <Typography variant="body2">
-                                Tự động hóa quy trình nhập liệu từ giấy tờ hành chính, CCCD, hợp
-                                đồng, biểu mẫu và các tài liệu định dạng số khác.
-                            </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                            <Chip label="2" color="primary" size="small" sx={{ minWidth: 32 }} />
-                            <Typography variant="body2">
-                                Tiết kiệm thời gian, nâng cao hiệu suất trong các nghiệp vụ mang
-                                tính lặp lại hoặc đòi hỏi nhập liệu chính xác cao.
-                            </Typography>
-                        </Box>
-                        <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 2 }}>
-                            <Chip label="3" color="primary" size="small" sx={{ minWidth: 32 }} />
-                            <Typography variant="body2">
-                                Giảm thiểu sai sót phát sinh trong quá trình thao tác thủ công, đặc
-                                biệt trong các môi trường có yêu cầu nghiêm ngặt về độ chính xác dữ
-                                liệu.
-                            </Typography>
+                                    <Chip
+                                        label={`${serviceInfo.softwareForms} chức năng`}
+                                        color="secondary"
+                                        size="small"
+                                        sx={{ mt: 1 }}
+                                    />
+                                </Box>
+                                <Button
+                                    variant="contained"
+                                    startIcon={<AddIcon />}
+                                    sx={{
+                                        bgcolor: 'success.main',
+                                        '&:hover': { bgcolor: 'success.dark' }
+                                    }}
+                                >
+                                    Tạo
+                                </Button>
+                            </Box>
                         </Box>
                     </Stack>
                 </CardContent>
@@ -966,8 +1097,8 @@ function InfoPage() {
         </Stack>
     );
 
-    // Component cho tab Thiết lập (nội dung cũ)
-    const SettingsTab = () => (
+    // Tab: Thiết lập dữ liệu đầu vào
+    const DataSetupTab = () => (
         <Box>
             {/* CSS for spinner animation */}
             <style>
@@ -990,12 +1121,12 @@ function InfoPage() {
             </Box> */}
 
             <Grid container spacing={3}>
-                {/* Service Information Section */}
+                {/* Data Source Setup */}
                 <Grid sx={{ width: '100%' }}>
                     <Card elevation={2}>
                         <CardHeader
-                            avatar={<InfoIcon color="primary" />}
-                            title="Thông tin gói dịch vụ"
+                            avatar={<SettingsIcon color="primary" />}
+                            title="Thiết lập dữ liệu đầu vào"
                             sx={{ pb: 1 }}
                         />
                         <Divider />
@@ -1007,88 +1138,73 @@ function InfoPage() {
                                         color="text.secondary"
                                         gutterBottom
                                     >
-                                        Tên gói dịch vụ
+                                        Chọn dữ liệu đầu vào
                                     </Typography>
-                                    <Typography
-                                        variant="body1"
-                                        sx={{ fontStyle: 'italic', color: 'text.secondary' }}
+                                    <ToggleButtonGroup
+                                        exclusive
+                                        size="small"
+                                        value={dataSource}
+                                        onChange={(_, value) => {
+                                            if (!value) return;
+                                            setDataSource(value);
+                                            // Persist to local storage
+                                            try {
+                                                localStorage.setItem(
+                                                    'word_mapper_data_source',
+                                                    value
+                                                );
+                                            } catch {}
+                                        }}
                                     >
-                                        Chưa có thông tin
-                                    </Typography>
-                                </Box>
-
-                                <Box>
-                                    <Typography
-                                        variant="subtitle2"
-                                        color="text.secondary"
-                                        gutterBottom
-                                    >
-                                        Thủ tục hành chính
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                        <Box sx={{ flex: 1 }}>
-                                            <Typography variant="body1">
-                                                Số lượng thủ tục hành chính của phần mềm dịch vụ
-                                                công
-                                            </Typography>
-                                            <Chip
-                                                label={`${serviceInfo.adminFunctions} thủ tục`}
-                                                color="primary"
-                                                size="small"
-                                                sx={{ mt: 1 }}
-                                            />
-                                        </Box>
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<AddIcon />}
+                                        <ToggleButton
                                             sx={{
-                                                bgcolor: 'success.main',
-                                                '&:hover': { bgcolor: 'success.dark' }
+                                                '&.Mui-selected': {
+                                                    backgroundColor: '#388e3c',
+                                                    color: '#fff',
+                                                    '&:hover': {
+                                                        backgroundColor: '#2e7d32'
+                                                    }
+                                                }
                                             }}
+                                            value="scanner"
                                         >
-                                            Tạo
-                                        </Button>
-                                    </Box>
-                                </Box>
-
-                                <Box>
-                                    <Typography
-                                        variant="subtitle2"
-                                        color="text.secondary"
-                                        gutterBottom
-                                    >
-                                        Form nhập liệu
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                        <Box sx={{ flex: 1 }}>
-                                            <Typography variant="body1">
-                                                Số lượng form nhập liệu phần mềm kế toán, quản lý
-                                                chuyên ngành và số hóa
+                                            <PrintIcon sx={{ mr: 1 }} />
+                                            <Typography fontSize={12} fontWeight={'bold'}>
+                                                Máy quét QR
                                             </Typography>
-                                            <Chip
-                                                label={`${serviceInfo.softwareForms} chức năng`}
-                                                color="secondary"
-                                                size="small"
-                                                sx={{ mt: 1 }}
-                                            />
-                                        </Box>
-                                        <Button
-                                            variant="contained"
-                                            startIcon={<AddIcon />}
+                                        </ToggleButton>
+                                        <ToggleButton
                                             sx={{
-                                                bgcolor: 'success.main',
-                                                '&:hover': { bgcolor: 'success.dark' }
+                                                '&.Mui-selected': {
+                                                    backgroundColor: '#388e3c',
+                                                    color: '#fff',
+                                                    '&:hover': {
+                                                        backgroundColor: '#2e7d32'
+                                                    }
+                                                }
                                             }}
+                                            value="socket"
                                         >
-                                            Tạo
-                                        </Button>
-                                    </Box>
+                                            <WifiIcon sx={{ mr: 1 }} />
+                                            <Typography fontSize={12} fontWeight={'bold'}>
+                                                App Mobile
+                                            </Typography>
+                                        </ToggleButton>
+                                    </ToggleButtonGroup>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ display: 'block', mt: 1 }}
+                                    >
+                                        Thiết lập này sẽ được áp dụng cho màn hình Trình điền mẫu
+                                        Word.
+                                    </Typography>
                                 </Box>
                             </Stack>
                         </CardContent>
                     </Card>
                 </Grid>
-
+                {/* Admin Procedures Section */}
                 {/* Admin Procedures Section */}
                 <Grid sx={{ width: '100%' }}>
                     <Card elevation={2}>
@@ -1214,7 +1330,9 @@ function InfoPage() {
                                                 />
                                             )}
                                             {item.status === 'invalid' && (
-                                                <Error sx={{ color: '#f44336', fontSize: 20 }} />
+                                                <ErrorIcon
+                                                    sx={{ color: '#f44336', fontSize: 20 }}
+                                                />
                                             )}
                                         </Box>
 
@@ -1392,6 +1510,395 @@ function InfoPage() {
         </Box>
     );
 
+    // Tab: Thiết lập mẫu
+    const TemplateSetupTab = () => (
+        <Box>
+            <Grid container spacing={3}>
+                <Grid sx={{ width: '100%' }}>
+                    <Card elevation={2}>
+                        <CardHeader
+                            avatar={<CloudUploadIcon color="primary" />}
+                            title="Thiết lập mẫu (Upload mẫu)"
+                            subheader="Tải lên, quản lý và xuất các file mẫu .docx"
+                            sx={{ pb: 1 }}
+                            action={
+                                <Stack direction="row" spacing={1}>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => void handleExportAllTemplates()}
+                                    >
+                                        Sao lưu
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        disabled={isUploading}
+                                    >
+                                        Khôi phục
+                                        <input
+                                            hidden
+                                            type="file"
+                                            accept="application/json"
+                                            onChange={e =>
+                                                handleImportTemplatesFromJson(e.target.files)
+                                            }
+                                        />
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        onClick={handleClearAllTemplates}
+                                    >
+                                        Xóa tất cả
+                                    </Button>
+                                </Stack>
+                            }
+                        />
+                        <Divider />
+                        <CardContent>
+                            <Stack spacing={2}>
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 2,
+                                        flexWrap: 'wrap'
+                                    }}
+                                >
+                                    <Button
+                                        variant="contained"
+                                        component="label"
+                                        disabled={isUploading}
+                                    >
+                                        Chọn file mẫu (.docx)
+                                        <input
+                                            hidden
+                                            type="file"
+                                            accept=".docx"
+                                            multiple
+                                            onChange={e => handleUploadTemplates(e.target.files)}
+                                        />
+                                    </Button>
+                                    {isUploading && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            Đang tải lên...
+                                        </Typography>
+                                    )}
+                                    {storageInfo && (
+                                        <Typography variant="body2" color="text.secondary">
+                                            Đã dùng: {formatBytes(storageInfo.used)} /{' '}
+                                            {formatBytes(storageInfo.total)} ·{' '}
+                                            {storageInfo.templates} mẫu
+                                        </Typography>
+                                    )}
+                                    <TextField
+                                        size="small"
+                                        placeholder="Tìm theo tên, file, danh mục..."
+                                        value={templateSearch}
+                                        onChange={e => setTemplateSearch(e.target.value)}
+                                        sx={{ minWidth: 240, ml: 'auto' }}
+                                    />
+                                    <TextField
+                                        size="small"
+                                        select
+                                        label="Trạng thái"
+                                        value={templateStatusFilter}
+                                        onChange={e =>
+                                            setTemplateStatusFilter(
+                                                e.target.value as 'all' | 'active' | 'inactive'
+                                            )
+                                        }
+                                        sx={{ minWidth: 160 }}
+                                    >
+                                        <MenuItem value="all">Tất cả</MenuItem>
+                                        <MenuItem value="active">Đang dùng</MenuItem>
+                                        <MenuItem value="inactive">Tạm tắt</MenuItem>
+                                    </TextField>
+                                    <TextField
+                                        size="small"
+                                        select
+                                        label="Sắp xếp"
+                                        value={templateSort}
+                                        onChange={e =>
+                                            setTemplateSort(
+                                                e.target.value as
+                                                    | 'date_desc'
+                                                    | 'date_asc'
+                                                    | 'name_asc'
+                                                    | 'name_desc'
+                                            )
+                                        }
+                                        sx={{ minWidth: 180 }}
+                                    >
+                                        <MenuItem value="date_desc">Mới nhất</MenuItem>
+                                        <MenuItem value="date_asc">Cũ nhất</MenuItem>
+                                        <MenuItem value="name_asc">Tên A → Z</MenuItem>
+                                        <MenuItem value="name_desc">Tên Z → A</MenuItem>
+                                    </TextField>
+                                </Box>
+
+                                <Divider sx={{ my: 1 }} />
+
+                                <Stack direction="row" spacing={1} alignItems="center">
+                                    <Button variant="outlined" onClick={selectAllCurrent}>
+                                        Chọn tất cả (lọc hiện tại)
+                                    </Button>
+                                    <Button variant="text" onClick={clearSelection}>
+                                        Bỏ chọn
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => void bulkSetStatus('active')}
+                                        disabled={selectedTemplateIds.size === 0}
+                                    >
+                                        Bật dùng
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => void bulkSetStatus('inactive')}
+                                        disabled={selectedTemplateIds.size === 0}
+                                    >
+                                        Tạm tắt
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        color="error"
+                                        onClick={() => void bulkDelete()}
+                                        disabled={selectedTemplateIds.size === 0}
+                                    >
+                                        Xóa đã chọn
+                                    </Button>
+                                    {/* <Button
+                                        variant="outlined"
+                                        onClick={() => void handleExportSelectedTemplates()}
+                                        disabled={selectedTemplateIds.size === 0}
+                                    >
+                                        Xuất đã chọn (JSON)
+                                    </Button> */}
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ ml: 'auto' }}
+                                    >
+                                        Đã chọn: {selectedTemplateIds.size}
+                                    </Typography>
+                                </Stack>
+
+                                <Grid container spacing={2}>
+                                    {getFilteredSortedTemplates().length === 0 && (
+                                        <Grid sx={{ width: '100%' }}>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Không có mẫu phù hợp. Hãy thay đổi bộ lọc hoặc tải
+                                                lên mẫu mới.
+                                            </Typography>
+                                        </Grid>
+                                    )}
+
+                                    {getFilteredSortedTemplates().map(tpl => (
+                                        <Grid key={tpl.id} sx={{ width: '100%' }}>
+                                            <Box
+                                                sx={{
+                                                    p: 2,
+                                                    border: '1px solid #e0e0e0',
+                                                    borderRadius: 1,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'space-between',
+                                                    gap: 2
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 2,
+                                                        minWidth: 0
+                                                    }}
+                                                >
+                                                    <Checkbox
+                                                        size="small"
+                                                        checked={selectedTemplateIds.has(tpl.id)}
+                                                        onChange={() => toggleSelected(tpl.id)}
+                                                    />
+                                                    <DescriptionIcon color="action" />
+                                                    <Box sx={{ minWidth: 0 }}>
+                                                        {editingTemplateId === tpl.id ? (
+                                                            <Stack
+                                                                direction="row"
+                                                                spacing={1}
+                                                                alignItems="center"
+                                                            >
+                                                                <TextField
+                                                                    size="small"
+                                                                    value={editingTemplateName}
+                                                                    onChange={e =>
+                                                                        setEditingTemplateName(
+                                                                            e.target.value
+                                                                        )
+                                                                    }
+                                                                    sx={{ width: 220 }}
+                                                                    onKeyDown={e => {
+                                                                        if (e.key === 'Enter')
+                                                                            void handleSaveEditTemplateName();
+                                                                        if (e.key === 'Escape')
+                                                                            handleCancelEditTemplateName();
+                                                                    }}
+                                                                />
+                                                                <TextField
+                                                                    size="small"
+                                                                    placeholder="Danh mục"
+                                                                    value={editingTemplateCategory}
+                                                                    onChange={e =>
+                                                                        setEditingTemplateCategory(
+                                                                            e.target.value
+                                                                        )
+                                                                    }
+                                                                    sx={{ width: 160 }}
+                                                                />
+                                                                <TextField
+                                                                    size="small"
+                                                                    placeholder="Mô tả"
+                                                                    value={
+                                                                        editingTemplateDescription
+                                                                    }
+                                                                    onChange={e =>
+                                                                        setEditingTemplateDescription(
+                                                                            e.target.value
+                                                                        )
+                                                                    }
+                                                                    sx={{ width: 260 }}
+                                                                />
+                                                                <Button
+                                                                    size="small"
+                                                                    variant="contained"
+                                                                    onClick={() =>
+                                                                        void handleSaveEditTemplateName()
+                                                                    }
+                                                                >
+                                                                    Lưu
+                                                                </Button>
+                                                                <Button
+                                                                    size="small"
+                                                                    variant="text"
+                                                                    onClick={
+                                                                        handleCancelEditTemplateName
+                                                                    }
+                                                                >
+                                                                    Hủy
+                                                                </Button>
+                                                            </Stack>
+                                                        ) : (
+                                                            <>
+                                                                <Typography
+                                                                    variant="subtitle2"
+                                                                    noWrap
+                                                                    title={tpl.fileName}
+                                                                >
+                                                                    {tpl.name}
+                                                                </Typography>
+                                                                <Stack
+                                                                    direction="row"
+                                                                    spacing={1}
+                                                                    alignItems="center"
+                                                                    sx={{ mb: 0.5 }}
+                                                                >
+                                                                    {tpl.category && (
+                                                                        <Chip
+                                                                            label={tpl.category}
+                                                                            size="small"
+                                                                        />
+                                                                    )}
+                                                                    {tpl.description && (
+                                                                        <Typography
+                                                                            variant="caption"
+                                                                            color="text.secondary"
+                                                                            noWrap
+                                                                        >
+                                                                            {tpl.description}
+                                                                        </Typography>
+                                                                    )}
+                                                                </Stack>
+                                                                <Typography
+                                                                    variant="caption"
+                                                                    color="text.secondary"
+                                                                >
+                                                                    {tpl.fileName} · {tpl.fileSize}{' '}
+                                                                    ·{' '}
+                                                                    {new Date(
+                                                                        tpl.uploadDate
+                                                                    ).toLocaleString()}
+                                                                </Typography>
+                                                            </>
+                                                        )}
+                                                    </Box>
+                                                </Box>
+                                                <Stack
+                                                    direction="row"
+                                                    spacing={1}
+                                                    alignItems="center"
+                                                >
+                                                    {editingTemplateId !== tpl.id && (
+                                                        <IconButton
+                                                            size="small"
+                                                            onClick={() =>
+                                                                handleStartEditTemplateName(tpl)
+                                                            }
+                                                        >
+                                                            <Edit fontSize="small" />
+                                                        </IconButton>
+                                                    )}
+                                                    <Chip
+                                                        label={
+                                                            tpl.status === 'active'
+                                                                ? 'Đang dùng'
+                                                                : 'Tạm tắt'
+                                                        }
+                                                        color={
+                                                            tpl.status === 'active'
+                                                                ? 'success'
+                                                                : 'default'
+                                                        }
+                                                        size="small"
+                                                    />
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() =>
+                                                            handleToggleStatus(tpl.id, tpl.status)
+                                                        }
+                                                    >
+                                                        {tpl.status === 'active' ? (
+                                                            <CheckCircle
+                                                                sx={{ color: '#2e7d32' }}
+                                                            />
+                                                        ) : (
+                                                            <ErrorIcon sx={{ color: '#9e9e9e' }} />
+                                                        )}
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleExportTemplate(tpl)}
+                                                    >
+                                                        <DownloadIcon fontSize="small" />
+                                                    </IconButton>
+                                                    <IconButton
+                                                        size="small"
+                                                        onClick={() => handleDeleteTemplate(tpl.id)}
+                                                    >
+                                                        <DeleteIcon fontSize="small" />
+                                                    </IconButton>
+                                                </Stack>
+                                            </Box>
+                                        </Grid>
+                                    ))}
+                                </Grid>
+                            </Stack>
+                        </CardContent>
+                    </Card>
+                </Grid>
+            </Grid>
+        </Box>
+    );
+
     return (
         <Box p={0}>
             {/* Tabs */}
@@ -1411,24 +1918,33 @@ function InfoPage() {
                     }}
                 >
                     <Tab
-                        icon={<SettingsIcon />}
+                        icon={<BusinessIcon />}
                         iconPosition="start"
-                        label="Thiết lập"
+                        label="Thông tin gói dịch vụ"
                         {...a11yProps(0)}
                     />
                     <Tab
-                        icon={<InfoIcon />}
+                        icon={<SettingsIcon />}
                         iconPosition="start"
-                        label="Thông tin ứng dụng"
+                        label="Thiết lập dữ liệu đầu vào"
                         {...a11yProps(1)}
+                    />
+                    <Tab
+                        icon={<CloudUploadIcon />}
+                        iconPosition="start"
+                        label="Thiết lập mẫu"
+                        {...a11yProps(2)}
                     />
                 </Tabs>
 
                 <TabPanel value={tabValue} index={0}>
-                    <SettingsTab />
+                    <PackageInfoTab />
                 </TabPanel>
                 <TabPanel value={tabValue} index={1}>
-                    <AppInfoTab />
+                    <DataSetupTab />
+                </TabPanel>
+                <TabPanel value={tabValue} index={2}>
+                    <TemplateSetupTab />
                 </TabPanel>
             </Paper>
         </Box>

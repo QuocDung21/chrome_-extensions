@@ -1,25 +1,27 @@
 import { ReactElement, useState } from 'react';
+
 import {
-    Toolbar,
-    Typography,
-    IconButton,
-    Badge,
-    Menu,
-    MenuItem,
-    Avatar,
-    Box,
-    Tooltip,
-    Divider,
-} from '@mui/material';
-import {
-    Menu as MenuIcon,
-    Notifications as NotificationsIcon,
-    Settings as SettingsIcon,
     AccountCircle as AccountCircleIcon,
     Brightness4 as DarkModeIcon,
     Brightness7 as LightModeIcon,
     ExitToApp as LogoutIcon,
+    Menu as MenuIcon,
+    Notifications as NotificationsIcon,
+    Settings as SettingsIcon
 } from '@mui/icons-material';
+import {
+    Avatar,
+    Badge,
+    Box,
+    Divider,
+    IconButton,
+    Menu,
+    MenuItem,
+    Toolbar,
+    Tooltip,
+    Typography
+} from '@mui/material';
+import { useNavigate } from '@tanstack/react-router';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -27,7 +29,12 @@ interface HeaderProps {
     showMenuButton?: boolean;
 }
 
-export default function Header({ onMenuClick, title, showMenuButton = true }: HeaderProps): ReactElement {
+export default function Header({
+    onMenuClick,
+    title,
+    showMenuButton = true
+}: HeaderProps): ReactElement {
+    const navigate = useNavigate();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
 
@@ -49,6 +56,11 @@ export default function Header({ onMenuClick, title, showMenuButton = true }: He
 
     const isMenuOpen = Boolean(anchorEl);
     const isNotificationOpen = Boolean(notificationAnchor);
+
+    const handleGoToInfo = () => {
+        handleProfileMenuClose();
+        navigate({ to: '/info' });
+    };
 
     return (
         <Toolbar sx={{ justifyContent: 'space-between' }}>
@@ -73,31 +85,27 @@ export default function Header({ onMenuClick, title, showMenuButton = true }: He
             {/* Right side - Actions */}
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {/* Theme Toggle */}
-                <Tooltip title="Toggle theme">
+                {/* <Tooltip title="Toggle theme">
                     <IconButton color="inherit" size="large">
                         <LightModeIcon />
                     </IconButton>
-                </Tooltip>
+                </Tooltip> */}
 
                 {/* Notifications */}
-                <Tooltip title="Notifications">
-                    <IconButton
-                        color="inherit"
-                        size="large"
-                        onClick={handleNotificationOpen}
-                    >
+                {/* <Tooltip title="Notifications">
+                    <IconButton color="inherit" size="large" onClick={handleNotificationOpen}>
                         <Badge badgeContent={3} color="error">
                             <NotificationsIcon />
                         </Badge>
                     </IconButton>
-                </Tooltip>
+                </Tooltip> */}
 
                 {/* Settings */}
-                <Tooltip title="Settings">
+                {/* <Tooltip title="Settings">
                     <IconButton color="inherit" size="large">
                         <SettingsIcon />
                     </IconButton>
-                </Tooltip>
+                </Tooltip> */}
 
                 {/* Profile Menu */}
                 <Tooltip title="Account">
@@ -111,7 +119,7 @@ export default function Header({ onMenuClick, title, showMenuButton = true }: He
                         color="inherit"
                     >
                         <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main' }}>
-                            A
+                            NTSOFT
                         </Avatar>
                     </IconButton>
                 </Tooltip>
@@ -122,13 +130,13 @@ export default function Header({ onMenuClick, title, showMenuButton = true }: He
                 anchorEl={anchorEl}
                 anchorOrigin={{
                     vertical: 'bottom',
-                    horizontal: 'right',
+                    horizontal: 'right'
                 }}
                 id="primary-search-account-menu"
                 keepMounted
                 transformOrigin={{
                     vertical: 'top',
-                    horizontal: 'right',
+                    horizontal: 'right'
                 }}
                 open={isMenuOpen}
                 onClose={handleProfileMenuClose}
@@ -138,16 +146,16 @@ export default function Header({ onMenuClick, title, showMenuButton = true }: He
             >
                 <MenuItem onClick={handleProfileMenuClose}>
                     <AccountCircleIcon sx={{ mr: 2 }} />
-                    Profile
+                    Cá nhân
                 </MenuItem>
-                <MenuItem onClick={handleProfileMenuClose}>
+                <MenuItem onClick={handleGoToInfo}>
                     <SettingsIcon sx={{ mr: 2 }} />
-                    Account Settings
+                    Cài đặt
                 </MenuItem>
                 <Divider />
                 <MenuItem onClick={handleProfileMenuClose}>
                     <LogoutIcon sx={{ mr: 2 }} />
-                    Logout
+                    Đăng xuất
                 </MenuItem>
             </Menu>
 
@@ -156,12 +164,12 @@ export default function Header({ onMenuClick, title, showMenuButton = true }: He
                 anchorEl={notificationAnchor}
                 anchorOrigin={{
                     vertical: 'bottom',
-                    horizontal: 'right',
+                    horizontal: 'right'
                 }}
                 keepMounted
                 transformOrigin={{
                     vertical: 'top',
-                    horizontal: 'right',
+                    horizontal: 'right'
                 }}
                 open={isNotificationOpen}
                 onClose={handleNotificationClose}
