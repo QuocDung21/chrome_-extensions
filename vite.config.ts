@@ -1,5 +1,5 @@
-import path from 'node:path';
 import fs from 'node:fs';
+import path from 'node:path';
 import { defineConfig } from 'vite';
 
 import { crx } from '@crxjs/vite-plugin';
@@ -84,7 +84,10 @@ export default defineConfig({
                             res.statusCode = 500;
                             res.setHeader('Content-Type', 'application/json');
                             res.end(
-                                JSON.stringify({ success: false, error: e?.message || 'Server error' })
+                                JSON.stringify({
+                                    success: false,
+                                    error: e?.message || 'Server error'
+                                })
                             );
                         }
                     });
