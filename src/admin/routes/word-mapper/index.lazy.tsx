@@ -918,6 +918,7 @@ function WordFillerComponent() {
     const [insertText, setInsertText] = useState('');
     const [insertFieldKey, setInsertFieldKey] = useState<string>('');
     const htmlClickRangeRef = useRef<Range | null>(null);
+    const htmlClickTargetRef = useRef<Element | null>(null);
 
     // Custom hooks
     const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(API_URL);
@@ -1002,6 +1003,10 @@ function WordFillerComponent() {
         []
     );
 
+    const handelTest = () => {
+        console.log('');
+    };
+
     useEffect(() => {
         if (!insertFieldKey && availableFieldKeys.length > 0) {
             setInsertFieldKey(availableFieldKeys[0]);
@@ -1051,8 +1056,8 @@ function WordFillerComponent() {
 
             if (scannedData.trim()) {
                 await processScannedData(scannedData.trim());
-                setScannedData(''); // Xóa ô input để chuẩn bị cho lần quét tiếp theo
-                inputRef.current?.focus(); // Tự động focus lại
+                setScannedData('');
+                inputRef.current?.focus();
             }
         }
     };
@@ -1085,19 +1090,25 @@ function WordFillerComponent() {
                 `Định dạng: ${detectedFormat?.name || 'Không xác định'} | Trường: ${Object.keys(processingData).join(', ')}`
             );
 
-            // Nếu đang ở chế độ HTML và đã có HTML nguồn, tiến hành chèn trực tiếp
-            if (previewMode === 'html' && htmlRaw) {
-                const filled = fillHtmlWithData(htmlRaw, processingData);
-                // Render filled HTML vào iframe
-                const iframe = htmlIframeRef.current;
-                if (iframe) {
-                    iframe.srcdoc = filled;
+            // Nếu đang ở chế độ HTML, chỉ điền dữ liệu vào các field hiện có, không reload iframe để tránh mất DOM/id
+            if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
+                try {
+                    ensureHtmlInputKeys();
+                    const ok = fillHtmlFormFieldsFromData(processingData);
+                    setSnackbar({
+                        open: true,
+                        message: ok
+                            ? 'Đã chèn dữ liệu vào biểu mẫu'
+                            : 'Không tìm thấy trường để chèn',
+                        severity: ok ? 'success' : 'info'
+                    });
+                } catch (e) {
+                    setSnackbar({
+                        open: true,
+                        message: 'Không thể chèn dữ liệu vào biểu mẫu',
+                        severity: 'error'
+                    });
                 }
-                setSnackbar({
-                    open: true,
-                    message: 'Đã chèn dữ liệu vào HTML',
-                    severity: 'success'
-                });
             } else {
                 // Reset trạng thái trước khi tạo tài liệu mới
                 setState(prev => ({
@@ -1259,6 +1270,9 @@ function WordFillerComponent() {
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('Không thể tải file HTML');
                 const text = await res.text();
+                try {
+                    console.debug('[HTML] Loaded from URL:', url, 'length:', text.length);
+                } catch {}
                 setHtmlRaw(text);
                 setPreviewMode('html');
             } catch (e) {
@@ -1283,6 +1297,18 @@ function WordFillerComponent() {
                     isPreviewEditModeRef.current ? 'true' : 'false'
                 );
         } catch {}
+        // Capture original IDs so we can restore if the editor/DOM mutations drop them
+        try {
+            const elements = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<
+                HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+            >;
+            elements.forEach(el => {
+                const id = el.getAttribute('id');
+                if (id && id.trim() && !el.getAttribute('data-original-id')) {
+                    el.setAttribute('data-original-id', id.trim());
+                }
+            });
+        } catch {}
         const handleDragOver = (ev: DragEvent) => {
             ev.preventDefault();
         };
@@ -1306,6 +1332,33 @@ function WordFillerComponent() {
                     }
                 }
             } catch {}
+            // Determine element at point to decide if we should set input value instead
+            const targetEl = (doc.elementFromPoint(x, y) as Element) || doc.body;
+            const inputLike = targetEl.closest?.('input, textarea, select') as
+                | HTMLInputElement
+                | HTMLTextAreaElement
+                | HTMLSelectElement
+                | null;
+            if (inputLike) {
+                const tag = inputLike.tagName.toLowerCase();
+                const type = (inputLike as HTMLInputElement).type?.toLowerCase?.();
+                // Avoid setting for checkbox/radio groups on drop
+                if (
+                    tag === 'textarea' ||
+                    tag === 'select' ||
+                    (tag === 'input' && type !== 'checkbox' && type !== 'radio')
+                ) {
+                    // Set both property and attribute to persist across srcDoc reload
+                    (inputLike as any).value = text;
+                    try {
+                        inputLike.setAttribute('value', text);
+                    } catch {}
+                    try {
+                        setHtmlRaw(doc.documentElement.outerHTML);
+                    } catch {}
+                    return;
+                }
+            }
             if (!range) {
                 const el = doc.elementFromPoint(x, y) || doc.body;
                 if (el) {
@@ -1324,7 +1377,6 @@ function WordFillerComponent() {
                 sel?.removeAllRanges();
                 sel?.addRange(range);
             } catch {}
-            // Persist back to state so the edit survives reloads
             try {
                 setHtmlRaw(doc.documentElement.outerHTML);
             } catch {}
@@ -1350,11 +1402,13 @@ function WordFillerComponent() {
                     }
                 }
             } catch {}
+            // Track the clicked element for smarter insertion into inputs
+            const clickedEl = (doc.elementFromPoint(x, y) as Element) || doc.body;
+            htmlClickTargetRef.current = clickedEl;
             if (!range) {
-                const el = doc.elementFromPoint(x, y) || doc.body;
-                if (el) {
+                if (clickedEl) {
                     range = doc.createRange();
-                    range.selectNodeContents(el);
+                    range.selectNodeContents(clickedEl);
                     range.collapse(false);
                 }
             }
@@ -1398,6 +1452,38 @@ function WordFillerComponent() {
                 }
             }
         } catch {}
+        // If the click target was an input/textarea/select, set its value directly
+        const targetEl = htmlClickTargetRef.current as
+            | HTMLInputElement
+            | HTMLTextAreaElement
+            | HTMLSelectElement
+            | Element
+            | null;
+        if (targetEl && (targetEl as Element).closest) {
+            const inputLike = (targetEl as Element).closest('input, textarea, select') as
+                | HTMLInputElement
+                | HTMLTextAreaElement
+                | HTMLSelectElement
+                | null;
+            if (inputLike) {
+                const tag = inputLike.tagName.toLowerCase();
+                const type = (inputLike as HTMLInputElement).type?.toLowerCase?.();
+                if (
+                    tag === 'textarea' ||
+                    tag === 'select' ||
+                    (tag === 'input' && type !== 'checkbox' && type !== 'radio')
+                ) {
+                    (inputLike as any).value = textToInsert;
+                    try {
+                        inputLike.setAttribute('value', textToInsert);
+                    } catch {}
+                    try {
+                        setHtmlRaw(doc.documentElement.outerHTML);
+                    } catch {}
+                    return true;
+                }
+            }
+        }
         if (!range) return false;
         const node = doc.createTextNode(textToInsert);
         try {
@@ -1424,6 +1510,46 @@ function WordFillerComponent() {
             setInsertDialogOpen(false);
             return;
         }
+        // If target is an input-like element and user is inserting a field, also bind field-key on element
+        try {
+            const iframe = htmlIframeRef.current;
+            const doc = iframe?.contentDocument;
+            const targetEl = htmlClickTargetRef.current as Element | null;
+            if (doc && targetEl) {
+                const inputLike = targetEl.closest?.('input, textarea, select') as
+                    | HTMLInputElement
+                    | HTMLTextAreaElement
+                    | HTMLSelectElement
+                    | null;
+                if (inputLike) {
+                    if (insertMode === 'field' && insertFieldKey) {
+                        // Gắn data-field-key để mapping ổn định mà không cần đổi id
+                        inputLike.setAttribute('data-field-key', `{${insertFieldKey}}`);
+                        // Nếu input đang có id trống nhưng có data-original-id thì khôi phục lại id
+                        const currentId = inputLike.getAttribute('id');
+                        const originalId = inputLike.getAttribute('data-original-id');
+                        if (!currentId && originalId) {
+                            try {
+                                inputLike.setAttribute('id', originalId);
+                            } catch {}
+                        }
+                        // Nếu id trống, name trống nhưng có data-auto-id, dùng data-auto-id làm name để giữ group/radio
+                        if (
+                            !inputLike.getAttribute('id') &&
+                            !inputLike.getAttribute('name') &&
+                            inputLike.getAttribute('data-auto-id')
+                        ) {
+                            try {
+                                inputLike.setAttribute(
+                                    'name',
+                                    inputLike.getAttribute('data-auto-id') || ''
+                                );
+                            } catch {}
+                        }
+                    }
+                }
+            }
+        } catch {}
         insertTextAtHtmlRange(content);
         setInsertDialogOpen(false);
         setInsertText('');
@@ -1613,39 +1739,603 @@ function WordFillerComponent() {
         }
     }, [state.generatedBlob, state.selectedTemplatePath, displayTemplateName]);
 
-    const handlePrint = useCallback(() => {
-        if (!previewContainerRef.current) return;
+    // Thu thập dữ liệu từ các input trong HTML (id có thể ở dạng {field} hoặc field)
+    const collectDataFromHtmlInputs = useCallback((): ProcessingData => {
+        const iframe = htmlIframeRef.current;
+        const doc = iframe?.contentDocument;
+        const data: ProcessingData = {};
+        if (!doc) return data;
+        // Đảm bảo id được khôi phục trước khi đọc
+        try {
+            ensureHtmlInputKeys();
+        } catch {}
 
-        const printContent = previewContainerRef.current.innerHTML;
+        const elements = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<
+            HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >;
+
+        elements.forEach(el => {
+            const raw =
+                el.getAttribute('id') ||
+                el.getAttribute('name') ||
+                el.getAttribute('data-field-key') ||
+                '';
+            if (!raw) return;
+            const matched = raw.match(/\{([^}]+)\}/);
+            const key = (matched ? matched[1] : raw).trim();
+            if (!key) return;
+
+            let value: any = '';
+            if ((el as HTMLInputElement).type === 'checkbox') {
+                value = (el as HTMLInputElement).checked
+                    ? (el as HTMLInputElement).value || '1'
+                    : '';
+            } else if ((el as HTMLInputElement).type === 'radio') {
+                const nameAttr = (el as HTMLInputElement).name || raw;
+                if (nameAttr) {
+                    try {
+                        const selector = `input[type="radio"][name="${nameAttr.replace(/"/g, '\\"')}"]:checked`;
+                        const checked = doc.querySelector(selector) as HTMLInputElement | null;
+                        value = checked ? checked.value : '';
+                    } catch {
+                        value = '';
+                    }
+                }
+            } else if (el.tagName.toLowerCase() === 'select') {
+                const sel = el as HTMLSelectElement;
+                value = sel.value ?? '';
+            } else {
+                value = (el as HTMLInputElement | HTMLTextAreaElement).value ?? '';
+            }
+
+            data[key] = value;
+        });
+
+        return data;
+    }, []);
+
+    // Điền dữ liệu vào các input trong HTML iframe dựa trên khóa {field}
+    const fillHtmlFormFieldsFromData = useCallback((data: ProcessingData) => {
+        const iframe = htmlIframeRef.current;
+        const doc = iframe?.contentDocument;
+        if (!doc) return false;
+        // Khôi phục id trước khi nạp
+        try {
+            ensureHtmlInputKeys();
+        } catch {}
+
+        const toKey = (raw: string | null): string => {
+            if (!raw) return '';
+            const m = raw.match(/\{([^}]+)\}/);
+            return (m ? m[1] : raw).trim();
+        };
+
+        const truthy = (val: any): boolean => {
+            if (val == null) return false;
+            const s = String(val).toLowerCase().trim();
+            return s === '1' || s === 'true' || s === 'x' || s === 'yes' || s === 'y' || s === 'on';
+        };
+
+        const els = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<
+            HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >;
+
+        els.forEach(el => {
+            const key = toKey(
+                el.getAttribute('id') ||
+                    el.getAttribute('name') ||
+                    el.getAttribute('data-field-key')
+            );
+            if (!key) return;
+
+            const value = (data as any)[key];
+            if (value === undefined) return;
+
+            const tag = el.tagName.toLowerCase();
+            if (tag === 'select') {
+                const sel = el as HTMLSelectElement;
+                if (sel.querySelector(`option[value="${String(value)}"]`)) {
+                    sel.value = String(value);
+                } else {
+                    // Thử match theo text hiển thị
+                    const opt = Array.from(sel.options).find(
+                        o => o.text.trim() === String(value).trim()
+                    );
+                    if (opt) sel.value = opt.value;
+                }
+                sel.dispatchEvent(new Event('change', { bubbles: true }));
+                return;
+            }
+
+            const type = (el as HTMLInputElement).type?.toLowerCase();
+            if (type === 'radio') {
+                const nameAttr = (el as HTMLInputElement).name || key;
+                if (nameAttr) {
+                    const radios = Array.from(
+                        doc.querySelectorAll(
+                            `input[type="radio"][name="${nameAttr.replace(/"/g, '\\"')}"]`
+                        )
+                    ) as HTMLInputElement[];
+                    radios.forEach(r => {
+                        r.checked =
+                            String(r.value).trim().toLowerCase() ===
+                            String(value).trim().toLowerCase();
+                        if (r.checked) r.dispatchEvent(new Event('change', { bubbles: true }));
+                    });
+                }
+                return;
+            }
+
+            if (type === 'checkbox') {
+                const cb = el as HTMLInputElement;
+                cb.checked = truthy(value);
+                cb.dispatchEvent(new Event('change', { bubbles: true }));
+                return;
+            }
+
+            (el as HTMLInputElement | HTMLTextAreaElement).value = String(value ?? '');
+            el.dispatchEvent(new Event('input', { bubbles: true }));
+            el.dispatchEvent(new Event('change', { bubbles: true }));
+        });
+
+        return true;
+    }, []);
+
+    // In DOCX bằng docx-preview trong cửa sổ mới
+    const printDocxWithPreview = useCallback(async (blobOrUrl: Blob | string) => {
         const printWindow = window.open('', '_blank');
-
-        if (printWindow) {
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>In tài liệu</title>
-                    <style>
-                        body { font-family: Arial, sans-serif; margin: 20px; }
-                        @media print {
-                            body { margin: 0; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    ${printContent}
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            printWindow.focus();
-
-            setTimeout(() => {
+        if (!printWindow) return;
+        printWindow.document.open();
+        printWindow.document.write(
+            '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>In tài liệu</title><style>html,body{height:100%}body{margin:0;padding:0;background:#fff}</style></head><body><div id="docx-print-root" class="docx-preview-container"></div></body></html>'
+        );
+        printWindow.document.close();
+        const container = printWindow.document.getElementById(
+            'docx-print-root'
+        ) as HTMLDivElement | null;
+        if (!container) return;
+        let blob: Blob;
+        if (typeof blobOrUrl === 'string') {
+            const res = await fetch(blobOrUrl);
+            blob = await res.blob();
+        } else {
+            blob = blobOrUrl;
+        }
+        await renderAsync(blob, container, undefined, { className: 'docx-preview-container' });
+        setTimeout(() => {
+            try {
+                printWindow.focus();
                 printWindow.print();
                 printWindow.close();
-            }, 250);
-        }
+            } catch {}
+        }, 100);
     }, []);
+
+    // Tạo DOCX từ dữ liệu HTML inputs và in bằng docx-preview
+    const handleGenerateDocxFromHtmlAndPrint = useCallback(async () => {
+        try {
+            const currentTemplatePath = templatePathRef.current;
+            if (!currentTemplatePath) {
+                setSnackbar({
+                    open: true,
+                    message: 'Vui lòng chọn mẫu Word trước khi in.',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            const data = collectDataFromHtmlInputs();
+            if (!data || Object.keys(data).length === 0) {
+                setSnackbar({
+                    open: true,
+                    message: 'Không tìm thấy dữ liệu từ biểu mẫu HTML.',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            setState(prev => ({ ...prev, isLoading: true, error: null }));
+            const blob = await processDocument(currentTemplatePath, data);
+            setState(prev => ({ ...prev, generatedBlob: blob, isLoading: false }));
+
+            await printDocxWithPreview(blob);
+            setSnackbar({
+                open: true,
+                message: 'Đang mở hộp thoại in tài liệu...',
+                severity: 'success'
+            });
+        } catch (e: any) {
+            setState(prev => ({ ...prev, isLoading: false }));
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Không thể tạo file từ dữ liệu HTML',
+                severity: 'error'
+            });
+        }
+    }, [collectDataFromHtmlInputs, processDocument, printDocxWithPreview, setSnackbar]);
+
+    // Tạo DOCX từ dữ liệu đã lưu (id input hoặc {field}) và in bằng docx-preview
+    const handleReplaySavedToWordAndPrint = useCallback(async () => {
+        try {
+            const currentTemplatePath = templatePathRef.current;
+            if (!currentTemplatePath) {
+                setSnackbar({
+                    open: true,
+                    message: 'Vui lòng chọn mẫu Word trước khi in.',
+                    severity: 'warning'
+                });
+                return;
+            }
+            const keyBase = state.selectedHtmlUrl || state.selectedTemplatePath || 'manual-html';
+            const storageKey = `html_form_values:${keyBase}`;
+            const result = await chrome.storage.local.get([storageKey]);
+            const raw = (result && result[storageKey]) || {};
+            if (!raw || Object.keys(raw).length === 0) {
+                setSnackbar({
+                    open: true,
+                    message: 'Chưa có dữ liệu biểu mẫu đã lưu.',
+                    severity: 'info'
+                });
+                return;
+            }
+            // Chuẩn hóa key: {field} -> field
+            const normalized: Record<string, any> = {};
+            Object.entries(raw).forEach(([k, v]) => {
+                const m = k.match(/^\{([^}]+)\}$/);
+                const nk = m && m[1] ? m[1].trim() : k;
+                normalized[nk] = v;
+            });
+
+            setState(prev => ({ ...prev, isLoading: true, error: null }));
+            const blob = await processDocument(currentTemplatePath, normalized);
+            setState(prev => ({ ...prev, generatedBlob: blob, isLoading: false }));
+
+            await printDocxWithPreview(blob);
+            setSnackbar({
+                open: true,
+                message: 'Đang mở hộp thoại in tài liệu...',
+                severity: 'success'
+            });
+        } catch (e: any) {
+            setState(prev => ({ ...prev, isLoading: false }));
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Không thể tạo/in tài liệu từ dữ liệu đã lưu',
+                severity: 'error'
+            });
+        }
+    }, [
+        state.selectedHtmlUrl,
+        state.selectedTemplatePath,
+        processDocument,
+        printDocxWithPreview,
+        setSnackbar
+    ]);
+
+    // Xuất PDF từ khu vực preview (DOCX render hoặc HTML) và mở để in
+    const handleExportPdfFromPreview = useCallback(async () => {
+        try {
+            // Xác định phần tử nguồn để xuất PDF
+            let sourceElement: HTMLElement | null = null;
+            if (previewMode === 'docx') {
+                sourceElement = previewContainerRef.current;
+            } else {
+                const doc = htmlIframeRef.current?.contentDocument;
+                sourceElement = (doc?.body || null) as unknown as HTMLElement | null;
+            }
+            if (!sourceElement) {
+                setSnackbar({
+                    open: true,
+                    message: 'Không tìm thấy nội dung để xuất PDF',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            const html2canvas = (await import('html2canvas')).default;
+            const { jsPDF } = await import('jspdf');
+
+            // Chụp thành canvas với scale cao để nét hơn
+            const canvas = await html2canvas(sourceElement, {
+                scale: 2,
+                useCORS: true,
+                allowTaint: true,
+                backgroundColor: '#ffffff'
+            });
+
+            const pxPerMm = 96 / 25.4; // 96dpi -> px/mm
+            const imgWidthPx = canvas.width;
+            const imgHeightPx = canvas.height;
+
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const pageWidthMm = pdf.internal.pageSize.getWidth();
+            const pageHeightMm = pdf.internal.pageSize.getHeight();
+
+            // Tính tỉ lệ để fit theo chiều ngang trang
+            const imgWidthMm = imgWidthPx / pxPerMm;
+            const imgHeightMm = imgHeightPx / pxPerMm;
+            const ratio = pageWidthMm / imgWidthMm;
+
+            if (imgHeightMm * ratio <= pageHeightMm) {
+                const imgData = canvas.toDataURL('image/png', 1.0);
+                pdf.addImage(imgData, 'PNG', 0, 0, pageWidthMm, imgHeightMm * ratio);
+            } else {
+                // Cần chia trang
+                const segmentPxHeight = Math.floor((pageHeightMm / ratio) * pxPerMm);
+                let y = 0;
+                let isFirst = true;
+                while (y < imgHeightPx) {
+                    const segH = Math.min(segmentPxHeight, imgHeightPx - y);
+                    const segCanvas = document.createElement('canvas');
+                    segCanvas.width = imgWidthPx;
+                    segCanvas.height = segH;
+                    const segCtx = segCanvas.getContext('2d');
+                    if (!segCtx) break;
+                    segCtx.drawImage(canvas, 0, y, imgWidthPx, segH, 0, 0, imgWidthPx, segH);
+                    const segData = segCanvas.toDataURL('image/png', 1.0);
+                    if (!isFirst) pdf.addPage();
+                    pdf.addImage(segData, 'PNG', 0, 0, pageWidthMm, (segH / pxPerMm) * ratio);
+                    isFirst = false;
+                    y += segH;
+                }
+            }
+
+            // In trực tiếp trên web bằng iframe ẩn, không tải file xuống
+            const pdfUrl: string = pdf.output('bloburl') as unknown as string;
+            const iframe = document.createElement('iframe');
+            iframe.style.position = 'fixed';
+            iframe.style.right = '0';
+            iframe.style.bottom = '0';
+            iframe.style.width = '0';
+            iframe.style.height = '0';
+            iframe.style.border = '0';
+            iframe.src = pdfUrl;
+            document.body.appendChild(iframe);
+            iframe.onload = () => {
+                try {
+                    iframe.contentWindow?.focus();
+                    iframe.contentWindow?.print();
+                } finally {
+                    setTimeout(() => {
+                        if (document.body.contains(iframe)) {
+                            document.body.removeChild(iframe);
+                        }
+                    }, 1000);
+                }
+            };
+            setSnackbar({
+                open: true,
+                message: 'Đang mở hộp thoại in PDF...',
+                severity: 'success'
+            });
+        } catch (e: any) {
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Không thể xuất PDF',
+                severity: 'error'
+            });
+        }
+    }, [previewMode, setSnackbar]);
+
+    // Đảm bảo mỗi input trong iframe HTML có khóa ổn định (id hoặc name). Nếu thiếu, tự gán id.
+    const ensureHtmlInputKeys = useCallback((): void => {
+        const iframe = htmlIframeRef.current;
+        const doc = iframe?.contentDocument;
+        if (!doc) return;
+        const elements = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<
+            HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+        >;
+        elements.forEach((el, idx) => {
+            const id = el.getAttribute('id') || '';
+            const name = (el as HTMLInputElement).name || '';
+            if (!id && !name) {
+                const existing = el.getAttribute('data-auto-id');
+                const autoId = existing || `auto_input_${idx + 1}`;
+                el.setAttribute('data-auto-id', autoId);
+                // Không tự ý thay đổi hoặc gán thuộc tính id vì id là liên kết giữa HTML và Word
+            }
+            // Nếu id bị mất nhưng có data-original-id trước đó, khôi phục lại
+            const originalId = el.getAttribute('data-original-id');
+            if (!id && originalId) {
+                try {
+                    el.setAttribute('id', originalId);
+                } catch {}
+            }
+        });
+    }, []);
+
+    // Lưu/Nạp dữ liệu form HTML theo dạng key-value (key=id hoặc name nếu thiếu id)
+    const getHtmlFormStorageKey = useCallback((): string => {
+        const keyBase = state.selectedHtmlUrl || state.selectedTemplatePath || 'manual-html';
+        return `html_form_values:${keyBase}`;
+    }, [state.selectedHtmlUrl, state.selectedTemplatePath]);
+
+    const saveHtmlFormValues = useCallback(async () => {
+        try {
+            const iframe = htmlIframeRef.current;
+            const doc = iframe?.contentDocument;
+            if (!doc) return;
+            // Gán id tự động nếu input chưa có khóa
+            ensureHtmlInputKeys();
+            const inputs = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<
+                HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+            >;
+            const data: Record<string, any> = {};
+
+            inputs.forEach(el => {
+                const id = el.getAttribute('id') || '';
+                const name = (el as HTMLInputElement).name || '';
+                const dataFieldKeyRaw = el.getAttribute('data-field-key') || '';
+                const dataAutoId = el.getAttribute('data-auto-id') || '';
+                const normalizedFieldKey = dataFieldKeyRaw
+                    ? (dataFieldKeyRaw.match(/^\{([^}]+)\}$/)?.[1] || dataFieldKeyRaw).trim()
+                    : '';
+                const key = normalizedFieldKey || id || name || dataAutoId;
+                if (!key) return;
+                const tag = el.tagName.toLowerCase();
+                if (tag === 'select') {
+                    data[key] = (el as HTMLSelectElement).value ?? '';
+                    return;
+                }
+                const type = (el as HTMLInputElement).type?.toLowerCase();
+                if (type === 'checkbox') {
+                    data[key] = (el as HTMLInputElement).checked
+                        ? (el as HTMLInputElement).value || '1'
+                        : '';
+                    return;
+                }
+                if (type === 'radio') {
+                    // Lưu theo group name để nạp lại dễ dàng
+                    const group = normalizedFieldKey || name || id || dataAutoId;
+                    if (!group) return;
+                    try {
+                        const checked = doc.querySelector(
+                            `input[type="radio"][name="${group.replace(/"/g, '\\"')}"]:checked`
+                        ) as HTMLInputElement | null;
+                        if (checked) data[group] = checked.value;
+                    } catch {}
+                    return;
+                }
+                data[key] = (el as HTMLInputElement | HTMLTextAreaElement).value ?? '';
+            });
+
+            const storageKey = getHtmlFormStorageKey();
+            await chrome.storage.local.set({ [storageKey]: data });
+            setSnackbar({
+                open: true,
+                message: 'Đã lưu dữ liệu biểu mẫu (theo ID)',
+                severity: 'success'
+            });
+        } catch (e: any) {
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Không thể lưu dữ liệu',
+                severity: 'error'
+            });
+        }
+    }, [getHtmlFormStorageKey, ensureHtmlInputKeys, setSnackbar]);
+
+    const loadHtmlFormValues = useCallback(async () => {
+        try {
+            const storageKey = getHtmlFormStorageKey();
+            const result = await chrome.storage.local.get([storageKey]);
+            const data = (result && result[storageKey]) || {};
+            if (!data || Object.keys(data).length === 0) {
+                setSnackbar({
+                    open: true,
+                    message: 'Chưa có dữ liệu đã lưu cho mẫu này',
+                    severity: 'info'
+                });
+                return false;
+            }
+            // Đảm bảo có khóa trước khi nạp và chuẩn hóa key: nếu key ở dạng {field} -> chuyển thành field
+            ensureHtmlInputKeys();
+            // Chuẩn hóa key: nếu key ở dạng {field} -> chuyển thành field để khớp logic điền
+            const normalized: Record<string, any> = { ...data };
+            Object.entries(data).forEach(([k, v]) => {
+                const m = k.match(/^\{([^}]+)\}$/);
+                if (m && m[1]) {
+                    const nk = m[1].trim();
+                    if (!(nk in normalized)) normalized[nk] = v;
+                }
+            });
+            // Nạp vào form
+            const ok = fillHtmlFormFieldsFromData(normalized);
+            if (ok) {
+                setSnackbar({
+                    open: true,
+                    message: 'Đã nạp dữ liệu vào biểu mẫu',
+                    severity: 'success'
+                });
+            }
+            return ok;
+        } catch (e: any) {
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Không thể nạp dữ liệu',
+                severity: 'error'
+            });
+            return false;
+        }
+    }, [getHtmlFormStorageKey, fillHtmlFormFieldsFromData, setSnackbar]);
+
+    const handlePrint = useCallback(async () => {
+        try {
+            if (previewMode === 'docx') {
+                let blobToPrint: Blob | null = null;
+                if (state.generatedBlob) {
+                    blobToPrint = state.generatedBlob;
+                } else if (state.selectedTemplatePath) {
+                    try {
+                        const res = await fetch(state.selectedTemplatePath);
+                        if (res.ok) blobToPrint = await res.blob();
+                    } catch {}
+                }
+
+                if (!blobToPrint) {
+                    setSnackbar({
+                        open: true,
+                        message: 'Không có tài liệu DOCX để in',
+                        severity: 'warning'
+                    });
+                    return;
+                }
+
+                const printWindow = window.open('', '_blank');
+                if (!printWindow) return;
+
+                printWindow.document.open();
+                printWindow.document.write(
+                    '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>In tài liệu</title><style>html,body{height:100%}body{margin:0;padding:0;background:#fff}</style></head><body><div id="docx-print-root" class="docx-preview-container"></div></body></html>'
+                );
+                printWindow.document.close();
+
+                const container = printWindow.document.getElementById(
+                    'docx-print-root'
+                ) as HTMLDivElement | null;
+                if (!container) return;
+
+                await renderAsync(blobToPrint, container, undefined, {
+                    className: 'docx-preview-container'
+                });
+
+                setTimeout(() => {
+                    try {
+                        printWindow.focus();
+                        printWindow.print();
+                        printWindow.close();
+                    } catch {}
+                }, 100);
+
+                return;
+            }
+
+            // HTML mode: reuse existing preview printing
+            const iframe = htmlIframeRef.current;
+            const doc = iframe?.contentDocument;
+            if (!doc) return;
+            const html = doc.documentElement.outerHTML;
+            const printWindow = window.open('', '_blank');
+            if (printWindow) {
+                printWindow.document.open();
+                printWindow.document.write(html);
+                printWindow.document.close();
+                printWindow.focus();
+                setTimeout(() => {
+                    try {
+                        printWindow.print();
+                        printWindow.close();
+                    } catch {}
+                }, 250);
+            }
+        } catch (e) {
+            setSnackbar({
+                open: true,
+                message: 'Không thể in tài liệu',
+                severity: 'error'
+            });
+        }
+    }, [previewMode, state.generatedBlob, state.selectedTemplatePath, setSnackbar]);
 
     const handleReset = useCallback(() => {
         // Cleanup uploaded blob URL if any
@@ -2208,15 +2898,7 @@ function WordFillerComponent() {
                 state.uploadedTemplateName || `${displayTemplateName}.docx`
             ).replace(/\s+/g, '_');
             const fileName = /\.docx$/i.test(safeNameBase) ? safeNameBase : `${safeNameBase}.docx`;
-            // Resolve API URL (absolute when running from extension/file origin)
-            const isSpecialOrigin =
-                typeof location !== 'undefined' &&
-                (location.protocol === 'chrome-extension:' || location.protocol === 'file:');
-            const apiUrl = isSpecialOrigin
-                ? `http://localhost:5173/api/save-custom-template`
-                : `/api/save-custom-template`;
-
-            const saveRes = await fetch(apiUrl, {
+            const saveRes = await fetch('/api/save-custom-template', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ code, fileName, fileBase64: base64 })
@@ -2376,9 +3058,9 @@ function WordFillerComponent() {
                             justifyContent: 'space-between'
                         }}
                     >
-                        <Typography variant="h6" gutterBottom>
+                        {/* <Typography variant="h6" gutterBottom>
                             {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
-                        </Typography>
+                        </Typography> */}
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                             <ToggleButtonGroup
                                 size="small"
@@ -2415,13 +3097,41 @@ function WordFillerComponent() {
                                     Mở/In Word
                                 </Button>
                             ) : (
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<PrintIcon />}
-                                    onClick={handlePrintPreview}
-                                >
-                                    In HTML
-                                </Button>
+                                <>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<PrintIcon />}
+                                        onClick={handleGenerateDocxFromHtmlAndPrint}
+                                    >
+                                        Điền Word & In
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<PrintIcon />}
+                                        onClick={() => void handleReplaySavedToWordAndPrint()}
+                                    >
+                                        Replay & In Word (từ dữ liệu đã lưu)
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<PrintIcon />}
+                                        onClick={handleExportPdfFromPreview}
+                                    >
+                                        Xuất PDF & In
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => void saveHtmlFormValues()}
+                                    >
+                                        Lưu dữ liệu biểu mẫu
+                                    </Button>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => void loadHtmlFormValues()}
+                                    >
+                                        Nạp dữ liệu biểu mẫu
+                                    </Button>
+                                </>
                             )}
                             <Button
                                 variant="outlined"
@@ -2438,6 +3148,7 @@ function WordFillerComponent() {
                             >
                                 Tải mẫu gốc
                             </Button>
+                            <Button onClick={handelTest}>Test LogData</Button>
                             <Button component="label" variant="outlined" startIcon={<UploadIcon />}>
                                 Tải mẫu đã chỉnh
                                 <input
@@ -2502,6 +3213,16 @@ function WordFillerComponent() {
                                 srcDoc={htmlRaw}
                                 onLoad={() => {
                                     attachHtmlPreviewDndHandlers();
+                                    // Thử nạp dữ liệu đã lưu (nếu có) ngay khi iframe sẵn sàng
+                                    setTimeout(() => {
+                                        try {
+                                            const html =
+                                                htmlIframeRef.current?.contentDocument
+                                                    ?.documentElement?.outerHTML;
+                                            console.log(html);
+                                        } catch {}
+                                        void loadHtmlFormValues();
+                                    }, 50);
                                 }}
                             />
                         )}
@@ -2576,7 +3297,7 @@ function WordFillerComponent() {
                                 Bước 2: Lưu và tải lên
                             </Typography>
                             <Typography variant="body2">
-                                Lưu file .docx rồi bấm “Tải mẫu đã chỉnh” để sử dụng ngay.
+                                Lưu file .docx rồi bấm "Tải mẫu đã chỉnh" để sử dụng ngay.
                             </Typography>
                         </Paper>
                         <Paper variant="outlined" sx={{ p: 2 }}>
@@ -2723,8 +3444,8 @@ function WordFillerComponent() {
                                 khóa, bạn có thể đặt văn bản mô tả xung quanh tùy ý.
                             </Typography>
                             <Typography variant="body2" sx={{ mb: 1 }}>
-                                • Thay đổi mẫu nhiều lần được không? Được, bạn có thể bấm “Tải mẫu
-                                gốc” rồi “Tải mẫu đã chỉnh” để cập nhật bất cứ khi nào.
+                                • Thay đổi mẫu nhiều lần được không? Được, bạn có thể bấm "Tải mẫu
+                                gốc" rồi "Tải mẫu đã chỉnh" để cập nhật bất cứ khi nào.
                             </Typography>
                         </AccordionDetails>
                     </Accordion>

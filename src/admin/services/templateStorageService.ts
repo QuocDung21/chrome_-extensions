@@ -33,7 +33,7 @@ class TemplateStorageService {
         try {
             const templates = await this.getTemplates();
             const existingIndex = templates.findIndex(t => t.id === template.id);
-            
+
             if (existingIndex >= 0) {
                 templates[existingIndex] = template;
             } else {
@@ -56,7 +56,7 @@ class TemplateStorageService {
         try {
             const templates = await this.getTemplates();
             const filteredTemplates = templates.filter(t => t.id !== templateId);
-            
+
             await chrome.storage.local.set({
                 [this.STORAGE_KEY]: filteredTemplates
             });
@@ -111,7 +111,10 @@ class TemplateStorageService {
     /**
      * Save template with file data
      */
-    async saveTemplateWithFile(template: Omit<StoredTemplate, 'templateData'>, file: File): Promise<void> {
+    async saveTemplateWithFile(
+        template: Omit<StoredTemplate, 'templateData'>,
+        file: File
+    ): Promise<void> {
         try {
             const base64Data = await this.fileToBase64(file);
             const templateWithData: StoredTemplate = {
@@ -202,7 +205,7 @@ class TemplateStorageService {
         try {
             const usage = await chrome.storage.local.getBytesInUse();
             const templates = await this.getTemplates();
-            
+
             return {
                 used: usage,
                 total: chrome.storage.local.QUOTA_BYTES,

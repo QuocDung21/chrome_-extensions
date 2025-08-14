@@ -27,16 +27,6 @@ export default defineConfig({
             name: 'custom-template-save-api',
             configureServer(server) {
                 server.middlewares.use('/api/save-custom-template', (req, res, _next) => {
-                    // Basic CORS support for requests from chrome-extension:// origin
-                    res.setHeader('Access-Control-Allow-Origin', '*');
-                    res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-                    res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
-
-                    if (req.method === 'OPTIONS') {
-                        res.statusCode = 204;
-                        res.end();
-                        return;
-                    }
                     if (req.method !== 'POST') {
                         res.statusCode = 405;
                         res.setHeader('Content-Type', 'application/json');

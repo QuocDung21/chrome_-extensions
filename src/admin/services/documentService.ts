@@ -80,7 +80,7 @@ class DocumentService {
             try {
                 // Render the document (replace all variables)
                 doc.render();
-            } catch (error) {
+            } catch (error: any) {
                 console.error('Error rendering template:', error);
                 throw new Error('Lỗi khi render template: ' + error.message);
             }
@@ -94,7 +94,7 @@ class DocumentService {
             return new Blob([buffer], {
                 type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
             });
-        } catch (error) {
+        } catch (error: any) {
             console.error('Error generating document:', error);
             throw new Error('Không thể tạo tài liệu: ' + error.message);
         }

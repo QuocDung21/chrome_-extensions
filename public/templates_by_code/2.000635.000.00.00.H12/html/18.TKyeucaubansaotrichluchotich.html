@@ -121,7 +121,7 @@
 
         <div class="kinh-gui">
             Kính gửi: (1)
-            <input type="text" class="input-field" style="width: 60%; text-align: center;">
+            <input type="text" name="{ho_ten}" class="input-field" style="width: 60%; text-align: center;">
         </div>
 
         <div class="form-section">
@@ -184,5 +184,17 @@
             <p>(7) Ghi rõ số lượng bản sao đề nghị cấp.</p>
         </div>
     </div>
+
+    <script>
+        const test = () => {
+            // Lấy phần tử đầu tiên có name = "{ho_ten}"
+            const input = document.getElementsByName("{ho_ten}")[0];
+            if (input instanceof HTMLInputElement) {
+                input.value = "Dũng"; // Gán giá trị
+                console.log("Giá trị mới:", input.value);
+            }
+        }
+        test();
+    </script>
 </body>
 </html>
