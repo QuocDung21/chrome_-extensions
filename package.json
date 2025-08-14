@@ -9,8 +9,8 @@
         "check-types": "tsc --noEmit",
         "format": "prettier --config prettier.config.js --write .",
         "watch": "vite build --watch",
-    "build": "vite build",
-    "organize:templates": "node ./scripts/organize-templates-by-code.mjs"
+        "build": "vite build",
+        "organize:templates": "node ./scripts/organize-templates-by-code.mjs"
     },
     "dependencies": {
         "@emotion/react": "^11.14.0",
@@ -20,7 +20,9 @@
         "@mui/material": "^7.2.0",
         "@mui/system": "^7.2.0",
         "@mui/x-date-pickers": "^8.9.2",
+        "@pdftron/webviewer": "^11.6.1",
         "@react-pdf/renderer": "^4.3.0",
+        "@syncfusion/ej2-react-documenteditor": "^30.2.5",
         "@tanstack/react-router": "^1.125.6",
         "@types/fabric": "^5.3.10",
         "axios": "^1.10.0",

@@ -42,16 +42,6 @@
         .form-section {
             margin-bottom: 15px;
         }
-        .dotted-line {
-            border-bottom: 1px dotted black;
-            display: inline-block;
-        }
-        .full-width-dotted {
-             border-bottom: 1px dotted black;
-             width: 100%;
-             display: block;
-             height: 1.2em;
-        }
         .signature-section, .confirmation-section {
             margin-top: 30px;
         }
@@ -68,6 +58,24 @@
             font-style: italic;
             font-size: 12px;
         }
+
+        /* CSS for input fields */
+        input[type="text"], input[type="date"], textarea {
+            border: none;
+            border-bottom: 1px dotted black;
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 14px;
+            background-color: transparent;
+        }
+        input[type="text"]:focus, input[type="date"]:focus, textarea:focus {
+            outline: none;
+            border-bottom: 1px solid black;
+        }
+        textarea {
+            width: 100%;
+            vertical-align: bottom;
+            resize: none;
+        }
     </style>
 </head>
 <body>
@@ -82,7 +90,7 @@
 
     <div class="title">
         <h2>TỜ KHAI ĐỀ NGHỊ TRỢ GIÚP XÃ HỘI</h2>
-        <p>(Áp dụng đối với đối tượng quy định tại khoản 5 Điều 5 Nghị định số ....)</p>
+        <p>(Áp dụng đối với đối tượng quy định tại khoản 5 Điều 5 Nghị định số <input type="text" id="{field_1}" style="width: 10em;">)</p>
     </div>
 
     <form>
@@ -90,76 +98,70 @@
 
         <div class="form-section">
             1. Họ và tên (Viết chữ in hoa):
-            <span class="dotted-line" style="width: 70%;"></span>
+            <input value="" title="{field_2}" type="text" id="{field_2}" style="width: 70%;">
         </div>
         <div class="form-section">
             Ngày/tháng/năm sinh:
-            <span class="dotted-line" style="width: 2em;"></span> /
-            <span class="dotted-line" style="width: 2em;"></span> /
-            <span class="dotted-line" style="width: 4em;"></span>
-            <span style="margin-left: 20px;">Giới tính:</span>
-            <span class="dotted-line" style="width: 8em;"></span>
+            <input type="text"  id="{field_3}" value=""  style="width: 10em;">
+            <span  style="margin-left: 20px;">Giới tính:</span>
+            <input type="text" id="{field_4}" value="Nam" style="width: 8em;">
             <span style="margin-left: 20px;">Dân tộc:</span>
-            <span class="dotted-line" style="width: 10em;"></span>
+            <input type="text" id="{field_5}" style="width: 10em;">
         </div>
         <div class="form-section">
             Giấy CMND hoặc Căn cước công dân số:
-            <span class="dotted-line" style="width: 15em;"></span>
+            <input type="text" id="{field_6}" style="width: 12em;">
             Cấp ngày:
-            <span class="dotted-line" style="width: 10em;"></span>
+            <input type="date" id="{field_7}" style="width: 10em;">
             Nơi cấp:
-            <span class="dotted-line" style="width: 12em;"></span>
+            <input type="text" id="field_8" style="width: 12em;">
         </div>
         <div class="form-section">
             2. Hộ khẩu thường trú:
-            <span class="dotted-line" style="width: 80%;"></span>
+            <input type="text" id="field_9" style="width: 80%;">
         </div>
         <div class="form-section">
             Hiện đang ở với ai và địa chỉ nơi ở?
-            <span class="full-width-dotted"></span>
+            <textarea id="field_10" rows="1"></textarea>
         </div>
         <div class="form-section">
             3. Có thẻ BHYT không?
-            <span style="margin-left: 10px;">☐ Không</span>
-            <span style="margin-left: 20px;">☐ Có</span>
+            <span style="margin-left: 10px;"><input type="radio" name="bhyt" id="field_11"> Không</span>
+            <span style="margin-left: 20px;"><input type="radio" name="bhyt" id="field_12"> Có</span>
         </div>
         <div class="form-section">
             4. Đang hưởng chế độ nào sau đây:
-            <p style="margin-left: 20px;">- Lương hưu/Trợ cấp BHXH hàng tháng: <span class="dotted-line" style="width: 12em;"></span> đồng. Hưởng từ tháng <span class="dotted-line" style="width: 8em;"></span>.</p>
-            <p style="margin-left: 20px;">- Trợ cấp bảo trợ xã hội hàng tháng: <span class="dotted-line" style="width: 12em;"></span> đồng. Hưởng từ tháng <span class="dotted-line" style="width: 8em;"></span>.</p>
-            <p style="margin-left: 20px;">- Trợ cấp ưu đãi người có công hàng tháng: <span class="dotted-line" style="width: 12em;"></span> đồng. Hưởng từ tháng <span class="dotted-line" style="width: 8em;"></span>.</p>
-            <p style="margin-left: 20px;">- Trợ cấp, phụ cấp hàng tháng khác: <span class="dotted-line" style="width: 12em;"></span> đồng. Hưởng từ tháng <span class="dotted-line" style="width: 8em;"></span>.</p>
+            <p style="margin-left: 20px;">- Lương hưu/Trợ cấp BHXH hàng tháng: <input type="text" id="field_13" style="width: 12em;"> đồng. Hưởng từ tháng <input type="text" id="field_14" placeholder="mm/yyyy" style="width: 8em;">.</p>
+            <p style="margin-left: 20px;">- Trợ cấp bảo trợ xã hội hàng tháng: <input type="text" id="field_15" style="width: 12em;"> đồng. Hưởng từ tháng <input type="text" id="field_16" placeholder="mm/yyyy" style="width: 8em;">.</p>
+            <p style="margin-left: 20px;">- Trợ cấp ưu đãi người có công hàng tháng: <input type="text" id="field_17" style="width: 12em;"> đồng. Hưởng từ tháng <input type="text" id="field_18" placeholder="mm/yyyy" style="width: 8em;">.</p>
+            <p style="margin-left: 20px;">- Trợ cấp, phụ cấp hàng tháng khác: <input type="text" id="field_19" style="width: 12em;"> đồng. Hưởng từ tháng <input type="text" id="field_20" placeholder="mm/yyyy" style="width: 8em;">.</p>
         </div>
         <div class="form-section">
             5. Thuộc hộ nghèo, cận nghèo không?
-            <span style="margin-left: 10px;">☐ Không</span>
-            <span style="margin-left: 20px;">☐ Có</span>
+            <span style="margin-left: 10px;"><input type="radio" name="ho_ngheo" id="field_21"> Không</span>
+            <span style="margin-left: 20px;"><input type="radio" name="ho_ngheo" id="field_22"> Có</span>
         </div>
         <div class="form-section">
             6. Có khuyết tật không?
-            <span style="margin-left: 10px;">☐ Không</span>
-            <span style="margin-left: 20px;">☐ Có</span>
+            <span style="margin-left: 10px;"><input type="radio" name="khuyet_tat" id="field_23"> Không</span>
+            <span style="margin-left: 20px;"><input type="radio" name="khuyet_tat" id="field_24"> Có</span>
         </div>
         <div class="form-section" style="margin-left: 20px;">
-            <p>- Giấy xác nhận khuyết tật số: <span class="dotted-line" style="width: 10em;"></span> Ngày cấp: <span class="dotted-line" style="width: 10em;"></span> Nơi cấp: <span class="dotted-line" style="width: 15em;"></span></p>
-            <p>- Dạng tật: <span class="dotted-line" style="width: 80%;"></span></p>
-            <p>- Mức độ khuyết tật: <span class="dotted-line" style="width: 70%;"></span></p>
+            <p>- Giấy xác nhận khuyết tật số: <input type="text" id="field_25" style="width: 10em;"> Ngày cấp: <input type="date" id="field_26" style="width: 10em;"> Nơi cấp: <input type="text" id="field_27" style="width: 15em;"></span></p>
+            <p>- Dạng tật: <input type="text" id="field_28" style="width: 80%;"></p>
+            <p>- Mức độ khuyết tật: <input type="text" id="field_29" style="width: 70%;"></p>
         </div>
         <div class="form-section">
             7. Tình trạng hôn nhân? (Ghi rõ: Không có chồng/vợ; có chồng/vợ đã chết hoặc mất tích theo quy định)
-            <span class="full-width-dotted"></span>
+            <textarea id="field_30" rows="1"></textarea>
         </div>
         <div class="form-section">
             8. Người có nghĩa vụ và quyền phụng dưỡng (Nếu có, ghi cụ thể họ tên, tuổi, nghề nghiệp, nơi ở, việc làm, thu nhập):
-             <span class="full-width-dotted"></span>
-             <span class="full-width-dotted"></span>
-             <span class="full-width-dotted"></span>
+             <textarea id="field_31" rows="3"></textarea>
         </div>
         <div class="form-section">
             9. Quá trình hoạt động của bản thân (Không bắt buộc):
-             <span class="full-width-dotted"></span>
-             <span class="full-width-dotted"></span>
-             <span class="full-width-dotted"></span>
+             <textarea id="field_32" rows="3"></textarea>
         </div>
 
         <p><i>Tôi xin cam đoan những lời khai trên là đúng sự thực, nếu có điều gì khai không đúng, tôi xin chịu trách nhiệm hoàn toàn.</i></p>
@@ -169,15 +171,17 @@
                 <tr>
                     <td>
                         <b>Thông tin người khai thay</b><br>
-                        Giấy CMND hoặc Căn cước công dân số:.....................<br>
-                        Ngày cấp: ............................ Nơi cấp: ..........................<br>
-                        Mối quan hệ với đối tượng: ........................................<br>
-                        Địa chỉ: ............................................................................
+                        Giấy CMND hoặc Căn cước công dân số: <input type="text" id="field_33" style="width: 60%;"><br>
+                        Ngày cấp: <input type="date" id="field_34" style="width: 40%;"> Nơi cấp: <input type="text" id="field_35" style="width: 40%;"><br>
+                        Mối quan hệ với đối tượng: <input type="text" id="field_36" style="width: 60%;"><br>
+                        Địa chỉ: <input type="text" id="field_37" style="width: 90%;">
                     </td>
                     <td style="text-align: center;">
-                        <i>Ngày .... tháng .... năm ...</i><br>
+                        <i>Ngày <input type="text" id="field_38" style="width: 2em;"> tháng <input type="text" id="field_39" style="width: 2em;"> năm <input type="text" id="field_40" style="width: 4em;"></i><br>
                         <b>NGƯỜI KHAI</b><br>
-                        <p>(Ký, ghi rõ họ tên. Trường hợp khai thay phải ghi đầy đủ thông tin người khai thay)</p>
+                        <p>(Ký, ghi rõ họ tên. Trường hợp khai thay phải ghi đầy đủ thông tin người khai thay)<br>
+                        <input type="text" id="field_41" placeholder="Ghi rõ họ tên" style="width: 60%; margin-top: 20px;">
+                        </p>
                     </td>
                 </tr>
             </table>
@@ -185,16 +189,17 @@
 
         <div class="confirmation-section">
             <h3 style="text-align: center;">XÁC NHẬN CỦA ỦY BAN NHÂN DÂN CẤP XÃ</h3>
-            <p>Ủy ban nhân dân xã/phường/thị trấn .................................... đã tiếp nhận hồ sơ, đối chiếu các giấy tờ kèm theo và xác nhận thông tin cá nhân nêu trên của ông (bà) ..................................................................... là đúng.</p>
+            <p>Ủy ban nhân dân xã/phường/thị trấn <input type="text" id="field_42" style="width: 30%;"> đã tiếp nhận hồ sơ, đối chiếu các giấy tờ kèm theo và xác nhận thông tin cá nhân nêu trên của ông (bà) <input type="text" id="field_43" style="width: 40%;"> là đúng.</p>
             
             <table class="confirmation-table">
                  <tr>
                     <td>
                         <b>CÁN BỘ TIẾP NHẬN HỒ SƠ</b><br>
-                        <i>(Ký, ghi rõ họ tên)</i>
+                        <i>(Ký, ghi rõ họ tên)</i><br>
+                        <input type="text" id="field_44" placeholder="Ghi rõ họ tên" style="width: 60%; margin-top: 20px;">
                     </td>
                     <td style="text-align: center;">
-                        <i>Ngày .... tháng .... năm ...</i><br>
+                        <i>Ngày <input type="text" id="field_45" style="width: 2em;"> tháng <input type="text" id="field_46" style="width: 2em;"> năm <input type="text" id="field_47" style="width: 4em;"></i><br>
                         <b>CHỦ TỊCH</b><br>
                         <i>(Ký tên, đóng dấu)</i>
                     </td>
