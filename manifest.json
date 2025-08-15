@@ -1,15 +1,15 @@
 {
     "manifest_version": 3,
-    "name": "Chrome Extension with React & Vite",
-    "version": "REPLACED-BY-VITE",
-    "description": "A chrome extension boilerplate built with React 18 and Vite 5",
+    "name": "NTS DocumentAI",
+    "version": "1",
+    "description": "NTS DocumentAI biến tài liệu giấy thành dữ liệu thông minh",
     "icons": {
-        "34": "assets/icons/icon-34.png",
-        "128": "assets/icons/icon-128.png"
+        "34": "assets/icons/LOGO_NTSOFT.png",
+        "128": "assets/icons/LOGO_NTSOFT.png"
     },
     "action": {
         "default_title": "Chrome Extension React",
-        "default_icon": "assets/icons/icon-34.png"
+        "default_icon": "assets/icons/LOGO_NTSOFT.png"
     },
     "options_page": "src/admin/index.html",
     "content_scripts": [

@@ -2423,27 +2423,22 @@ function WordFillerComponent() {
         const iframe = htmlIframeRef.current;
         const doc = iframe?.contentDocument;
         if (!doc) return false;
-        // Khôi phục id trước khi nạp
         try {
             ensureHtmlInputKeys();
         } catch {}
-
         const toKey = (raw: string | null): string => {
             if (!raw) return '';
             const m = raw.match(/\{([^}]+)\}/);
             return (m ? m[1] : raw).trim();
         };
-
         const truthy = (val: any): boolean => {
             if (val == null) return false;
             const s = String(val).toLowerCase().trim();
             return s === '1' || s === 'true' || s === 'x' || s === 'yes' || s === 'y' || s === 'on';
         };
-
         const els = Array.from(doc.querySelectorAll('input, textarea, select')) as Array<
             HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
         >;
-
         els.forEach(el => {
             const key = toKey(
                 el.getAttribute('id') ||
@@ -2997,8 +2992,8 @@ function WordFillerComponent() {
     // Render helpers
     // Đơn giản hóa: bỏ chip trạng thái socket
 
-    const renderFilterControls = () => (
-        <Card sx={{ mb: 3 }}>
+    const renderFilter = () => (
+        <Card>
             <CardContent>
                 <Box
                     sx={{
@@ -3008,7 +3003,280 @@ function WordFillerComponent() {
                         mb: 2
                     }}
                 >
-                    <Typography variant="h6">Tìm mẫu đơn theo thủ tục hành chính</Typography>
+                    <Box>
+                        <Button
+                            variant="outlined"
+                            size="small"
+                            onClick={handleClearFilters}
+                            sx={{ mr: 1 }}
+                        >
+                            Xóa bộ lọc
+                        </Button>
+                        <Button
+                            variant="contained"
+                            size="small"
+                            onClick={() => setShowFilters(!showFilters)}
+                        >
+                            {showFilters ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}
+                        </Button>
+                        <Button variant="contained" size="small" to="/word-mapper/detail">
+                            Go to detail
+                        </Button>
+                    </Box>
+                </Box>
+
+                {showFilters && (
+                    <Box
+                        sx={{
+                            mb: 2,
+                            display: 'grid',
+                            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+                            gap: 2
+                        }}
+                    >
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Lĩnh vực</InputLabel>
+                            <Select
+                                value={filters.linhVuc}
+                                style={{
+                                    borderWidth: 1
+                                }}
+                                label="Lĩnh vực"
+                                onChange={e => handleFilterChange('linhVuc', e.target.value)}
+                            >
+                                <MenuItem value="">Tất cả</MenuItem>
+                                {filterOptions.linhVuc.map(item => (
+                                    <MenuItem key={item} value={item}>
+                                        {item}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Thủ tục</InputLabel>
+                            <Select
+                                value={filters.thuTuc}
+                                label="Thủ tục"
+                                onChange={e => handleFilterChange('thuTuc', e.target.value)}
+                                disabled={!filters.linhVuc}
+                            >
+                                <MenuItem value="">Tất cả</MenuItem>
+                                {availableThuTuc.map(item => (
+                                    <MenuItem key={item} value={item}>
+                                        {item}
+                                    </MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl fullWidth size="small">
+                            <InputLabel>Trạng thái mẫu</InputLabel>
+                            <Select
+                                value={filters.availability}
+                                label="Trạng thái mẫu"
+                                onChange={e => handleFilterChange('availability', e.target.value)}
+                            >
+                                <MenuItem value="all">Tất cả</MenuItem>
+                                <MenuItem value="available">Có sẵn mẫu</MenuItem>
+                                <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
+                            </Select>
+                        </FormControl>
+                    </Box>
+                )}
+                <Box
+                    sx={{
+                        mb: 2,
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+                        gap: 2
+                    }}
+                >
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Lĩnh vực</InputLabel>
+                        <Select
+                            value={filters.linhVuc}
+                            label="Lĩnh vực"
+                            onChange={e => handleFilterChange('linhVuc', e.target.value)}
+                        >
+                            <MenuItem value="">Tất cả</MenuItem>
+                            {filterOptions.linhVuc.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Thủ tục</InputLabel>
+                        <Select
+                            value={filters.thuTuc}
+                            label="Thủ tục"
+                            onChange={e => handleFilterChange('thuTuc', e.target.value)}
+                            disabled={!filters.linhVuc}
+                        >
+                            <MenuItem value="">Tất cả</MenuItem>
+                            {availableThuTuc.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Trạng thái mẫu</InputLabel>
+                        <Select
+                            value={filters.availability}
+                            label="Trạng thái mẫu"
+                            onChange={e => handleFilterChange('availability', e.target.value)}
+                        >
+                            <MenuItem value="all">Tất cả</MenuItem>
+                            <MenuItem value="available">Có sẵn mẫu</MenuItem>
+                            <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
+                {csvLoading ? (
+                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+                        <CircularProgress />
+                    </Box>
+                ) : (
+                    <Box>
+                        <Box
+                            sx={{
+                                mb: 1,
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}
+                        >
+                            <Typography variant="body2" color="text.secondary">
+                                Tìm thấy {filteredRecords.length} thủ tục hành chính
+                            </Typography>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Chip
+                                    icon={<CheckCircleIcon />}
+                                    label={`${filteredRecords.filter(r => r.isTemplateAvailable).length} có mẫu`}
+                                    color="success"
+                                    size="small"
+                                    variant="outlined"
+                                />
+                                <Chip
+                                    icon={<WarningIcon />}
+                                    label={`${filteredRecords.filter(r => !r.isTemplateAvailable).length} chưa có`}
+                                    color="warning"
+                                    size="small"
+                                    variant="outlined"
+                                />
+                            </Box>
+                        </Box>
+                        <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                            {filteredRecords.map((record, index) => (
+                                <Paper
+                                    key={index}
+                                    variant="outlined"
+                                    sx={{
+                                        p: 2,
+                                        mb: 1,
+                                        cursor: record.isTemplateAvailable
+                                            ? 'pointer'
+                                            : 'not-allowed',
+                                        opacity: record.isTemplateAvailable ? 1 : 0.7,
+                                        bgcolor: record.isTemplateAvailable
+                                            ? 'background.paper'
+                                            : 'grey.50',
+                                        '&:hover': {
+                                            bgcolor: record.isTemplateAvailable
+                                                ? 'action.hover'
+                                                : 'grey.100'
+                                        },
+                                        border: record.isTemplateAvailable
+                                            ? '1px solid'
+                                            : '1px dashed',
+                                        borderColor: record.isTemplateAvailable
+                                            ? 'divider'
+                                            : 'warning.main'
+                                    }}
+                                    onClick={() => handleTemplateFromCSV(record)}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
+                                        {record.isTemplateAvailable ? (
+                                            <CheckCircleIcon
+                                                color="success"
+                                                sx={{ fontSize: 20, mt: 0.2 }}
+                                            />
+                                        ) : (
+                                            <WarningIcon
+                                                color="warning"
+                                                sx={{ fontSize: 20, mt: 0.2 }}
+                                            />
+                                        )}
+                                        <Box sx={{ flex: 1 }}>
+                                            <Typography variant="body1" fontWeight={500}>
+                                                {record.tenTTHC}
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                sx={{ display: 'block' }}
+                                            >
+                                                Mã: {record.maTTHC} | Lĩnh vực: {record.linhVuc}
+                                            </Typography>
+                                            <Box
+                                                sx={{
+                                                    mt: 1,
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    gap: 1
+                                                }}
+                                            >
+                                                <Typography variant="caption" color="primary">
+                                                    File:{' '}
+                                                    {record.tenFile ||
+                                                        extractTemplateName(record.mauDon)}
+                                                </Typography>
+                                                <Chip
+                                                    label={
+                                                        record.isTemplateAvailable
+                                                            ? 'Có sẵn'
+                                                            : 'Chưa có mẫu'
+                                                    }
+                                                    color={
+                                                        record.isTemplateAvailable
+                                                            ? 'success'
+                                                            : 'warning'
+                                                    }
+                                                    size="small"
+                                                    sx={{ fontSize: '0.65rem', height: 20 }}
+                                                />
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                </Paper>
+                            ))}
+                            {filteredRecords.length === 0 && (
+                                <Paper sx={{ p: 3, textAlign: 'center' }}>
+                                    <Typography color="text.secondary">
+                                        Không tìm thấy thủ tục hành chính phù hợp với bộ lọc
+                                    </Typography>
+                                </Paper>
+                            )}
+                        </Box>
+                    </Box>
+                )}
+            </CardContent>
+        </Card>
+    );
+
+    const renderFilterControls = () => (
+        <Card>
+            <CardContent>
+                <Box
+                    sx={{
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                        alignItems: 'center',
+                        mb: 2
+                    }}
+                >
                     <Box>
                         <Button
                             variant="outlined"
@@ -3082,7 +3350,58 @@ function WordFillerComponent() {
                         </FormControl>
                     </Box>
                 )}
-
+                <Box
+                    sx={{
+                        mb: 2,
+                        display: 'grid',
+                        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+                        gap: 2
+                    }}
+                >
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Lĩnh vực</InputLabel>
+                        <Select
+                            value={filters.linhVuc}
+                            label="Lĩnh vực"
+                            onChange={e => handleFilterChange('linhVuc', e.target.value)}
+                        >
+                            <MenuItem value="">Tất cả</MenuItem>
+                            {filterOptions.linhVuc.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Thủ tục</InputLabel>
+                        <Select
+                            value={filters.thuTuc}
+                            label="Thủ tục"
+                            onChange={e => handleFilterChange('thuTuc', e.target.value)}
+                            disabled={!filters.linhVuc}
+                        >
+                            <MenuItem value="">Tất cả</MenuItem>
+                            {availableThuTuc.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+                    <FormControl fullWidth size="small">
+                        <InputLabel>Trạng thái mẫu</InputLabel>
+                        <Select
+                            value={filters.availability}
+                            label="Trạng thái mẫu"
+                            onChange={e => handleFilterChange('availability', e.target.value)}
+                        >
+                            <MenuItem value="all">Tất cả</MenuItem>
+                            <MenuItem value="available">Có sẵn mẫu</MenuItem>
+                            <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
                 {csvLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                         <CircularProgress />
@@ -3302,7 +3621,12 @@ function WordFillerComponent() {
     );
 
     const renderDataInputSection = () => (
-        <Card sx={{ mb: 3 }}>
+        <Card
+            sx={{ mb: 3 }}
+            style={{
+                display: state.dataSource === 'socket' ? 'none' : 'block'
+            }}
+        >
             <CardContent>
                 {state.dataSource === 'scanner' && (
                     <>
@@ -3637,8 +3961,7 @@ function WordFillerComponent() {
     );
 
     return (
-        <Box sx={{ p: 3, maxWidth: 1400, margin: 'auto' }}>
-            {/* Header gọn, hiển thị tên mẫu và nút chọn mẫu khác */}
+        <Box sx={{ width: '100%' }}>
             <Box
                 sx={{
                     display: 'flex',
@@ -3670,7 +3993,8 @@ function WordFillerComponent() {
             {state.selectedTemplatePath && renderDataInputSection()}
 
             {/* Filter Controls */}
-            {!state.selectedTemplatePath && renderFilterControls()}
+            {/* {!state.selectedTemplatePath && renderFilterControls()} */}
+            {renderFilter()}
 
             {/* Preview section only, status panel removed for simpler UI */}
             {state.selectedTemplatePath ? (
@@ -3848,7 +4172,7 @@ function WordFillerComponent() {
                             border: '1px solid #e0e0e0'
                         }}
                     >
-                        {previewMode === 'docx' && (
+                        {/* {previewMode === 'docx' && (
                             <div ref={previewContainerRef} className="docx-preview-container" />
                         )}
                         {previewMode === 'html' && (
@@ -3872,7 +4196,7 @@ function WordFillerComponent() {
                                     }, 50);
                                 }}
                             />
-                        )}
+                        )} */}
                         {previewMode === 'syncfusion' && (
                             <div style={{ width: '100%', minHeight: '70vh', position: 'relative' }}>
                                 {syncfusionLoading && (
@@ -3932,6 +4256,7 @@ function WordFillerComponent() {
                                     height={'70vh'}
                                     style={{ display: 'block' }}
                                     toolbarMode={'Toolbar'}
+                                    locale="vi-VN"
                                 />
 
                                 {/* Quick Insert Field Panel */}
@@ -4101,7 +4426,7 @@ function WordFillerComponent() {
                     </Paper>
                 </Paper>
             ) : (
-                <Paper sx={{ p: 3 }}>
+                <Paper sx={{ p: 3, mt: 3 }}>
                     <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
                         Chọn mẫu đơn từ danh sách thủ tục hành chính
                     </Typography>
