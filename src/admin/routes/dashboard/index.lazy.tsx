@@ -179,11 +179,6 @@ function Dashboard(): ReactElement {
 
     return (
         <Box>
-            <Typography variant="h4" sx={{ fontWeight: 600, mb: 3 }}>
-                Dashboard Overview
-            </Typography>
-
-            {/* Stats Cards */}
             <Box
                 sx={{
                     display: 'grid',
