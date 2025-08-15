@@ -25,6 +25,9 @@ const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 const AdminProceduresIndexLazyRouteImport =
   createFileRoute('/admin-procedures/')()
+const WordViewerSyncfusionLazyRouteImport = createFileRoute(
+  '/word-viewer/syncfusion',
+)()
 
 const WordViewerIndexLazyRoute = WordViewerIndexLazyRouteImport.update({
   id: '/word-viewer/',
@@ -105,8 +108,17 @@ const AdminProceduresIndexLazyRoute =
   } as any).lazy(() =>
     import('./routes/admin-procedures/index.lazy').then((d) => d.Route),
   )
+const WordViewerSyncfusionLazyRoute =
+  WordViewerSyncfusionLazyRouteImport.update({
+    id: '/word-viewer/syncfusion',
+    path: '/word-viewer/syncfusion',
+    getParentRoute: () => rootRouteImport,
+  } as any).lazy(() =>
+    import('./routes/word-viewer/syncfusion.lazy').then((d) => d.Route),
+  )
 
 export interface FileRoutesByFullPath {
+  '/word-viewer/syncfusion': typeof WordViewerSyncfusionLazyRoute
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
@@ -121,6 +133,7 @@ export interface FileRoutesByFullPath {
   '/word-viewer': typeof WordViewerIndexLazyRoute
 }
 export interface FileRoutesByTo {
+  '/word-viewer/syncfusion': typeof WordViewerSyncfusionLazyRoute
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
@@ -136,6 +149,7 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/word-viewer/syncfusion': typeof WordViewerSyncfusionLazyRoute
   '/admin-procedures/': typeof AdminProceduresIndexLazyRoute
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
@@ -152,6 +166,7 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/word-viewer/syncfusion'
     | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
@@ -166,6 +181,7 @@ export interface FileRouteTypes {
     | '/word-viewer'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/word-viewer/syncfusion'
     | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
@@ -180,6 +196,7 @@ export interface FileRouteTypes {
     | '/word-viewer'
   id:
     | '__root__'
+    | '/word-viewer/syncfusion'
     | '/admin-procedures/'
     | '/analytics/'
     | '/dashboard/'
@@ -195,6 +212,7 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  WordViewerSyncfusionLazyRoute: typeof WordViewerSyncfusionLazyRoute
   AdminProceduresIndexLazyRoute: typeof AdminProceduresIndexLazyRoute
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
@@ -295,10 +313,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProceduresIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/word-viewer/syncfusion': {
+      id: '/word-viewer/syncfusion'
+      path: '/word-viewer/syncfusion'
+      fullPath: '/word-viewer/syncfusion'
+      preLoaderRoute: typeof WordViewerSyncfusionLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  WordViewerSyncfusionLazyRoute: WordViewerSyncfusionLazyRoute,
   AdminProceduresIndexLazyRoute: AdminProceduresIndexLazyRoute,
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
