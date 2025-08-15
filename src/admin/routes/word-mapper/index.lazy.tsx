@@ -9,6 +9,7 @@ import { Socket, io } from 'socket.io-client';
 
 // --- ICON ---
 import {
+    AddCircleOutline as AddCircleOutlineIcon,
     Badge as BadgeIcon,
     CalendarToday as CalendarTodayIcon,
     CheckCircle as CheckCircleIcon,
@@ -42,6 +43,7 @@ import {
     CircularProgress,
     Divider,
     FormControl,
+    Grid,
     IconButton,
     Input,
     InputLabel,
@@ -66,10 +68,29 @@ import {
     DialogTitle,
     Tooltip as MuiTooltip
 } from '@mui/material';
+// --- SYNCFUSION WORD EDITOR ---
+import '@syncfusion/ej2-base/styles/material.css';
+import '@syncfusion/ej2-buttons/styles/material.css';
+import '@syncfusion/ej2-dropdowns/styles/material.css';
+import '@syncfusion/ej2-inputs/styles/material.css';
+import '@syncfusion/ej2-lists/styles/material.css';
+import '@syncfusion/ej2-navigations/styles/material.css';
+import '@syncfusion/ej2-popups/styles/material.css';
+import {
+    DocumentEditorContainerComponent,
+    Ribbon,
+    Toolbar
+} from '@syncfusion/ej2-react-documenteditor';
+import '@syncfusion/ej2-react-documenteditor/styles/material.css';
+import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
+DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
+
 // --- CẤU HÌNH ---
-const API_URL = 'http://103.162.21.146:5003';
+const SOCKET_URL = 'http://103.162.21.146:5003';
+const SYNCFUSION_SERVICE_URL =
+    'https://services.syncfusion.com/react/production/api/documenteditor/';
 const SOCKET_RECONNECT_ATTEMPTS = 5;
 const SOCKET_RECONNECT_DELAY = 3000;
 
@@ -283,7 +304,34 @@ const detectDataFormat = (data: string): DataFormat => {
 };
 
 // Hàm chuyển đổi ScannedInfo sang ProcessingData
-const convertScannedInfoToProcessingData = (scannedInfo: ScannedInfo): ProcessingData => {
+const convertScannedInfoToProcessingData = (scannedInfo: ScannedInfo | any): ProcessingData => {
+    // Handle mobile socket data format (already processed)
+    if (scannedInfo.so_cccd || scannedInfo.so_cmnd || scannedInfo.ho_ten) {
+        console.log('📱 Detected mobile socket format, using as-is');
+        return {
+            ...scannedInfo,
+            // Ensure all required formats are available
+            cccd: scannedInfo.cccd || scannedInfo.so_cccd || '',
+            cmnd: scannedInfo.cmnd || scannedInfo.so_cmnd || '',
+            hoTen: scannedInfo.hoTen || scannedInfo.ho_ten || '',
+            ngaySinh: scannedInfo.ngaySinh || scannedInfo.ngay_sinh || '',
+            gioiTinh: scannedInfo.gioiTinh || scannedInfo.gioi_tinh || '',
+            diaChi: scannedInfo.diaChi || scannedInfo.noi_cu_tru || '',
+            ngayCap: scannedInfo.ngayCap || scannedInfo.ngay_cap || '',
+
+            // Add mobile format fallbacks
+            so_cccd: scannedInfo.so_cccd || scannedInfo.cccd || '',
+            so_cmnd: scannedInfo.so_cmnd || scannedInfo.cmnd || '',
+            ho_ten: scannedInfo.ho_ten || scannedInfo.hoTen || '',
+            ngay_sinh: scannedInfo.ngay_sinh || scannedInfo.ngaySinh || '',
+            gioi_tinh: scannedInfo.gioi_tinh || scannedInfo.gioiTinh || '',
+            noi_cu_tru: scannedInfo.noi_cu_tru || scannedInfo.diaChi || '',
+            ngay_cap: scannedInfo.ngay_cap || scannedInfo.ngayCap || ''
+        } as ProcessingData;
+    }
+
+    // Handle QR scanner format (ScannedInfo)
+    console.log('📄 Processing QR scanner format');
     const result: ProcessingData = {
         // Định dạng camelCase
         cccd: scannedInfo.cccd,
@@ -643,6 +691,147 @@ const fillHtmlWithData = (html: string, data: Record<string, any>): string => {
     });
 };
 
+// Fill placeholders in Syncfusion editor: replaces {key} in body text
+const applyDataToSyncfusionFactory =
+    (getEditor: () => DocumentEditorContainerComponent | null) =>
+    async (data: ProcessingData): Promise<boolean> => {
+        try {
+            console.log('🔄 Starting Syncfusion data insertion...', data);
+            console.log('🔍 Data fields available:', Object.keys(data || {}));
+            console.log('🎯 hoTen value:', data?.hoTen);
+            console.log('🎯 ho_ten value:', data?.ho_ten);
+
+            const container = getEditor();
+            if (!container) {
+                console.error('❌ Container is null');
+                return false;
+            }
+
+            const editor = container?.documentEditor;
+            if (!editor) {
+                console.error('❌ DocumentEditor is null');
+                return false;
+            }
+
+            console.log('✅ Editor found, serializing document...');
+            const sfdt = editor.serialize();
+            if (!sfdt) {
+                console.error('❌ Failed to serialize document');
+                return false;
+            }
+
+            console.log('✅ Document serialized, parsing JSON...');
+            const json = typeof sfdt === 'string' ? JSON.parse(sfdt) : sfdt;
+            if (!json) {
+                console.error('❌ Failed to parse SFDT JSON');
+                return false;
+            }
+
+            console.log('📄 SFDT Structure:', {
+                hasKeyFields: Object.keys(json).slice(0, 10),
+                sectionsType: typeof json.sections,
+                secType: typeof json.sec,
+                sectionsLength: Array.isArray(json.sections) ? json.sections.length : 'not array',
+                secLength: Array.isArray(json.sec) ? json.sec.length : 'not array',
+                actualSections: json.sections || json.sec,
+                fullStructure: json
+            });
+
+            // More flexible structure checking - Syncfusion uses 'sec' not 'sections'
+            const sectionsProperty = json.sections || json.sec;
+            if (!sectionsProperty) {
+                console.error('❌ Document has no sections/sec property');
+                console.log('Available properties:', Object.keys(json));
+                return false;
+            }
+
+            if (!Array.isArray(sectionsProperty)) {
+                console.error('❌ Sections is not an array, type:', typeof sectionsProperty);
+                return false;
+            }
+
+            if (sectionsProperty.length === 0) {
+                console.warn('⚠️ Document has empty sections array');
+                return true; // Not an error, just empty document
+            }
+
+            console.log('✅ Editor found, using Syncfusion Find & Replace API...');
+
+            // Create replace map for exact placeholder matching
+            const replaceMap: Record<string, string> = {
+                '{ho_ten}': data.hoTen || data.ho_ten || '',
+                '{cccd}': data.cccd || data.so_cccd || '',
+                '{cmnd}': data.cmnd || data.so_cmnd || '',
+                '{so_cccd}': data.so_cccd || data.cccd || '',
+                '{so_cmnd}': data.so_cmnd || data.cmnd || '',
+                '{ngay_sinh}': data.ngaySinh || data.ngay_sinh || '',
+                '{gioi_tinh}': data.gioiTinh || data.gioi_tinh || '',
+                '{noi_cu_tru}': data.noiCuTru || data.noi_cu_tru || '',
+                '{dan_toc}': data.danToc || data.dan_toc || '',
+                '{noi_cap}': data.noiCap || data.noi_cap || '',
+                '{ngay_cap}': data.ngayCap || data.ngay_cap || '',
+                // Thêm các field mới từ mobile
+                '{ns_ngay}': data.ns_ngay || '',
+                '{ns_thang}': data.ns_thang || '',
+                '{ns_nam}': data.ns_nam || '',
+                '{nc_ngay}': data.nc_ngay || '',
+                '{nc_thang}': data.nc_thang || '',
+                '{nc_nam}': data.nc_nam || ''
+            };
+
+            console.log('📝 Replace map:', replaceMap);
+
+            let totalReplacements = 0;
+
+            // Use Syncfusion's simple approach - modify SFDT and reload
+            console.log('🔄 Using SFDT modification approach...');
+
+            // Get current document as SFDT
+            const currentSfdt = editor.serialize();
+            if (!currentSfdt) {
+                console.error('❌ Failed to serialize document');
+                return false;
+            }
+
+            // Replace placeholders in the SFDT string directly
+            let modifiedSfdt = currentSfdt;
+            for (const [placeholder, value] of Object.entries(replaceMap)) {
+                if (value) {
+                    const regex = new RegExp(
+                        placeholder.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'),
+                        'g'
+                    );
+                    const beforeLength = modifiedSfdt.length;
+                    modifiedSfdt = modifiedSfdt.replace(regex, value);
+                    const afterLength = modifiedSfdt.length;
+
+                    if (beforeLength !== afterLength) {
+                        totalReplacements++;
+                        console.log(`✅ Replaced "${placeholder}" with "${value}" in SFDT`);
+                    } else {
+                        console.log(`⚠️ No instances of "${placeholder}" found in SFDT`);
+                    }
+                }
+            }
+
+            // Reload the modified document
+            if (totalReplacements > 0) {
+                console.log('🔄 Loading modified document...');
+                editor.open(modifiedSfdt);
+                console.log('✅ Document reloaded with replacements');
+            }
+
+            console.log(`🎯 Total replacements made: ${totalReplacements}`);
+
+            console.log('✅ Syncfusion data insertion completed successfully');
+            return true;
+        } catch (error: any) {
+            console.error('❌ Error in applyDataToSyncfusionFactory:', error);
+            console.error('Stack trace:', error.stack);
+            return false;
+        }
+    };
+
 // Parse CSV data
 const parseCSVLine = (line: string): string[] => {
     const result: string[] = [];
@@ -797,7 +986,9 @@ const buildDocxUrlForRecord = (record: TTHCRecord): string => {
     const templateName = record.tenFile || extractTemplateName(record.mauDon);
     const encodedCode = encodeURIComponent(code);
     const encodedName = encodeURIComponent(templateName);
-    return `/templates_by_code/${encodedCode}/docx/${encodedName}`;
+    // Ensure no double slashes and proper URL format
+    const path = `templates_by_code/${encodedCode}/docx/${encodedName}`.replace(/\/+/g, '/');
+    return `/${path}`;
 };
 
 const buildHtmlUrlForRecord = (record: TTHCRecord): string => {
@@ -806,7 +997,9 @@ const buildHtmlUrlForRecord = (record: TTHCRecord): string => {
     const base = templateName.replace(/\.(docx?|DOCX?)$/, '');
     const encodedCode = encodeURIComponent(code);
     const encodedHtml = encodeURIComponent(`${base}.html`);
-    return `/templates_by_code/${encodedCode}/html/${encodedHtml}`;
+    // Ensure no double slashes and proper URL format
+    const path = `templates_by_code/${encodedCode}/html/${encodedHtml}`.replace(/\/+/g, '/');
+    return `/${path}`;
 };
 
 const checkTemplateExists = async (record: TTHCRecord): Promise<boolean> => {
@@ -906,9 +1099,11 @@ function WordFillerComponent() {
     const previewContainerRef = useRef<HTMLDivElement>(null);
     const htmlIframeRef = useRef<HTMLIFrameElement>(null);
     const [htmlRaw, setHtmlRaw] = useState<string>('');
-    const [previewMode, setPreviewMode] = useState<'docx' | 'html'>('docx');
+    const [previewMode, setPreviewMode] = useState<'syncfusion' | 'html' | 'docx'>('syncfusion');
     const templatePathRef = useRef<string>('');
     const [showFieldGuide, setShowFieldGuide] = useState(false);
+    const [syncfusionDocumentReady, setSyncfusionDocumentReady] = useState(false);
+    const [syncfusionLoading, setSyncfusionLoading] = useState(false);
     // Removed: HTML editor dialog state
     const [isPreviewEditMode, setIsPreviewEditMode] = useState(false);
     const isPreviewEditModeRef = useRef(false);
@@ -921,8 +1116,9 @@ function WordFillerComponent() {
     const htmlClickTargetRef = useRef<Element | null>(null);
 
     // Custom hooks
-    const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(API_URL);
+    const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(SOCKET_URL);
     const { processingStep, progress, processDocument, resetProcessing } = useDocumentProcessor();
+    const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
 
     // Memoized values
     const isProcessing = useMemo(
@@ -1062,6 +1258,50 @@ function WordFillerComponent() {
         }
     };
 
+    // Hàm apply cho Syncfusion với quyền truy cập ref
+    const applyDataToSyncfusion = useMemo(
+        () => applyDataToSyncfusionFactory(() => sfContainerRef.current),
+        []
+    );
+
+    // Hàm chèn field vào Syncfusion Editor
+    const insertFieldIntoSyncfusion = useCallback(
+        (fieldPlaceholder: string) => {
+            try {
+                const container = sfContainerRef.current;
+                if (!container || !container.documentEditor) {
+                    setSnackbar({
+                        open: true,
+                        message: 'Editor chưa sẵn sàng để chèn field',
+                        severity: 'warning'
+                    });
+                    return;
+                }
+
+                const editor = container.documentEditor;
+
+                // Insert the field placeholder at current cursor position
+                editor.editor.insertText(fieldPlaceholder);
+
+                setSnackbar({
+                    open: true,
+                    message: `Đã chèn field "${fieldPlaceholder}" vào document`,
+                    severity: 'success'
+                });
+
+                console.log(`✅ Inserted field "${fieldPlaceholder}" into document`);
+            } catch (error) {
+                console.error('❌ Error inserting field:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Lỗi khi chèn field vào document',
+                    severity: 'error'
+                });
+            }
+        },
+        [setSnackbar]
+    );
+
     // Hàm xử lý dữ liệu thông minh từ nhiều nguồn
     const processScannedData = async (qrData: string) => {
         // Kiểm tra xem đã chọn mẫu đơn chưa
@@ -1091,7 +1331,75 @@ function WordFillerComponent() {
             );
 
             // Nếu đang ở chế độ HTML, chỉ điền dữ liệu vào các field hiện có, không reload iframe để tránh mất DOM/id
-            if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
+            if (previewMode === 'syncfusion') {
+                try {
+                    console.log('🚀 Starting Syncfusion data insertion process...');
+
+                    // Check if editor is available
+                    if (!sfContainerRef.current?.documentEditor) {
+                        console.error('❌ Syncfusion DocumentEditor not available');
+                        setSnackbar({
+                            open: true,
+                            message: 'Syncfusion DocumentEditor chưa sẵn sàng. Vui lòng thử lại.',
+                            severity: 'error'
+                        });
+                        return;
+                    }
+
+                    // Check if document is loading
+                    if (syncfusionLoading) {
+                        console.warn('⚠️ Syncfusion document is still loading');
+                        setSnackbar({
+                            open: true,
+                            message: 'Tài liệu đang được tải. Vui lòng chờ...',
+                            severity: 'info'
+                        });
+                        return;
+                    }
+
+                    // Check if document is ready
+                    if (!syncfusionDocumentReady) {
+                        console.warn('⚠️ Syncfusion document is not ready');
+                        setSnackbar({
+                            open: true,
+                            message:
+                                'Tài liệu chưa sẵn sàng. Vui lòng tải template trước khi chèn dữ liệu.',
+                            severity: 'warning'
+                        });
+                        return;
+                    }
+
+                    // Check if we have data to insert
+                    if (!processingData || Object.keys(processingData).length === 0) {
+                        console.warn('⚠️ No processing data available');
+                        setSnackbar({
+                            open: true,
+                            message:
+                                'Không có dữ liệu để chèn. Vui lòng quét QR code hoặc nhập dữ liệu trước.',
+                            severity: 'warning'
+                        });
+                        return;
+                    }
+
+                    console.log('📋 Processing data:', processingData);
+
+                    const applied = await applyDataToSyncfusion(processingData);
+                    setSnackbar({
+                        open: true,
+                        message: applied
+                            ? 'Đã chèn dữ liệu vào tài liệu (Syncfusion)'
+                            : 'Không thể chèn dữ liệu vào tài liệu Syncfusion. Kiểm tra Console để xem chi tiết lỗi.',
+                        severity: applied ? 'success' : 'error'
+                    });
+                } catch (error: any) {
+                    console.error('❌ Unexpected error during Syncfusion data insertion:', error);
+                    setSnackbar({
+                        open: true,
+                        message: `Lỗi không mong muốn: ${error?.message || 'Unknown error'}`,
+                        severity: 'error'
+                    });
+                }
+            } else if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
                 try {
                     ensureHtmlInputKeys();
                     const ok = fillHtmlFormFieldsFromData(processingData);
@@ -1235,33 +1543,236 @@ function WordFillerComponent() {
     }, [state.generatedBlob]);
 
     // Render selected template preview when a template is chosen (before generating document)
+    // useEffect(...), thay thế cho cái cũ
+
+    // useEffect(() => {
+    //     const renderSelectedTemplate = async () => {
+    //         // Điều kiện chung cho tất cả các mode
+    //         if (!state.selectedTemplatePath || state.generatedBlob) {
+    //             return;
+    //         }
+
+    //         try {
+    //             // ----- Chế độ xem DOCX Preview -----
+    //             if (previewMode === 'docx') {
+    //                 // Di chuyển điều kiện kiểm tra ref vào đúng vị trí của nó
+    //                 if (!previewContainerRef.current) return;
+
+    //                 previewContainerRef.current.innerHTML = '';
+    //                 const response = await fetch(state.selectedTemplatePath);
+    //                 if (!response.ok) {
+    //                     throw new Error('Không thể tải file mẫu để xem trước');
+    //                 }
+    //                 const templateBlob = await response.blob();
+    //                 await renderAsync(templateBlob, previewContainerRef.current, undefined, {
+    //                     className: 'docx-preview-container'
+    //                 });
+    //             }
+    //             // ----- Chế độ xem Syncfusion -----
+    //             else if (previewMode === 'syncfusion') {
+    //                 const url = state.uploadedTemplateUrl || state.selectedTemplatePath;
+
+    //                 // Điều kiện kiểm tra ref cho Syncfusion
+    //                 if (!url || !sfContainerRef.current?.documentEditor) {
+    //                     return;
+    //                 }
+
+    //                 try {
+    //                     const res = await fetch(url);
+    //                     if (!res.ok) throw new Error('Không thể tải file mẫu cho Syncfusion');
+
+    //                     const blob = await res.blob();
+    //                     const form = new FormData();
+    //                     form.append('files', blob, state.uploadedTemplateName || 'template.docx');
+
+    //                     // Gọi service của Syncfusion để chuyển đổi docx -> sfdt
+    //                     const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
+    //                         method: 'POST',
+    //                         body: form
+    //                     });
+
+    //                     if (!importRes.ok) {
+    //                         throw new Error(`Lỗi khi import file: ${importRes.statusText}`);
+    //                     }
+
+    //                     const sfdtText = await importRes.text();
+
+    //                     // Mở chuỗi SFDT nhận được từ service
+    //                     sfContainerRef.current.documentEditor.open(sfdtText);
+    //                 } catch (e: any) {
+    //                     setSnackbar({
+    //                         open: true,
+    //                         message: e?.message || 'Không thể mở tài liệu trong Syncfusion',
+    //                         severity: 'error'
+    //                     });
+    //                     // Nếu lỗi, tự động chuyển về chế độ xem docx an toàn hơn
+    //                     setPreviewMode('docx');
+    //                 }
+    //             }
+    //         } catch (err) {
+    //             console.error('Lỗi khi render preview mẫu:', err);
+    //             const message = err instanceof Error ? err.message : 'Lỗi không xác định';
+    //             setSnackbar({ open: true, message, severity: 'error' });
+    //         }
+    //     };
+
+    //     renderSelectedTemplate();
+    //     // eslint-disable-next-line react-hooks/exhaustive-deps
+    // }, [state.selectedTemplatePath, state.uploadedTemplateUrl, state.generatedBlob, previewMode]);
+    // Load HTML preview when selectedHtmlUrl changes
+
+    // --- THAY THẾ TOÀN BỘ useEffect NÀY ---
     useEffect(() => {
         const renderSelectedTemplate = async () => {
-            if (!state.selectedTemplatePath || state.generatedBlob) return;
-            if (!previewContainerRef.current) return;
+            // Điều kiện chung: chỉ chạy khi có mẫu được chọn.
+            const templateUrl = state.uploadedTemplateUrl || state.selectedTemplatePath;
+            if (!templateUrl) {
+                return;
+            }
 
             try {
+                // ----- Chế độ xem DOCX Preview -----
                 if (previewMode === 'docx') {
+                    if (!previewContainerRef.current) return;
+
+                    // Luôn dọn dẹp khu vực preview trước
                     previewContainerRef.current.innerHTML = '';
-                    const response = await fetch(state.selectedTemplatePath);
-                    if (!response.ok) {
-                        throw new Error('Không thể tải file mẫu để xem trước');
+
+                    // Ưu tiên hiển thị file đã điền (generatedBlob) nếu có
+                    if (state.generatedBlob) {
+                        await renderAsync(
+                            state.generatedBlob,
+                            previewContainerRef.current,
+                            undefined,
+                            {
+                                className: 'docx-preview-container'
+                            }
+                        );
+                    } else {
+                        // Nếu không, hiển thị mẫu gốc
+                        const response = await fetch(templateUrl);
+                        if (!response.ok) throw new Error('Không thể tải file mẫu để xem trước');
+                        const templateBlob = await response.blob();
+                        await renderAsync(templateBlob, previewContainerRef.current, undefined, {
+                            className: 'docx-preview-container'
+                        });
                     }
-                    const templateBlob = await response.blob();
-                    await renderAsync(templateBlob, previewContainerRef.current, undefined, {
-                        className: 'docx-preview-container'
-                    });
                 }
+                // ----- Chế độ xem Syncfusion -----
+                else if (previewMode === 'syncfusion') {
+                    // Điều kiện kiểm tra ref cho Syncfusion
+                    if (!sfContainerRef.current?.documentEditor) return;
+
+                    // Khi chuyển sang Syncfusion, chúng ta LUÔN NẠP LẠI MẪU GỐC.
+                    // Điều này đảm bảo trình soạn thảo luôn có nội dung gốc để làm việc.
+                    try {
+                        console.log('🔄 Loading template into Syncfusion...');
+                        setSyncfusionLoading(true);
+                        setSyncfusionDocumentReady(false);
+
+                        const res = await fetch(templateUrl);
+                        if (!res.ok) throw new Error('Không thể tải file mẫu cho Syncfusion');
+
+                        const blob = await res.blob();
+                        const form = new FormData();
+                        form.append('files', blob, state.uploadedTemplateName || 'template.docx');
+
+                        console.log('🔄 Converting DOCX to SFDT...');
+                        // Gọi service của Syncfusion để chuyển đổi docx -> sfdt
+                        const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
+                            method: 'POST',
+                            body: form
+                        });
+
+                        if (!importRes.ok) {
+                            throw new Error(`Lỗi khi import file: ${importRes.statusText}`);
+                        }
+
+                        const sfdtText = await importRes.text();
+                        console.log('✅ SFDT conversion completed');
+
+                        // Mở chuỗi SFDT nhận được từ service
+                        console.log('🔄 Opening document in Syncfusion editor...');
+                        sfContainerRef.current.documentEditor.open(sfdtText);
+
+                        // Wait a bit for the document to be fully loaded
+                        setTimeout(() => {
+                            // Verify document is actually loaded by checking its content
+                            try {
+                                const testSfdt =
+                                    sfContainerRef.current?.documentEditor?.serialize();
+                                if (testSfdt) {
+                                    const testJson =
+                                        typeof testSfdt === 'string'
+                                            ? JSON.parse(testSfdt)
+                                            : testSfdt;
+                                    const testSections = testJson?.sections || testJson?.sec;
+                                    if (testJson && testSections && Array.isArray(testSections)) {
+                                        setSyncfusionDocumentReady(true);
+                                        setSyncfusionLoading(false);
+                                        console.log(
+                                            '✅ Syncfusion document ready for data insertion'
+                                        );
+                                        console.log(
+                                            '📄 Document has',
+                                            testSections.length,
+                                            'sections'
+                                        );
+                                    } else {
+                                        console.warn(
+                                            '⚠️ Document structure not ready yet, waiting longer...'
+                                        );
+                                        console.log(
+                                            'Available properties:',
+                                            Object.keys(testJson || {})
+                                        );
+                                        // Wait a bit more
+                                        setTimeout(() => {
+                                            setSyncfusionDocumentReady(true);
+                                            setSyncfusionLoading(false);
+                                        }, 1000);
+                                    }
+                                } else {
+                                    console.warn(
+                                        '⚠️ Cannot serialize document yet, waiting longer...'
+                                    );
+                                    setTimeout(() => {
+                                        setSyncfusionDocumentReady(true);
+                                        setSyncfusionLoading(false);
+                                    }, 1000);
+                                }
+                            } catch (error) {
+                                console.warn('⚠️ Error checking document readiness:', error);
+                                setSyncfusionDocumentReady(true);
+                                setSyncfusionLoading(false);
+                            }
+                        }, 1000);
+                    } catch (e: any) {
+                        console.error('❌ Error loading Syncfusion document:', e);
+                        setSyncfusionLoading(false);
+                        setSyncfusionDocumentReady(false);
+                        setSnackbar({
+                            open: true,
+                            message: e?.message || 'Không thể mở tài liệu trong Syncfusion',
+                            severity: 'error'
+                        });
+                        // Nếu lỗi, tự động chuyển về chế độ xem docx an toàn hơn
+                        setPreviewMode('docx');
+                    }
+                }
+                // ----- Chế độ xem HTML -----
+                // (Giữ nguyên logic HTML của bạn vì nó đã hoạt động tốt với selectedHtmlUrl)
             } catch (err) {
                 console.error('Lỗi khi render preview mẫu:', err);
+                const message = err instanceof Error ? err.message : 'Lỗi không xác định';
+                setSnackbar({ open: true, message, severity: 'error' });
             }
         };
 
         renderSelectedTemplate();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [state.selectedTemplatePath, state.generatedBlob, previewMode]);
-
-    // Load HTML preview when selectedHtmlUrl changes
+        // Loại bỏ state.generatedBlob khỏi dependency array để tránh re-render không cần thiết
+        // khi chuyển mode. Việc xử lý blob đã được đưa vào bên trong logic của từng mode.
+    }, [state.selectedTemplatePath, state.uploadedTemplateUrl, previewMode, state.selectedHtmlUrl]);
     useEffect(() => {
         const loadHtml = async () => {
             const url = state.selectedHtmlUrl;
@@ -1576,24 +2087,123 @@ function WordFillerComponent() {
 
             if (data) {
                 try {
+                    console.log('🔌 Received data from mobile app via socket:', data);
+
+                    // Convert mobile socket data to standard ProcessingData format
+                    const processingData = convertScannedInfoToProcessingData(data);
+                    console.log('🔄 Converted mobile data to ProcessingData:', processingData);
+
+                    // Cập nhật state để hiển thị nguồn dữ liệu là socket
                     setState(prev => ({
                         ...prev,
+                        dataSource: 'socket',
                         error: null,
                         generatedBlob: null
                     }));
 
-                    const blob = await processDocument(currentTemplatePath, data);
+                    // Debug: Kiểm tra các điều kiện để chèn vào Syncfusion
+                    console.log('🔍 Debug socket data insertion conditions:');
+                    console.log('  - previewMode:', previewMode);
+                    console.log('  - syncfusionDocumentReady:', syncfusionDocumentReady);
+                    console.log('  - sfContainerRef.current:', !!sfContainerRef.current);
+                    console.log('  - documentEditor:', !!sfContainerRef.current?.documentEditor);
 
-                    setState(prev => ({
-                        ...prev,
-                        generatedBlob: blob
-                    }));
+                    // Kiểm tra xem có đang dùng Syncfusion editor không
+                    if (
+                        previewMode === 'syncfusion' &&
+                        syncfusionDocumentReady &&
+                        sfContainerRef.current?.documentEditor
+                    ) {
+                        console.log('🔄 Inserting socket data into Syncfusion editor...');
 
-                    setSnackbar({
-                        open: true,
-                        message: 'Tài liệu đã được tạo thành công!',
-                        severity: 'success'
-                    });
+                        // Chèn dữ liệu vào Syncfusion editor
+                        const success = await applyDataToSyncfusion(processingData);
+
+                        if (success) {
+                            setSnackbar({
+                                open: true,
+                                message: 'Đã chèn dữ liệu từ Mobile App vào Syncfusion Editor!',
+                                severity: 'success'
+                            });
+                        } else {
+                            setSnackbar({
+                                open: true,
+                                message: 'Lỗi khi chèn dữ liệu vào Syncfusion Editor',
+                                severity: 'error'
+                            });
+                        }
+                    } else if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
+                        console.log('🔄 Inserting socket data into HTML form...');
+
+                        // Chèn dữ liệu vào HTML form
+                        try {
+                            // Inline ensureHtmlInputKeys
+                            const iframe = htmlIframeRef.current;
+                            const doc = iframe?.contentDocument;
+                            if (doc) {
+                                const elements = Array.from(
+                                    doc.querySelectorAll('input, textarea, select')
+                                ) as Array<
+                                    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+                                >;
+                                elements.forEach((el, idx) => {
+                                    const id = el.getAttribute('id') || '';
+                                    const name = (el as HTMLInputElement).name || '';
+                                    if (!id && !name) {
+                                        const existing = el.getAttribute('data-auto-id');
+                                        const autoId = existing || `auto_input_${idx + 1}`;
+                                        el.setAttribute('data-auto-id', autoId);
+                                    }
+                                });
+                            }
+
+                            // Inline fillHtmlFormFieldsFromData
+                            let ok = false;
+                            if (doc) {
+                                let filledCount = 0;
+                                for (const [key, value] of Object.entries(processingData)) {
+                                    const el =
+                                        doc.querySelector(`#${key}`) ||
+                                        doc.querySelector(`[name="${key}"]`) ||
+                                        doc.querySelector(`[data-auto-id="${key}"]`);
+                                    if (el && (el as HTMLInputElement).type !== 'file') {
+                                        (el as HTMLInputElement).value = String(value || '');
+                                        filledCount++;
+                                    }
+                                }
+                                ok = filledCount > 0;
+                            }
+                            setSnackbar({
+                                open: true,
+                                message: ok
+                                    ? 'Đã chèn dữ liệu từ Mobile App vào biểu mẫu HTML!'
+                                    : 'Không tìm thấy trường để chèn trong HTML',
+                                severity: ok ? 'success' : 'info'
+                            });
+                        } catch (e) {
+                            setSnackbar({
+                                open: true,
+                                message: 'Không thể chèn dữ liệu vào biểu mẫu HTML',
+                                severity: 'error'
+                            });
+                        }
+                    } else {
+                        console.log('🔄 Creating new document with socket data...');
+
+                        // Fallback: Tạo document mới nếu không có editor nào đang mở
+                        const blob = await processDocument(currentTemplatePath, processingData);
+
+                        setState(prev => ({
+                            ...prev,
+                            generatedBlob: blob
+                        }));
+
+                        setSnackbar({
+                            open: true,
+                            message: 'Đã tạo tài liệu từ dữ liệu Mobile App!',
+                            severity: 'success'
+                        });
+                    }
                 } catch (error) {
                     const errorMessage =
                         error instanceof Error ? error.message : 'Lỗi không xác định.';
@@ -1601,9 +2211,11 @@ function WordFillerComponent() {
 
                     setSnackbar({
                         open: true,
-                        message: errorMessage,
+                        message: `Lỗi xử lý dữ liệu từ Mobile App: ${errorMessage}`,
                         severity: 'error'
                     });
+
+                    console.error('❌ Error processing socket data:', error);
                 }
             }
         };
@@ -1613,7 +2225,15 @@ function WordFillerComponent() {
         return () => {
             off('data_received', handleDataReceived);
         };
-    }, [on, off, processDocument]);
+    }, [
+        on,
+        off,
+        processDocument,
+        previewMode,
+        syncfusionDocumentReady,
+        applyDataToSyncfusion,
+        setSnackbar
+    ]);
 
     // Event handlers
 
@@ -1711,6 +2331,10 @@ function WordFillerComponent() {
                     printWindow.close();
                 }, 250);
             }
+        } else if (previewMode === 'syncfusion') {
+            try {
+                sfContainerRef.current?.documentEditor?.print();
+            } catch {}
         }
     }, [previewMode]);
 
@@ -2845,7 +3469,7 @@ function WordFillerComponent() {
                     <Box sx={{ textAlign: 'center', py: 3 }}>
                         <WifiIcon sx={{ fontSize: 48, color: 'primary.main', mb: 2 }} />
                         <Typography variant="body1" color="text.secondary">
-                            Đang chờ dữ liệu App Mobile...
+                            Đang chờ dữ liệu NTS DocumentAI...
                         </Typography>
                         <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
                             Trạng thái:{' '}
@@ -3066,12 +3690,22 @@ function WordFillerComponent() {
                                 size="small"
                                 value={previewMode}
                                 exclusive
-                                onChange={(_, v) => v && setPreviewMode(v)}
+                                onChange={(_, v) => {
+                                    if (v) {
+                                        // Reset Syncfusion state when changing modes
+                                        if (v !== 'syncfusion') {
+                                            setSyncfusionDocumentReady(false);
+                                            setSyncfusionLoading(false);
+                                        }
+                                        setPreviewMode(v);
+                                    }
+                                }}
                             >
                                 <ToggleButton value="docx">DOCX</ToggleButton>
                                 <ToggleButton value="html" disabled={!htmlRaw}>
                                     HTML
                                 </ToggleButton>
+                                <ToggleButton value="syncfusion">Tài liệu</ToggleButton>
                             </ToggleButtonGroup>
                             {previewMode === 'html' && (
                                 <ToggleButtonGroup
@@ -3096,7 +3730,7 @@ function WordFillerComponent() {
                                 >
                                     Mở/In Word
                                 </Button>
-                            ) : (
+                            ) : previewMode === 'html' ? (
                                 <>
                                     <Button
                                         variant="outlined"
@@ -3132,6 +3766,20 @@ function WordFillerComponent() {
                                         Nạp dữ liệu biểu mẫu
                                     </Button>
                                 </>
+                            ) : (
+                                <>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<PrintIcon />}
+                                        onClick={() => {
+                                            try {
+                                                sfContainerRef.current?.documentEditor?.print();
+                                            } catch {}
+                                        }}
+                                    >
+                                        In
+                                    </Button>
+                                </>
                             )}
                             <Button
                                 variant="outlined"
@@ -3148,8 +3796,7 @@ function WordFillerComponent() {
                             >
                                 Tải mẫu gốc
                             </Button>
-                            <Button onClick={handelTest}>Test LogData</Button>
-                            <Button component="label" variant="outlined" startIcon={<UploadIcon />}>
+                            {/* <Button component="label" variant="outlined" startIcon={<UploadIcon />}>
                                 Tải mẫu đã chỉnh
                                 <input
                                     type="file"
@@ -3161,15 +3808,15 @@ function WordFillerComponent() {
                                         e.currentTarget.value = '';
                                     }}
                                 />
-                            </Button>
-                            <Button
+                            </Button> */}
+                            {/* <Button
                                 variant="contained"
                                 color="success"
                                 startIcon={<SaveIcon />}
                                 onClick={() => void handleSaveCustomTemplate()}
                             >
                                 Lưu mẫu (custom)
-                            </Button>
+                            </Button> */}
                             {state.generatedBlob && (
                                 <>
                                     <Button
@@ -3225,6 +3872,231 @@ function WordFillerComponent() {
                                     }, 50);
                                 }}
                             />
+                        )}
+                        {previewMode === 'syncfusion' && (
+                            <div style={{ width: '100%', minHeight: '70vh', position: 'relative' }}>
+                                {syncfusionLoading && (
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            zIndex: 1000,
+                                            flexDirection: 'column',
+                                            gap: 2
+                                        }}
+                                    >
+                                        <CircularProgress />
+                                        <Typography variant="body2" color="text.secondary">
+                                            Đang tải tài liệu...
+                                        </Typography>
+                                    </Box>
+                                )}
+                                {!syncfusionDocumentReady && !syncfusionLoading && (
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 0,
+                                            left: 0,
+                                            right: 0,
+                                            bottom: 0,
+                                            backgroundColor: 'rgba(245, 245, 245, 0.9)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            zIndex: 999,
+                                            flexDirection: 'column',
+                                            gap: 2
+                                        }}
+                                    >
+                                        <InfoIcon color="info" sx={{ fontSize: 48 }} />
+                                        <Typography variant="h6" color="text.secondary">
+                                            Chọn template để bắt đầu
+                                        </Typography>
+                                        <Typography variant="body2" color="text.secondary">
+                                            Tài liệu sẽ được tải
+                                        </Typography>
+                                    </Box>
+                                )}
+                                <DocumentEditorContainerComponent
+                                    id="sf-docx-editor-embedded"
+                                    ref={sfContainerRef}
+                                    serviceUrl={SYNCFUSION_SERVICE_URL}
+                                    enableToolbar={true}
+                                    height={'70vh'}
+                                    style={{ display: 'block' }}
+                                    toolbarMode={'Toolbar'}
+                                />
+
+                                {/* Quick Insert Field Panel */}
+                                {syncfusionDocumentReady && (
+                                    <Box
+                                        sx={{
+                                            position: 'absolute',
+                                            top: 16,
+                                            right: 16,
+                                            background:
+                                                'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
+                                            border: '1px solid #e0e0e0',
+                                            borderRadius: 2,
+                                            boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                                            p: 2,
+                                            maxWidth: 280,
+                                            zIndex: 1500
+                                        }}
+                                    >
+                                        <Typography
+                                            variant="subtitle2"
+                                            sx={{
+                                                mb: 1.5,
+                                                fontWeight: 'bold',
+                                                color: 'primary.main',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                gap: 1
+                                            }}
+                                        >
+                                            <AddCircleOutlineIcon fontSize="small" />
+                                            Chèn Field Nhanh
+                                        </Typography>
+                                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                                            {[
+                                                {
+                                                    label: 'Họ tên',
+                                                    value: '{ho_ten}',
+                                                    color: 'primary'
+                                                },
+                                                {
+                                                    label: 'CCCD',
+                                                    value: '{cccd}',
+                                                    color: 'secondary'
+                                                },
+                                                {
+                                                    label: 'CMND',
+                                                    value: '{cmnd}',
+                                                    color: 'secondary'
+                                                },
+                                                {
+                                                    label: 'Ngày sinh',
+                                                    value: '{ngay_sinh}',
+                                                    color: 'info'
+                                                },
+                                                {
+                                                    label: 'Giới tính',
+                                                    value: '{gioi_tinh}',
+                                                    color: 'info'
+                                                },
+                                                {
+                                                    label: 'Địa chỉ',
+                                                    value: '{noi_cu_tru}',
+                                                    color: 'success'
+                                                },
+                                                {
+                                                    label: 'Dân tộc',
+                                                    value: '{dan_toc}',
+                                                    color: 'warning'
+                                                },
+                                                {
+                                                    label: 'Nơi cấp',
+                                                    value: '{noi_cap}',
+                                                    color: 'error'
+                                                },
+                                                {
+                                                    label: 'Ngày cấp',
+                                                    value: '{ngay_cap}',
+                                                    color: 'error'
+                                                },
+                                                // Thêm fields từ mobile
+                                                {
+                                                    label: 'Số CCCD',
+                                                    value: '{so_cccd}',
+                                                    color: 'secondary'
+                                                },
+                                                {
+                                                    label: 'Số CMND',
+                                                    value: '{so_cmnd}',
+                                                    color: 'secondary'
+                                                },
+                                                {
+                                                    label: 'Ngày S',
+                                                    value: '{ns_ngay}',
+                                                    color: 'info'
+                                                },
+                                                {
+                                                    label: 'Tháng S',
+                                                    value: '{ns_thang}',
+                                                    color: 'info'
+                                                },
+                                                {
+                                                    label: 'Năm S',
+                                                    value: '{ns_nam}',
+                                                    color: 'info'
+                                                },
+                                                {
+                                                    label: 'Ngày C',
+                                                    value: '{nc_ngay}',
+                                                    color: 'error'
+                                                },
+                                                {
+                                                    label: 'Tháng C',
+                                                    value: '{nc_thang}',
+                                                    color: 'error'
+                                                },
+                                                {
+                                                    label: 'Năm C',
+                                                    value: '{nc_nam}',
+                                                    color: 'error'
+                                                }
+                                            ].map((field, index) => (
+                                                <Button
+                                                    key={field.value}
+                                                    size="small"
+                                                    variant="outlined"
+                                                    color={field.color as any}
+                                                    sx={{
+                                                        fontSize: '11px',
+                                                        py: 0.5,
+                                                        px: 1,
+                                                        textTransform: 'none',
+                                                        borderRadius: 1,
+                                                        flex: '1 1 calc(50% - 4px)',
+                                                        minWidth: '90px',
+                                                        '&:hover': {
+                                                            transform: 'translateY(-1px)',
+                                                            boxShadow: 2
+                                                        },
+                                                        transition: 'all 0.2s ease'
+                                                    }}
+                                                    onClick={() =>
+                                                        insertFieldIntoSyncfusion(field.value)
+                                                    }
+                                                    title={`Chèn ${field.value} vào vị trí con trô`}
+                                                >
+                                                    {field.label}
+                                                </Button>
+                                            ))}
+                                        </Box>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                mt: 1.5,
+                                                display: 'block',
+                                                textAlign: 'center',
+                                                color: 'text.secondary',
+                                                fontStyle: 'italic'
+                                            }}
+                                        >
+                                            💡 Click để chèn field vào vị trí con trỏ
+                                        </Typography>
+                                    </Box>
+                                )}
+                            </div>
                         )}
                     </Paper>
                 </Paper>
@@ -3504,12 +4376,6 @@ function WordFillerComponent() {
                                                     sx={{ fontFamily: 'monospace' }}
                                                 >
                                                     {key}
-                                                </Typography>
-                                                <Typography
-                                                    variant="caption"
-                                                    color="text.secondary"
-                                                >
-                                                    {desc}
                                                 </Typography>
                                             </Box>
                                         </Box>

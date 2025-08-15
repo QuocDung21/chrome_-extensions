@@ -22,7 +22,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { createLazyFileRoute } from '@tanstack/react-router';
+import { Link, createLazyFileRoute } from '@tanstack/react-router';
 
 import { WordDocumentViewer } from '../../components/WordDocumentViewer';
 import documentService, { FieldMapping } from '../../services/documentService';
@@ -580,9 +580,19 @@ function WordViewer(): React.ReactElement {
 
     return (
         <Box sx={{ p: 2 }}>
-            <Typography variant="h6" gutterBottom>
-                Xem Word trên màn hình
-            </Typography>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="h6" gutterBottom sx={{ m: 0 }}>
+                    Xem Word trên màn hình
+                </Typography>
+                <Button
+                    size="small"
+                    variant="outlined"
+                    component={Link as any}
+                    to="/word-viewer/syncfusion"
+                >
+                    Thử Syncfusion Editor
+                </Button>
+            </Box>
             <Card sx={{ mb: 2 }}>
                 <CardContent>
                     <Grid container spacing={2} alignItems="center">
