@@ -14,6 +14,8 @@ import { Route as rootRouteImport } from './routes/__root'
 
 const WordViewerIndexLazyRouteImport = createFileRoute('/word-viewer/')()
 const WordMapperIndexLazyRouteImport = createFileRoute('/word-mapper/')()
+const TemplateFillerIndexLazyRouteImport =
+  createFileRoute('/template-filler/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
 const ServicesIndexLazyRouteImport = createFileRoute('/services/')()
 const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
@@ -43,6 +45,13 @@ const WordMapperIndexLazyRoute = WordMapperIndexLazyRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
   import('./routes/word-mapper/index.lazy').then((d) => d.Route),
+)
+const TemplateFillerIndexLazyRoute = TemplateFillerIndexLazyRouteImport.update({
+  id: '/template-filler/',
+  path: '/template-filler/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/template-filler/index.lazy').then((d) => d.Route),
 )
 const SettingsIndexLazyRoute = SettingsIndexLazyRouteImport.update({
   id: '/settings/',
@@ -138,6 +147,7 @@ export interface FileRoutesByFullPath {
   '/products': typeof ProductsIndexLazyRoute
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
+  '/template-filler': typeof TemplateFillerIndexLazyRoute
   '/word-mapper': typeof WordMapperIndexLazyRoute
   '/word-viewer': typeof WordViewerIndexLazyRoute
 }
@@ -154,6 +164,7 @@ export interface FileRoutesByTo {
   '/products': typeof ProductsIndexLazyRoute
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
+  '/template-filler': typeof TemplateFillerIndexLazyRoute
   '/word-mapper': typeof WordMapperIndexLazyRoute
   '/word-viewer': typeof WordViewerIndexLazyRoute
 }
@@ -171,6 +182,7 @@ export interface FileRoutesById {
   '/products/': typeof ProductsIndexLazyRoute
   '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
+  '/template-filler/': typeof TemplateFillerIndexLazyRoute
   '/word-mapper/': typeof WordMapperIndexLazyRoute
   '/word-viewer/': typeof WordViewerIndexLazyRoute
 }
@@ -189,6 +201,7 @@ export interface FileRouteTypes {
     | '/products'
     | '/services'
     | '/settings'
+    | '/template-filler'
     | '/word-mapper'
     | '/word-viewer'
   fileRoutesByTo: FileRoutesByTo
@@ -205,6 +218,7 @@ export interface FileRouteTypes {
     | '/products'
     | '/services'
     | '/settings'
+    | '/template-filler'
     | '/word-mapper'
     | '/word-viewer'
   id:
@@ -221,6 +235,7 @@ export interface FileRouteTypes {
     | '/products/'
     | '/services/'
     | '/settings/'
+    | '/template-filler/'
     | '/word-mapper/'
     | '/word-viewer/'
   fileRoutesById: FileRoutesById
@@ -238,6 +253,7 @@ export interface RootRouteChildren {
   ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
   ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
+  TemplateFillerIndexLazyRoute: typeof TemplateFillerIndexLazyRoute
   WordMapperIndexLazyRoute: typeof WordMapperIndexLazyRoute
   WordViewerIndexLazyRoute: typeof WordViewerIndexLazyRoute
 }
@@ -256,6 +272,13 @@ declare module '@tanstack/react-router' {
       path: '/word-mapper'
       fullPath: '/word-mapper'
       preLoaderRoute: typeof WordMapperIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/template-filler/': {
+      id: '/template-filler/'
+      path: '/template-filler'
+      fullPath: '/template-filler'
+      preLoaderRoute: typeof TemplateFillerIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -358,6 +381,7 @@ const rootRouteChildren: RootRouteChildren = {
   ProductsIndexLazyRoute: ProductsIndexLazyRoute,
   ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
+  TemplateFillerIndexLazyRoute: TemplateFillerIndexLazyRoute,
   WordMapperIndexLazyRoute: WordMapperIndexLazyRoute,
   WordViewerIndexLazyRoute: WordViewerIndexLazyRoute,
 }

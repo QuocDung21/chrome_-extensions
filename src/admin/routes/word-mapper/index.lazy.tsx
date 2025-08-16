@@ -85,6 +85,15 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
+import { ProcessingModal } from '../../components/word-mapper/ProcessingModal';
+// --- COMPONENTS ---
+import {
+    type EnhancedTTHCRecord,
+    type FilterOptions,
+    type FilterState,
+    TemplateSelectorModal
+} from '../../components/word-mapper/TemplateSelectorModal';
+
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
 
 // --- CẤU HÌNH ---
@@ -227,6 +236,8 @@ const DATA_FORMATS: DataFormat[] = [
             return parts.length >= 7;
         }
     },
+
+    // Máy quét
     {
         type: 'qr_scanner',
         name: 'Máy quét QR',
@@ -412,6 +423,7 @@ const processDataIntelligently = (data: string): ScannedInfo => {
     }
 };
 
+// Local TTHCRecord interface with all fields needed for CSV processing
 interface TTHCRecord {
     stt: string;
     maTTHC: string;
@@ -427,18 +439,8 @@ interface TTHCRecord {
     tenFile: string;
 }
 
-interface FilterState {
-    linhVuc: string;
-    thuTuc: string;
-    availability: string; // 'all' | 'available' | 'unavailable'
-}
-
-interface FilterOptions {
-    linhVuc: string[];
-    thuTucByLinhVuc: { [linhVuc: string]: string[] };
-}
-
-interface EnhancedTTHCRecord extends TTHCRecord {
+// Enhanced version for template availability checking
+interface LocalEnhancedTTHCRecord extends TTHCRecord {
     isTemplateAvailable: boolean;
 }
 
@@ -946,7 +948,7 @@ const extractTemplateName = (fullPath: string): string => {
     return parts[parts.length - 1]; // Get the last part (filename)
 };
 
-const createFilterOptions = (records: TTHCRecord[]): FilterOptions => {
+const createFilterOptions = (records: TTHCRecord[] | LocalEnhancedTTHCRecord[]): FilterOptions => {
     const linhVucSet = new Set<string>();
     const thuTucByLinhVuc: { [linhVuc: string]: string[] } = {};
 
@@ -981,7 +983,7 @@ const createFilterOptions = (records: TTHCRecord[]): FilterOptions => {
 // Helpers to work with templates_by_code structure
 const sanitizeCodeForPath = (code: string): string => (code || '').replace(/[\\/]/g, '_').trim();
 
-const buildDocxUrlForRecord = (record: TTHCRecord): string => {
+const buildDocxUrlForRecord = (record: TTHCRecord | LocalEnhancedTTHCRecord): string => {
     const code = sanitizeCodeForPath(record.maTTHC);
     const templateName = record.tenFile || extractTemplateName(record.mauDon);
     const encodedCode = encodeURIComponent(code);
@@ -991,7 +993,7 @@ const buildDocxUrlForRecord = (record: TTHCRecord): string => {
     return `/${path}`;
 };
 
-const buildHtmlUrlForRecord = (record: TTHCRecord): string => {
+const buildHtmlUrlForRecord = (record: TTHCRecord | LocalEnhancedTTHCRecord): string => {
     const code = sanitizeCodeForPath(record.maTTHC);
     const templateName = record.tenFile || extractTemplateName(record.mauDon);
     const base = templateName.replace(/\.(docx?|DOCX?)$/, '');
@@ -1002,7 +1004,9 @@ const buildHtmlUrlForRecord = (record: TTHCRecord): string => {
     return `/${path}`;
 };
 
-const checkTemplateExists = async (record: TTHCRecord): Promise<boolean> => {
+const checkTemplateExists = async (
+    record: TTHCRecord | LocalEnhancedTTHCRecord
+): Promise<boolean> => {
     try {
         const url = buildDocxUrlForRecord(record);
         const res = await fetch(url, { method: 'HEAD' });
@@ -1014,15 +1018,15 @@ const checkTemplateExists = async (record: TTHCRecord): Promise<boolean> => {
 
 const enhanceRecordsWithAvailability = async (
     records: TTHCRecord[]
-): Promise<EnhancedTTHCRecord[]> => {
+): Promise<LocalEnhancedTTHCRecord[]> => {
     const checks = await Promise.all(records.map(r => checkTemplateExists(r)));
     return records.map((record, idx) => ({ ...record, isTemplateAvailable: checks[idx] }));
 };
 
 const filterRecords = (
-    records: EnhancedTTHCRecord[],
+    records: LocalEnhancedTTHCRecord[],
     filters: FilterState
-): EnhancedTTHCRecord[] => {
+): LocalEnhancedTTHCRecord[] => {
     return records.filter(record => {
         // Filter by linhVuc
         if (filters.linhVuc && !record.linhVuc.includes(filters.linhVuc)) {
@@ -1075,7 +1079,7 @@ function WordFillerComponent() {
     });
 
     // CSV data and filtering states
-    const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
+    const [csvRecords, setCsvRecords] = useState<LocalEnhancedTTHCRecord[]>([]);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
         thuTucByLinhVuc: {}
@@ -1085,8 +1089,11 @@ function WordFillerComponent() {
         thuTuc: '',
         availability: 'all'
     });
-    const [filteredRecords, setFilteredRecords] = useState<EnhancedTTHCRecord[]>([]);
+    const [filteredRecords, setFilteredRecords] = useState<LocalEnhancedTTHCRecord[]>([]);
     const [showFilters, setShowFilters] = useState(false);
+    const [showTemplateModal, setShowTemplateModal] = useState(false);
+    const [showProcessingModal, setShowProcessingModal] = useState(false);
+    const [selectedRecord, setSelectedRecord] = useState<LocalEnhancedTTHCRecord | null>(null);
     const [csvLoading, setCsvLoading] = useState(false);
     const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
 
@@ -1542,86 +1549,6 @@ function WordFillerComponent() {
         }
     }, [state.generatedBlob]);
 
-    // Render selected template preview when a template is chosen (before generating document)
-    // useEffect(...), thay thế cho cái cũ
-
-    // useEffect(() => {
-    //     const renderSelectedTemplate = async () => {
-    //         // Điều kiện chung cho tất cả các mode
-    //         if (!state.selectedTemplatePath || state.generatedBlob) {
-    //             return;
-    //         }
-
-    //         try {
-    //             // ----- Chế độ xem DOCX Preview -----
-    //             if (previewMode === 'docx') {
-    //                 // Di chuyển điều kiện kiểm tra ref vào đúng vị trí của nó
-    //                 if (!previewContainerRef.current) return;
-
-    //                 previewContainerRef.current.innerHTML = '';
-    //                 const response = await fetch(state.selectedTemplatePath);
-    //                 if (!response.ok) {
-    //                     throw new Error('Không thể tải file mẫu để xem trước');
-    //                 }
-    //                 const templateBlob = await response.blob();
-    //                 await renderAsync(templateBlob, previewContainerRef.current, undefined, {
-    //                     className: 'docx-preview-container'
-    //                 });
-    //             }
-    //             // ----- Chế độ xem Syncfusion -----
-    //             else if (previewMode === 'syncfusion') {
-    //                 const url = state.uploadedTemplateUrl || state.selectedTemplatePath;
-
-    //                 // Điều kiện kiểm tra ref cho Syncfusion
-    //                 if (!url || !sfContainerRef.current?.documentEditor) {
-    //                     return;
-    //                 }
-
-    //                 try {
-    //                     const res = await fetch(url);
-    //                     if (!res.ok) throw new Error('Không thể tải file mẫu cho Syncfusion');
-
-    //                     const blob = await res.blob();
-    //                     const form = new FormData();
-    //                     form.append('files', blob, state.uploadedTemplateName || 'template.docx');
-
-    //                     // Gọi service của Syncfusion để chuyển đổi docx -> sfdt
-    //                     const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
-    //                         method: 'POST',
-    //                         body: form
-    //                     });
-
-    //                     if (!importRes.ok) {
-    //                         throw new Error(`Lỗi khi import file: ${importRes.statusText}`);
-    //                     }
-
-    //                     const sfdtText = await importRes.text();
-
-    //                     // Mở chuỗi SFDT nhận được từ service
-    //                     sfContainerRef.current.documentEditor.open(sfdtText);
-    //                 } catch (e: any) {
-    //                     setSnackbar({
-    //                         open: true,
-    //                         message: e?.message || 'Không thể mở tài liệu trong Syncfusion',
-    //                         severity: 'error'
-    //                     });
-    //                     // Nếu lỗi, tự động chuyển về chế độ xem docx an toàn hơn
-    //                     setPreviewMode('docx');
-    //                 }
-    //             }
-    //         } catch (err) {
-    //             console.error('Lỗi khi render preview mẫu:', err);
-    //             const message = err instanceof Error ? err.message : 'Lỗi không xác định';
-    //             setSnackbar({ open: true, message, severity: 'error' });
-    //         }
-    //     };
-
-    //     renderSelectedTemplate();
-    //     // eslint-disable-next-line react-hooks/exhaustive-deps
-    // }, [state.selectedTemplatePath, state.uploadedTemplateUrl, state.generatedBlob, previewMode]);
-    // Load HTML preview when selectedHtmlUrl changes
-
-    // --- THAY THẾ TOÀN BỘ useEffect NÀY ---
     useEffect(() => {
         const renderSelectedTemplate = async () => {
             // Điều kiện chung: chỉ chạy khi có mẫu được chọn.
@@ -2088,7 +2015,6 @@ function WordFillerComponent() {
             if (data) {
                 try {
                     console.log('🔌 Received data from mobile app via socket:', data);
-
                     // Convert mobile socket data to standard ProcessingData format
                     const processingData = convertScannedInfoToProcessingData(data);
                     console.log('🔄 Converted mobile data to ProcessingData:', processingData);
@@ -2262,7 +2188,7 @@ function WordFillerComponent() {
     }, []);
 
     const handleTemplateFromCSV = useCallback(
-        (record: EnhancedTTHCRecord) => {
+        (record: LocalEnhancedTTHCRecord) => {
             if (!record.isTemplateAvailable) {
                 setSnackbar({
                     open: true,
@@ -2285,6 +2211,7 @@ function WordFillerComponent() {
             }));
             resetProcessing();
             setShowFilters(false);
+            setShowTemplateModal(false);
 
             setSnackbar({
                 open: true,
@@ -2294,6 +2221,20 @@ function WordFillerComponent() {
         },
         [resetProcessing]
     );
+
+    const handleOpenProcessingModal = useCallback((record: LocalEnhancedTTHCRecord) => {
+        if (!record.isTemplateAvailable) {
+            setSnackbar({
+                open: true,
+                message: `Mẫu đơn "${record.tenFile || extractTemplateName(record.mauDon)}" chưa có sẵn trong hệ thống`,
+                severity: 'warning'
+            });
+            return;
+        }
+
+        setSelectedRecord(record);
+        setShowProcessingModal(true);
+    }, []);
 
     const handleDownload = useCallback(() => {
         if (state.generatedBlob) {
@@ -2849,7 +2790,7 @@ function WordFillerComponent() {
             }
             // Đảm bảo có khóa trước khi nạp và chuẩn hóa key: nếu key ở dạng {field} -> chuyển thành field
             ensureHtmlInputKeys();
-            // Chuẩn hóa key: nếu key ở dạng {field} -> chuyển thành field để khớp logic điền
+            // Chuẩn hóa key: nếu key ở dạng {field} -> chuyển thành field để khớp logic đ  iền
             const normalized: Record<string, any> = { ...data };
             Object.entries(data).forEach(([k, v]) => {
                 const m = k.match(/^\{([^}]+)\}$/);
@@ -2995,52 +2936,24 @@ function WordFillerComponent() {
     const renderFilter = () => (
         <Card>
             <CardContent>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        mb: 2
-                    }}
-                >
-                    <Box>
-                        <Button
-                            variant="outlined"
-                            size="small"
-                            onClick={handleClearFilters}
-                            sx={{ mr: 1 }}
-                        >
-                            Xóa bộ lọc
-                        </Button>
-                        <Button
-                            variant="contained"
-                            size="small"
-                            onClick={() => setShowFilters(!showFilters)}
-                        >
-                            {showFilters ? 'Ẩn bộ lọc' : 'Hiện bộ lọc'}
-                        </Button>
-                        <Button variant="contained" size="small" to="/word-mapper/detail">
-                            Go to detail
-                        </Button>
-                    </Box>
-                </Box>
+                <Typography variant="h6" sx={{ mb: 2 }}>
+                    Danh sách thủ tục hành chính
+                </Typography>
 
-                {showFilters && (
+                {/* Filter Controls */}
+                <Box sx={{ mb: 3 }}>
                     <Box
                         sx={{
-                            mb: 2,
                             display: 'grid',
                             gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                            gap: 2
+                            gap: 2,
+                            mb: 2
                         }}
                     >
                         <FormControl fullWidth size="small">
                             <InputLabel>Lĩnh vực</InputLabel>
                             <Select
                                 value={filters.linhVuc}
-                                style={{
-                                    borderWidth: 1
-                                }}
                                 label="Lĩnh vực"
                                 onChange={e => handleFilterChange('linhVuc', e.target.value)}
                             >
@@ -3052,6 +2965,7 @@ function WordFillerComponent() {
                                 ))}
                             </Select>
                         </FormControl>
+
                         <FormControl fullWidth size="small">
                             <InputLabel>Thủ tục</InputLabel>
                             <Select
@@ -3068,6 +2982,7 @@ function WordFillerComponent() {
                                 ))}
                             </Select>
                         </FormControl>
+
                         <FormControl fullWidth size="small">
                             <InputLabel>Trạng thái mẫu</InputLabel>
                             <Select
@@ -3081,59 +2996,13 @@ function WordFillerComponent() {
                             </Select>
                         </FormControl>
                     </Box>
-                )}
-                <Box
-                    sx={{
-                        mb: 2,
-                        display: 'grid',
-                        gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                        gap: 2
-                    }}
-                >
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Lĩnh vực</InputLabel>
-                        <Select
-                            value={filters.linhVuc}
-                            label="Lĩnh vực"
-                            onChange={e => handleFilterChange('linhVuc', e.target.value)}
-                        >
-                            <MenuItem value="">Tất cả</MenuItem>
-                            {filterOptions.linhVuc.map(item => (
-                                <MenuItem key={item} value={item}>
-                                    {item}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Thủ tục</InputLabel>
-                        <Select
-                            value={filters.thuTuc}
-                            label="Thủ tục"
-                            onChange={e => handleFilterChange('thuTuc', e.target.value)}
-                            disabled={!filters.linhVuc}
-                        >
-                            <MenuItem value="">Tất cả</MenuItem>
-                            {availableThuTuc.map(item => (
-                                <MenuItem key={item} value={item}>
-                                    {item}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl>
-                    <FormControl fullWidth size="small">
-                        <InputLabel>Trạng thái mẫu</InputLabel>
-                        <Select
-                            value={filters.availability}
-                            label="Trạng thái mẫu"
-                            onChange={e => handleFilterChange('availability', e.target.value)}
-                        >
-                            <MenuItem value="all">Tất cả</MenuItem>
-                            <MenuItem value="available">Có sẵn mẫu</MenuItem>
-                            <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
-                        </Select>
-                    </FormControl>
+
+                    <Button variant="outlined" onClick={handleClearFilters} size="small">
+                        Xóa bộ lọc
+                    </Button>
                 </Box>
+
+                {/* Summary and Template List */}
                 {csvLoading ? (
                     <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
                         <CircularProgress />
@@ -3142,7 +3011,7 @@ function WordFillerComponent() {
                     <Box>
                         <Box
                             sx={{
-                                mb: 1,
+                                mb: 2,
                                 display: 'flex',
                                 justifyContent: 'space-between',
                                 alignItems: 'center'
@@ -3168,94 +3037,129 @@ function WordFillerComponent() {
                                 />
                             </Box>
                         </Box>
+
                         <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                            {filteredRecords.map((record, index) => (
+                            {filteredRecords.slice(0, 10).map((record, index) => (
                                 <Paper
                                     key={index}
                                     variant="outlined"
                                     sx={{
                                         p: 2,
-                                        mb: 1,
-                                        cursor: record.isTemplateAvailable
-                                            ? 'pointer'
-                                            : 'not-allowed',
-                                        opacity: record.isTemplateAvailable ? 1 : 0.7,
-                                        bgcolor: record.isTemplateAvailable
-                                            ? 'background.paper'
-                                            : 'grey.50',
+                                        mb: 2,
+                                        borderRadius: 2,
+                                        border: '1px solid #e0e0e0',
                                         '&:hover': {
-                                            bgcolor: record.isTemplateAvailable
-                                                ? 'action.hover'
-                                                : 'grey.100'
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                            borderColor: record.isTemplateAvailable
+                                                ? '#1976d2'
+                                                : '#ed6c02'
                                         },
-                                        border: record.isTemplateAvailable
-                                            ? '1px solid'
-                                            : '1px dashed',
-                                        borderColor: record.isTemplateAvailable
-                                            ? 'divider'
-                                            : 'warning.main'
+                                        transition: 'all 0.2s ease-in-out',
+                                        opacity: record.isTemplateAvailable ? 1 : 0.7
                                     }}
-                                    onClick={() => handleTemplateFromCSV(record)}
                                 >
-                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                                        {record.isTemplateAvailable ? (
-                                            <CheckCircleIcon
-                                                color="success"
-                                                sx={{ fontSize: 20, mt: 0.2 }}
-                                            />
-                                        ) : (
-                                            <WarningIcon
-                                                color="warning"
-                                                sx={{ fontSize: 20, mt: 0.2 }}
-                                            />
-                                        )}
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'flex-start'
+                                        }}
+                                    >
                                         <Box sx={{ flex: 1 }}>
-                                            <Typography variant="body1" fontWeight={500}>
-                                                {record.tenTTHC}
+                                            <Typography
+                                                variant="subtitle1"
+                                                color="primary"
+                                                sx={{ fontWeight: 'bold', mb: 1 }}
+                                            >
+                                                {record.maTTHC} - {record.tenTTHC}
                                             </Typography>
                                             <Typography
-                                                variant="caption"
+                                                variant="body2"
                                                 color="text.secondary"
-                                                sx={{ display: 'block' }}
+                                                sx={{ mb: 1 }}
                                             >
-                                                Mã: {record.maTTHC} | Lĩnh vực: {record.linhVuc}
+                                                Lĩnh vực: {record.linhVuc}
                                             </Typography>
-                                            <Box
-                                                sx={{
-                                                    mt: 1,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    gap: 1
-                                                }}
-                                            >
-                                                <Typography variant="caption" color="primary">
-                                                    File:{' '}
-                                                    {record.tenFile ||
-                                                        extractTemplateName(record.mauDon)}
-                                                </Typography>
-                                                <Chip
-                                                    label={
-                                                        record.isTemplateAvailable
-                                                            ? 'Có sẵn'
-                                                            : 'Chưa có mẫu'
-                                                    }
-                                                    color={
-                                                        record.isTemplateAvailable
-                                                            ? 'success'
-                                                            : 'warning'
-                                                    }
-                                                    size="small"
-                                                    sx={{ fontSize: '0.65rem', height: 20 }}
-                                                />
-                                            </Box>
+                                            <Typography variant="body2" color="text.secondary">
+                                                Đối tượng: {record.doiTuong || 'Công dân Việt Nam'}
+                                            </Typography>
+                                        </Box>
+
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 1,
+                                                alignItems: 'flex-end'
+                                            }}
+                                        >
+                                            {record.isTemplateAvailable ? (
+                                                <>
+                                                    <Chip
+                                                        label="Có sẵn mẫu"
+                                                        color="success"
+                                                        size="small"
+                                                        icon={<CheckCircleIcon />}
+                                                    />
+                                                    <Button
+                                                        variant="contained"
+                                                        color="primary"
+                                                        size="small"
+                                                        onClick={() =>
+                                                            handleOpenProcessingModal(record)
+                                                        }
+                                                    >
+                                                        Chọn mẫu này
+                                                    </Button>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Chip
+                                                        label="Chưa có mẫu"
+                                                        color="warning"
+                                                        size="small"
+                                                        icon={<WarningIcon />}
+                                                    />
+                                                    <Button
+                                                        variant="outlined"
+                                                        color="warning"
+                                                        size="small"
+                                                        disabled
+                                                    >
+                                                        Không khả dụng
+                                                    </Button>
+                                                </>
+                                            )}
                                         </Box>
                                     </Box>
                                 </Paper>
                             ))}
+
+                            {filteredRecords.length > 10 && (
+                                <Paper sx={{ p: 2, textAlign: 'center', mt: 2 }}>
+                                    <Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mb: 2 }}
+                                    >
+                                        Hiển thị 10 / {filteredRecords.length} thủ tục.
+                                    </Typography>
+                                    <Button
+                                        variant="outlined"
+                                        onClick={() => setShowTemplateModal(true)}
+                                    >
+                                        Xem tất cả ({filteredRecords.length})
+                                    </Button>
+                                </Paper>
+                            )}
+
                             {filteredRecords.length === 0 && (
-                                <Paper sx={{ p: 3, textAlign: 'center' }}>
-                                    <Typography color="text.secondary">
-                                        Không tìm thấy thủ tục hành chính phù hợp với bộ lọc
+                                <Paper sx={{ p: 4, textAlign: 'center' }}>
+                                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+                                        Không tìm thấy thủ tục nào
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp
                                     </Typography>
                                 </Paper>
                             )}
@@ -3436,86 +3340,180 @@ function WordFillerComponent() {
                                 />
                             </Box>
                         </Box>
-                        <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+                        <Box sx={{ maxHeight: 600, overflowY: 'auto' }}>
                             {filteredRecords.map((record, index) => (
                                 <Paper
                                     key={index}
                                     variant="outlined"
                                     sx={{
-                                        p: 2,
-                                        mb: 1,
-                                        cursor: record.isTemplateAvailable
-                                            ? 'pointer'
-                                            : 'not-allowed',
-                                        opacity: record.isTemplateAvailable ? 1 : 0.7,
-                                        bgcolor: record.isTemplateAvailable
-                                            ? 'background.paper'
-                                            : 'grey.50',
+                                        p: 3,
+                                        mb: 2,
+                                        borderRadius: 2,
+                                        border: '1px solid #e0e0e0',
                                         '&:hover': {
-                                            bgcolor: record.isTemplateAvailable
-                                                ? 'action.hover'
-                                                : 'grey.100'
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                                            borderColor: '#1976d2'
                                         },
-                                        border: record.isTemplateAvailable
-                                            ? '1px solid'
-                                            : '1px dashed',
-                                        borderColor: record.isTemplateAvailable
-                                            ? 'divider'
-                                            : 'warning.main'
+                                        transition: 'all 0.2s ease-in-out'
                                     }}
-                                    onClick={() => handleTemplateFromCSV(record)}
                                 >
-                                    <Box sx={{ display: 'flex', alignItems: 'flex-start', gap: 1 }}>
-                                        {record.isTemplateAvailable ? (
-                                            <CheckCircleIcon
-                                                color="success"
-                                                sx={{ fontSize: 20, mt: 0.2 }}
-                                            />
-                                        ) : (
-                                            <WarningIcon
-                                                color="warning"
-                                                sx={{ fontSize: 20, mt: 0.2 }}
-                                            />
-                                        )}
+                                    {/* Header with Star and Code */}
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            alignItems: 'flex-start',
+                                            gap: 2,
+                                            mb: 2
+                                        }}
+                                    >
+                                        <Box sx={{ fontSize: '24px', color: '#ffc107', mt: 0.5 }}>
+                                            ⭐
+                                        </Box>
                                         <Box sx={{ flex: 1 }}>
-                                            <Typography variant="body1" fontWeight={500}>
-                                                {record.tenTTHC}
-                                            </Typography>
-                                            <Typography
-                                                variant="caption"
-                                                color="text.secondary"
-                                                sx={{ display: 'block' }}
-                                            >
-                                                Mã: {record.maTTHC} | Lĩnh vực: {record.linhVuc}
-                                            </Typography>
                                             <Box
                                                 sx={{
-                                                    mt: 1,
                                                     display: 'flex',
-                                                    alignItems: 'center',
+                                                    alignItems: 'flex-start',
+                                                    gap: 1,
+                                                    mb: 1
+                                                }}
+                                            >
+                                                <Typography
+                                                    variant="h6"
+                                                    fontWeight={600}
+                                                    color="primary"
+                                                >
+                                                    Mã thủ tục: {record.maTTHC}
+                                                </Typography>
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Cấp thực hiện: {record.capThucHien || 'Cấp Xã'}
+                                                </Typography>
+                                            </Box>
+
+                                            {/* Administrative Field */}
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{ mb: 2 }}
+                                            >
+                                                Lĩnh vực: {record.linhVuc}
+                                            </Typography>
+
+                                            {/* Procedure Name */}
+                                            <Typography
+                                                variant="body2"
+                                                fontWeight={500}
+                                                sx={{ mb: 1 }}
+                                            >
+                                                Tên thủ tục
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ mb: 2 }}>
+                                                {record.tenTTHC}
+                                            </Typography>
+
+                                            {/* Target Users */}
+                                            <Typography
+                                                variant="body2"
+                                                fontWeight={500}
+                                                sx={{ mb: 1 }}
+                                            >
+                                                Đối tượng thực hiện
+                                            </Typography>
+                                            <Typography variant="body2" sx={{ mb: 2 }}>
+                                                {record.doiTuong || 'Công dân Việt Nam'}
+                                            </Typography>
+
+                                            {/* Template Documents Section */}
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    flexDirection: 'row',
                                                     gap: 1
                                                 }}
                                             >
-                                                <Typography variant="caption" color="primary">
-                                                    File:{' '}
-                                                    {record.tenFile ||
-                                                        extractTemplateName(record.mauDon)}
+                                                <Typography
+                                                    variant="h6"
+                                                    fontWeight={500}
+                                                    sx={{ mb: 1 }}
+                                                >
+                                                    Danh sách mẫu đơn / tờ khai
                                                 </Typography>
-                                                <Chip
-                                                    label={
-                                                        record.isTemplateAvailable
-                                                            ? 'Có sẵn'
-                                                            : 'Chưa có mẫu'
-                                                    }
-                                                    color={
-                                                        record.isTemplateAvailable
-                                                            ? 'success'
-                                                            : 'warning'
-                                                    }
-                                                    size="small"
-                                                    sx={{ fontSize: '0.65rem', height: 20 }}
-                                                />
+
+                                                {record.isTemplateAvailable ? (
+                                                    <Box sx={{ mb: 3 }}>
+                                                        <Typography
+                                                            variant="body2"
+                                                            color="text.secondary"
+                                                            sx={{ mb: 2 }}
+                                                        >
+                                                            {record.tenFile
+                                                                ? extractTemplateName(record.mauDon)
+                                                                : 'Mẫu đơn có sẵn'}
+                                                        </Typography>
+                                                        <Box
+                                                            sx={{ display: 'flex', gap: 1, mb: 2 }}
+                                                        >
+                                                            <Button
+                                                                variant="outlined"
+                                                                size="small"
+                                                                startIcon={<span>⬇</span>}
+                                                                sx={{ textTransform: 'none' }}
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    if (
+                                                                        record.isTemplateAvailable
+                                                                    ) {
+                                                                        handleTemplateFromCSV(
+                                                                            record
+                                                                        );
+                                                                        // Wait a bit for template to be selected then download
+                                                                        setTimeout(() => {
+                                                                            handleDownloadOriginalTemplate();
+                                                                        }, 100);
+                                                                    }
+                                                                }}
+                                                            >
+                                                                Tải
+                                                            </Button>
+
+                                                            <Button
+                                                                variant="contained"
+                                                                color="success"
+                                                                size="small"
+                                                                sx={{ textTransform: 'none' }}
+                                                                onClick={e => {
+                                                                    e.stopPropagation();
+                                                                    handleTemplateFromCSV(record);
+                                                                }}
+                                                            >
+                                                                Tạo trực tuyến
+                                                            </Button>
+                                                        </Box>
+                                                    </Box>
+                                                ) : (
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                        sx={{ mb: 3, fontStyle: 'italic' }}
+                                                    >
+                                                        (Chưa có mẫu đơn/tờ khai trong dữ liệu)
+                                                    </Typography>
+                                                )}
                                             </Box>
+
+                                            {/* Details Button */}
+                                            <Button
+                                                variant="contained"
+                                                color="primary"
+                                                size="small"
+                                                sx={{ textTransform: 'none' }}
+                                                onClick={e => {
+                                                    e.stopPropagation();
+                                                    // Handle view details
+                                                }}
+                                            >
+                                                Xem chi tiết
+                                            </Button>
                                         </Box>
                                     </Box>
                                 </Paper>
@@ -4007,8 +4005,8 @@ function WordFillerComponent() {
                         }}
                     >
                         {/* <Typography variant="h6" gutterBottom>
-                            {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
-                        </Typography> */}
+                        {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
+                    </Typography> */}
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                             <ToggleButtonGroup
                                 size="small"
@@ -4121,26 +4119,26 @@ function WordFillerComponent() {
                                 Tải mẫu gốc
                             </Button>
                             {/* <Button component="label" variant="outlined" startIcon={<UploadIcon />}>
-                                Tải mẫu đã chỉnh
-                                <input
-                                    type="file"
-                                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                    hidden
-                                    onChange={e => {
-                                        const file = e.target.files?.[0];
-                                        if (file) handleUploadCustomTemplate(file);
-                                        e.currentTarget.value = '';
-                                    }}
-                                />
-                            </Button> */}
+                            Tải mẫu đã chỉnh
+                            <input
+                                type="file"
+                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                hidden
+                                onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadCustomTemplate(file);
+                                    e.currentTarget.value = '';
+                                }}
+                            />
+                        </Button> */}
                             {/* <Button
-                                variant="contained"
-                                color="success"
-                                startIcon={<SaveIcon />}
-                                onClick={() => void handleSaveCustomTemplate()}
-                            >
-                                Lưu mẫu (custom)
-                            </Button> */}
+                            variant="contained"
+                            color="success"
+                            startIcon={<SaveIcon />}
+                            onClick={() => void handleSaveCustomTemplate()}
+                        >
+                            Lưu mẫu (custom)
+                        </Button> */}
                             {state.generatedBlob && (
                                 <>
                                     <Button
@@ -4173,30 +4171,30 @@ function WordFillerComponent() {
                         }}
                     >
                         {/* {previewMode === 'docx' && (
-                            <div ref={previewContainerRef} className="docx-preview-container" />
-                        )}
-                        {previewMode === 'html' && (
-                            <iframe
-                                ref={htmlIframeRef}
-                                title="html-preview"
-                                sandbox="allow-same-origin"
-                                style={{ width: '100%', minHeight: '70vh', border: 'none' }}
-                                srcDoc={htmlRaw}
-                                onLoad={() => {
-                                    attachHtmlPreviewDndHandlers();
-                                    // Thử nạp dữ liệu đã lưu (nếu có) ngay khi iframe sẵn sàng
-                                    setTimeout(() => {
-                                        try {
-                                            const html =
-                                                htmlIframeRef.current?.contentDocument
-                                                    ?.documentElement?.outerHTML;
-                                            console.log(html);
-                                        } catch {}
-                                        void loadHtmlFormValues();
-                                    }, 50);
-                                }}
-                            />
-                        )} */}
+                        <div ref={previewContainerRef} className="docx-preview-container" />
+                    )}
+                    {previewMode === 'html' && (
+                        <iframe
+                            ref={htmlIframeRef}
+                            title="html-preview"
+                            sandbox="allow-same-origin"
+                            style={{ width: '100%', minHeight: '70vh', border: 'none' }}
+                            srcDoc={htmlRaw}
+                            onLoad={() => {
+                                attachHtmlPreviewDndHandlers();
+                                // Thử nạp dữ liệu đã lưu (nếu có) ngay khi iframe sẵn sàng
+                                setTimeout(() => {
+                                    try {
+                                        const html =
+                                            htmlIframeRef.current?.contentDocument
+                                                ?.documentElement?.outerHTML;
+                                        console.log(html);
+                                    } catch {}
+                                    void loadHtmlFormValues();
+                                }, 50);
+                            }}
+                        />
+                    )} */}
                         {previewMode === 'syncfusion' && (
                             <div style={{ width: '100%', minHeight: '70vh', position: 'relative' }}>
                                 {syncfusionLoading && (
@@ -4426,13 +4424,21 @@ function WordFillerComponent() {
                     </Paper>
                 </Paper>
             ) : (
-                <Paper sx={{ p: 3, mt: 3 }}>
+                <Paper sx={{ p: 3, mt: 3, textAlign: 'center' }}>
                     <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
                         Chọn mẫu đơn từ danh sách thủ tục hành chính
                     </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                        Sử dụng bộ lọc ở trên để tìm và chọn mẫu đơn phù hợp
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                        Chọn mẫu đơn phù hợp từ danh sách thủ tục hành chính
                     </Typography>
+                    <Button
+                        variant="contained"
+                        size="large"
+                        onClick={() => setShowTemplateModal(true)}
+                        sx={{ minWidth: 200 }}
+                    >
+                        Chọn mẫu đơn
+                    </Button>
                 </Paper>
             )}
 
@@ -4517,13 +4523,13 @@ function WordFillerComponent() {
                             align="left"
                         >
                             {`
-                            Họ và tên: {ho_ten}
-                            Số CCCD: {cccd}
-                            Ngày sinh: {ns_ngay}/{ns_thang}/{ns_nam}  (hoặc {ngay_sinh})
-                            Giới tính: {gioi_tinh}
-                            Địa chỉ: {noi_cu_tru}
-                            Ngày cấp: {nc_ngay}/{nc_thang}/{nc_nam}  (hoặc {ngay_cap})
-                            `}
+                        Họ và tên: {ho_ten}
+                        Số CCCD: {cccd}
+                        Ngày sinh: {ns_ngay}/{ns_thang}/{ns_nam}  (hoặc {ngay_sinh})
+                        Giới tính: {gioi_tinh}
+                        Địa chỉ: {noi_cu_tru}
+                        Ngày cấp: {nc_ngay}/{nc_thang}/{nc_nam}  (hoặc {ngay_cap})
+                        `}
                         </Typography>
                     </Paper>
 
@@ -4788,6 +4794,29 @@ function WordFillerComponent() {
                     {snackbar.message}
                 </Alert>
             </Snackbar>
+
+            {/* Template Selector Modal */}
+            <TemplateSelectorModal
+                open={showTemplateModal}
+                onClose={() => setShowTemplateModal(false)}
+                onTemplateSelect={record =>
+                    handleTemplateFromCSV(record as LocalEnhancedTTHCRecord)
+                }
+                csvLoading={csvLoading}
+                filteredRecords={filteredRecords}
+                filters={filters}
+                filterOptions={filterOptions}
+                onFilterChange={handleFilterChange}
+                onClearFilters={handleClearFilters}
+            />
+
+            {/* Processing Modal */}
+            <ProcessingModal
+                open={showProcessingModal}
+                onClose={() => setShowProcessingModal(false)}
+                templateName={selectedRecord?.tenTTHC || ''}
+                templateCode={selectedRecord?.maTTHC || ''}
+            />
         </Box>
     );
 }

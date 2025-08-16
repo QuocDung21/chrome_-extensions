@@ -12,6 +12,7 @@ import {
     QrCode as QRIcon,
     AppRegistration as RegisterIcon,
     RoomService as ServiceIcon,
+    DriveFileRenameOutline as TemplateFillerIcon,
     CloudUpload as UploadIcon,
     EditNote as WordMapperIcon,
     Description as WordViewerIcon
@@ -72,6 +73,13 @@ const scanningItems: NavigationItem[] = [
         label: 'Mẫu đơn, tờ khai',
         icon: <WordMapperIcon />,
         path: '/word-mapper',
+        badge: 'NEW'
+    },
+    {
+        id: 'template-filler',
+        label: 'Soạn thảo mẫu',
+        icon: <TemplateFillerIcon />,
+        path: '/template-filler',
         badge: 'NEW'
     },
     {
