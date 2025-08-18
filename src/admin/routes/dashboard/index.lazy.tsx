@@ -64,7 +64,7 @@ function StatCard({ title, value, change, icon, color }: StatCardProps): ReactEl
                         {Math.abs(change)}%
                     </Typography>
                     <Typography variant="caption" color="text.secondary">
-                        vs last month
+                        so với tháng trước
                     </Typography>
                 </Box>
             </CardContent>
@@ -76,31 +76,31 @@ function RecentActivity(): ReactElement {
     const activities = [
         {
             id: 1,
-            action: 'Extension Updated',
-            description: 'Version 2.1.0 deployed successfully',
-            time: '2 hours ago',
-            status: 'success'
+            action: 'Tiện ích mở rộng đã cập nhật',
+            description: 'Phiên bản 2.1.0 đã triển khai thành công',
+            time: '2 giờ trước',
+            status: 'thành công'
         },
         {
             id: 2,
-            action: 'Data Sync',
-            description: 'User preferences synchronized',
-            time: '4 hours ago',
-            status: 'info'
+            action: 'Đồng bộ dữ liệu',
+            description: 'Đã đồng bộ hóa tuỳ chọn người dùng',
+            time: '4 giờ trước',
+            status: 'thông tin'
         },
         {
             id: 3,
-            action: 'Security Alert',
-            description: 'Unusual login activity detected',
-            time: '6 hours ago',
-            status: 'warning'
+            action: 'Cảnh báo bảo mật',
+            description: 'Phát hiện hoạt động đăng nhập bất thường',
+            time: '6 giờ trước',
+            status: 'cảnh báo'
         },
         {
             id: 4,
-            action: 'Backup Complete',
-            description: 'Daily backup completed successfully',
-            time: '1 day ago',
-            status: 'success'
+            action: 'Sao lưu hoàn tất',
+            description: 'Sao lưu hàng ngày đã được thực hiện thành công',
+            time: '1 ngày trước',
+            status: 'thành công'
         }
     ];
 
@@ -108,7 +108,7 @@ function RecentActivity(): ReactElement {
         <Card>
             <CardContent>
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                    Recent Activity
+                    Hoạt động gần đây
                 </Typography>
                 <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                     {activities.map(activity => (
@@ -148,28 +148,28 @@ function RecentActivity(): ReactElement {
 function Dashboard(): ReactElement {
     const stats = [
         {
-            title: 'Total Users',
+            title: 'Tổng số người dùng',
             value: '2,847',
             change: 12.5,
             icon: <PeopleIcon />,
             color: 'primary' as const
         },
         {
-            title: 'Active Extensions',
+            title: 'Tiện ích đang hoạt động',
             value: '1,234',
             change: 8.2,
             icon: <ExtensionIcon />,
             color: 'success' as const
         },
         {
-            title: 'Security Events',
+            title: 'Sự kiện bảo mật',
             value: '23',
             change: -5.1,
             icon: <SecurityIcon />,
             color: 'warning' as const
         },
         {
-            title: 'Performance Score',
+            title: 'Điểm hiệu suất',
             value: '98.5%',
             change: 2.1,
             icon: <TrendingUpIcon />,
@@ -196,7 +196,7 @@ function Dashboard(): ReactElement {
                 ))}
             </Box>
 
-            {/* Charts and Activity */}
+            {/* Biểu đồ và Hoạt động */}
             <Box
                 sx={{
                     display: 'grid',
@@ -210,7 +210,7 @@ function Dashboard(): ReactElement {
                 <Card>
                     <CardContent>
                         <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                            Usage Analytics
+                            Phân tích sử dụng
                         </Typography>
                         <Box
                             sx={{
@@ -223,7 +223,7 @@ function Dashboard(): ReactElement {
                             }}
                         >
                             <Typography color="text.secondary">
-                                Chart component will be implemented here
+                                Biểu đồ sẽ được hiển thị tại đây
                             </Typography>
                         </Box>
                     </CardContent>

@@ -445,8 +445,6 @@ function TemplateFillerComponent() {
     });
 
 
-
-
     const handlePrintClick = () => {
         // Check if the ref and its properties are available
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
@@ -1339,7 +1337,7 @@ function TemplateFillerComponent() {
                                     enableToolbar={false}
                                     showPropertiesPane={false}
                                     height={'100%'}
-                                    style={{ display: 'block' }}
+                                    style={{ display: 'block',borderWidth: 0, borderColor: 0 }}
                                     toolbarMode={'Toolbar'}
                                     locale="vi-VN"
                                 />
@@ -1519,21 +1517,43 @@ function TemplateFillerComponent() {
                                             Máy quét
                                         </Button>
                                     </Box>
-                                    {scanState.inputMode !== 'scanner' ? (<Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ mb: 1 }}
-                                    >
-                                        Mở ứng dụng di động <strong>NTSoft Document AI</strong> để
-                                        quét QR CCCD/giấy tờ.Ứng dụng sẽ tự dộng chèn vào biểu mẫu
-                                    </Typography>) : (<Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ mb: 1 }}
-                                    >
-                                        Đặt con trỏ chuột vào ô trống bên dưới.
-                                        Sau đó, bạn có thể dùng máy quét để quét mã hoặc dán nội dung trực tiếp vào ô. Mã/nội dung sẽ tự động xuất hiện ở đó.
-                                    </Typography>)}
+                                    {scanState.inputMode !== 'scanner' ? (
+                                       <Box gap={5} sx={{
+                                           gap: 3
+                                       }}>
+                                          <Box>
+                                              <Chip
+                                                  icon={<WifiIcon />}
+                                                  label={
+                                                      socketStatus === 'connected' ? 'Đã kết nối' : 'Mất kết nối ngắt'
+                                                  }
+                                                  color={socketStatus === 'connected' ? 'success' : 'default'}
+                                                  size="small"
+                                              />
+                                          </Box>
+                                          <Box>
+                                              <Typography
+                                              variant="body2"
+                                              color="text.secondary"
+                                              sx={{ mb: 1,fontSize: 12, mt: 2 }}
+                                          >
+                                              Mở ứng dụng di động <strong>NTSoft Document AI</strong> để
+                                              quét QR CCCD/giấy tờ.Ứng dụng sẽ tự dộng chèn vào biểu mẫu
+                                          </Typography></Box>
+                                       </Box>
+                                    ) : (
+                                      <>
+                                          <Typography
+                                              variant="body2"
+                                              color="text.secondary"
+                                              sx={{ mb: 1 }}
+                                          >
+                                              Đặt con trỏ chuột vào ô trống bên dưới.
+                                              Sau đó, bạn có thể dùng máy quét để quét mã hoặc dán nội dung trực tiếp vào ô. Mã/nội dung sẽ tự động xuất hiện ở đó.
+                                          </Typography>
+
+                                      </>
+                                    )}
 
                                 </Box>
 
@@ -1597,8 +1617,12 @@ function TemplateFillerComponent() {
                                     </>
                                 )}
 
+                                <Divider />
+
                                 {/* Results Section */}
-                                <Box>
+                                <Box sx={{
+                                    paddingTop:3
+                                }}>
                                     <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
                                         Kết quả trích xuất
                                     </Typography>
