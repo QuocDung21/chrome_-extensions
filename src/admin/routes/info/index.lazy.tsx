@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { saveAs } from 'file-saver';
 
@@ -44,12 +44,19 @@ import {
     Typography
 } from '@mui/material';
 import { createLazyFileRoute } from '@tanstack/react-router';
-
+import {
+    DocumentEditorContainerComponent,
+    Ribbon,
+    Toolbar
+} from '@syncfusion/ej2-react-documenteditor';
 import templateStorageService, {
     type StoredTemplate
 } from '@/admin/services/templateStorageService';
 import checkUrlExists from '@/utils/checkUrlExists';
 import { getXPath } from '@/utils/getXPath';
+
+
+DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
 
 interface ServiceInfo {
     name: string;
@@ -292,6 +299,7 @@ function analyzeInputElements(doc: Document): InputElementInfo[] {
     const allElements: Element[] = [];
     const foundElements = new Set<Element>(); // Prevent duplicates
 
+
     inputSelectors.forEach(selector => {
         try {
             const elements = doc.querySelectorAll(selector);
@@ -399,6 +407,10 @@ function InfoPage() {
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
     const [editingUrl, setEditingUrl] = useState('');
 
+        const SYNCFUSION_SERVICE_URL =
+        'https://services.syncfusion.com/react/production/api/documenteditor/';
+    const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
+
     // Template setup state
     const [templates, setTemplates] = useState<StoredTemplate[]>([]);
     const [isUploading, setIsUploading] = useState(false);
@@ -434,7 +446,7 @@ function InfoPage() {
             if (saved === 'scanner' || saved === 'socket') {
                 setDataSource(saved);
             }
-        } catch {}
+        } catch { }
         // Load templates and storage usage
         void loadTemplatesAndUsage();
     }, []);
@@ -1153,7 +1165,7 @@ function InfoPage() {
                                                     'word_mapper_data_source',
                                                     value
                                                 );
-                                            } catch {}
+                                            } catch { }
                                         }}
                                     >
                                         <ToggleButton
@@ -1512,390 +1524,466 @@ function InfoPage() {
 
     // Tab: Thiết lập mẫu
     const TemplateSetupTab = () => (
-        <Box>
-            <Grid container spacing={3}>
-                <Grid sx={{ width: '100%' }}>
-                    <Card elevation={2}>
-                        <CardHeader
-                            avatar={<CloudUploadIcon color="primary" />}
-                            title="Thiết lập mẫu (Upload mẫu)"
-                            subheader="Tải lên, quản lý và xuất các file mẫu .docx"
-                            sx={{ pb: 1 }}
-                            action={
-                                <Stack direction="row" spacing={1}>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => void handleExportAllTemplates()}
-                                    >
-                                        Sao lưu
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        component="label"
-                                        disabled={isUploading}
-                                    >
-                                        Khôi phục
-                                        <input
-                                            hidden
-                                            type="file"
-                                            accept="application/json"
-                                            onChange={e =>
-                                                handleImportTemplatesFromJson(e.target.files)
-                                            }
-                                        />
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        onClick={handleClearAllTemplates}
-                                    >
-                                        Xóa tất cả
-                                    </Button>
-                                </Stack>
-                            }
-                        />
-                        <Divider />
-                        <CardContent>
-                            <Stack spacing={2}>
-                                <Box
-                                    sx={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: 2,
-                                        flexWrap: 'wrap'
-                                    }}
-                                >
-                                    <Button
-                                        variant="contained"
-                                        component="label"
-                                        disabled={isUploading}
-                                    >
-                                        Chọn file mẫu (.docx)
-                                        <input
-                                            hidden
-                                            type="file"
-                                            accept=".docx"
-                                            multiple
-                                            onChange={e => handleUploadTemplates(e.target.files)}
-                                        />
-                                    </Button>
-                                    {isUploading && (
-                                        <Typography variant="body2" color="text.secondary">
-                                            Đang tải lên...
-                                        </Typography>
-                                    )}
-                                    {storageInfo && (
-                                        <Typography variant="body2" color="text.secondary">
-                                            Đã dùng: {formatBytes(storageInfo.used)} /{' '}
-                                            {formatBytes(storageInfo.total)} ·{' '}
-                                            {storageInfo.templates} mẫu
-                                        </Typography>
-                                    )}
-                                    <TextField
-                                        size="small"
-                                        placeholder="Tìm theo tên, file, danh mục..."
-                                        value={templateSearch}
-                                        onChange={e => setTemplateSearch(e.target.value)}
-                                        sx={{ minWidth: 240, ml: 'auto' }}
-                                    />
-                                    <TextField
-                                        size="small"
-                                        select
-                                        label="Trạng thái"
-                                        value={templateStatusFilter}
-                                        onChange={e =>
-                                            setTemplateStatusFilter(
-                                                e.target.value as 'all' | 'active' | 'inactive'
-                                            )
-                                        }
-                                        sx={{ minWidth: 160 }}
-                                    >
-                                        <MenuItem value="all">Tất cả</MenuItem>
-                                        <MenuItem value="active">Đang dùng</MenuItem>
-                                        <MenuItem value="inactive">Tạm tắt</MenuItem>
-                                    </TextField>
-                                    <TextField
-                                        size="small"
-                                        select
-                                        label="Sắp xếp"
-                                        value={templateSort}
-                                        onChange={e =>
-                                            setTemplateSort(
-                                                e.target.value as
-                                                    | 'date_desc'
-                                                    | 'date_asc'
-                                                    | 'name_asc'
-                                                    | 'name_desc'
-                                            )
-                                        }
-                                        sx={{ minWidth: 180 }}
-                                    >
-                                        <MenuItem value="date_desc">Mới nhất</MenuItem>
-                                        <MenuItem value="date_asc">Cũ nhất</MenuItem>
-                                        <MenuItem value="name_asc">Tên A → Z</MenuItem>
-                                        <MenuItem value="name_desc">Tên Z → A</MenuItem>
-                                    </TextField>
-                                </Box>
+        // <Box>
+        //     <Grid container spacing={3}>
+        //         <Grid sx={{ width: '100%' }}>
+        //             <Card elevation={2}>
+        //                 <CardHeader
+        //                     avatar={<CloudUploadIcon color="primary" />}
+        //                     title="Thiết lập mẫu (Upload mẫu)"
+        //                     subheader="Tải lên, quản lý và xuất các file mẫu .docx"
+        //                     sx={{ pb: 1 }}
+        //                     action={
+        //                         <Stack direction="row" spacing={1}>
+        //                             <Button
+        //                                 variant="outlined"
+        //                                 onClick={() => void handleExportAllTemplates()}
+        //                             >
+        //                                 Sao lưu
+        //                             </Button>
+        //                             <Button
+        //                                 variant="outlined"
+        //                                 component="label"
+        //                                 disabled={isUploading}
+        //                             >
+        //                                 Khôi phục
+        //                                 <input
+        //                                     hidden
+        //                                     type="file"
+        //                                     accept="application/json"
+        //                                     onChange={e =>
+        //                                         handleImportTemplatesFromJson(e.target.files)
+        //                                     }
+        //                                 />
+        //                             </Button>
+        //                             <Button
+        //                                 variant="outlined"
+        //                                 color="error"
+        //                                 onClick={handleClearAllTemplates}
+        //                             >
+        //                                 Xóa tất cả
+        //                             </Button>
+        //                         </Stack>
+        //                     }
+        //                 />
+        //                 <Divider />
+        //                 <CardContent>
+        //                     <Stack spacing={2}>
+        //                         <Box
+        //                             sx={{
+        //                                 display: 'flex',
+        //                                 alignItems: 'center',
+        //                                 gap: 2,
+        //                                 flexWrap: 'wrap'
+        //                             }}
+        //                         >
+        //                             <Button
+        //                                 variant="contained"
+        //                                 component="label"
+        //                                 disabled={isUploading}
+        //                             >
+        //                                 Chọn file mẫu (.docx)
+        //                                 <input
+        //                                     hidden
+        //                                     type="file"
+        //                                     accept=".docx"
+        //                                     multiple
+        //                                     onChange={e => handleUploadTemplates(e.target.files)}
+        //                                 />
+        //                             </Button>
+        //                             {isUploading && (
+        //                                 <Typography variant="body2" color="text.secondary">
+        //                                     Đang tải lên...
+        //                                 </Typography>
+        //                             )}
+        //                             {storageInfo && (
+        //                                 <Typography variant="body2" color="text.secondary">
+        //                                     Đã dùng: {formatBytes(storageInfo.used)} /{' '}
+        //                                     {formatBytes(storageInfo.total)} ·{' '}
+        //                                     {storageInfo.templates} mẫu
+        //                                 </Typography>
+        //                             )}
+        //                             <TextField
+        //                                 size="small"
+        //                                 placeholder="Tìm theo tên, file, danh mục..."
+        //                                 value={templateSearch}
+        //                                 onChange={e => setTemplateSearch(e.target.value)}
+        //                                 sx={{ minWidth: 240, ml: 'auto' }}
+        //                             />
+        //                             <TextField
+        //                                 size="small"
+        //                                 select
+        //                                 label="Trạng thái"
+        //                                 value={templateStatusFilter}
+        //                                 onChange={e =>
+        //                                     setTemplateStatusFilter(
+        //                                         e.target.value as 'all' | 'active' | 'inactive'
+        //                                     )
+        //                                 }
+        //                                 sx={{ minWidth: 160 }}
+        //                             >
+        //                                 <MenuItem value="all">Tất cả</MenuItem>
+        //                                 <MenuItem value="active">Đang dùng</MenuItem>
+        //                                 <MenuItem value="inactive">Tạm tắt</MenuItem>
+        //                             </TextField>
+        //                             <TextField
+        //                                 size="small"
+        //                                 select
+        //                                 label="Sắp xếp"
+        //                                 value={templateSort}
+        //                                 onChange={e =>
+        //                                     setTemplateSort(
+        //                                         e.target.value as
+        //                                             | 'date_desc'
+        //                                             | 'date_asc'
+        //                                             | 'name_asc'
+        //                                             | 'name_desc'
+        //                                     )
+        //                                 }
+        //                                 sx={{ minWidth: 180 }}
+        //                             >
+        //                                 <MenuItem value="date_desc">Mới nhất</MenuItem>
+        //                                 <MenuItem value="date_asc">Cũ nhất</MenuItem>
+        //                                 <MenuItem value="name_asc">Tên A → Z</MenuItem>
+        //                                 <MenuItem value="name_desc">Tên Z → A</MenuItem>
+        //                             </TextField>
+        //                         </Box>
 
-                                <Divider sx={{ my: 1 }} />
+        //                         <Divider sx={{ my: 1 }} />
 
-                                <Stack direction="row" spacing={1} alignItems="center">
-                                    <Button variant="outlined" onClick={selectAllCurrent}>
-                                        Chọn tất cả (lọc hiện tại)
-                                    </Button>
-                                    <Button variant="text" onClick={clearSelection}>
-                                        Bỏ chọn
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => void bulkSetStatus('active')}
-                                        disabled={selectedTemplateIds.size === 0}
-                                    >
-                                        Bật dùng
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => void bulkSetStatus('inactive')}
-                                        disabled={selectedTemplateIds.size === 0}
-                                    >
-                                        Tạm tắt
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        color="error"
-                                        onClick={() => void bulkDelete()}
-                                        disabled={selectedTemplateIds.size === 0}
-                                    >
-                                        Xóa đã chọn
-                                    </Button>
-                                    {/* <Button
-                                        variant="outlined"
-                                        onClick={() => void handleExportSelectedTemplates()}
-                                        disabled={selectedTemplateIds.size === 0}
-                                    >
-                                        Xuất đã chọn (JSON)
-                                    </Button> */}
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ ml: 'auto' }}
-                                    >
-                                        Đã chọn: {selectedTemplateIds.size}
-                                    </Typography>
-                                </Stack>
+        //                         <Stack direction="row" spacing={1} alignItems="center">
+        //                             <Button variant="outlined" onClick={selectAllCurrent}>
+        //                                 Chọn tất cả (lọc hiện tại)
+        //                             </Button>
+        //                             <Button variant="text" onClick={clearSelection}>
+        //                                 Bỏ chọn
+        //                             </Button>
+        //                             <Button
+        //                                 variant="outlined"
+        //                                 onClick={() => void bulkSetStatus('active')}
+        //                                 disabled={selectedTemplateIds.size === 0}
+        //                             >
+        //                                 Bật dùng
+        //                             </Button>
+        //                             <Button
+        //                                 variant="outlined"
+        //                                 onClick={() => void bulkSetStatus('inactive')}
+        //                                 disabled={selectedTemplateIds.size === 0}
+        //                             >
+        //                                 Tạm tắt
+        //                             </Button>
+        //                             <Button
+        //                                 variant="outlined"
+        //                                 color="error"
+        //                                 onClick={() => void bulkDelete()}
+        //                                 disabled={selectedTemplateIds.size === 0}
+        //                             >
+        //                                 Xóa đã chọn
+        //                             </Button>
+        //                             {/* <Button
+        //                                 variant="outlined"
+        //                                 onClick={() => void handleExportSelectedTemplates()}
+        //                                 disabled={selectedTemplateIds.size === 0}
+        //                             >
+        //                                 Xuất đã chọn (JSON)
+        //                             </Button> */}
+        //                             <Typography
+        //                                 variant="body2"
+        //                                 color="text.secondary"
+        //                                 sx={{ ml: 'auto' }}
+        //                             >
+        //                                 Đã chọn: {selectedTemplateIds.size}
+        //                             </Typography>
+        //                         </Stack>
 
-                                <Grid container spacing={2}>
-                                    {getFilteredSortedTemplates().length === 0 && (
-                                        <Grid sx={{ width: '100%' }}>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Không có mẫu phù hợp. Hãy thay đổi bộ lọc hoặc tải
-                                                lên mẫu mới.
-                                            </Typography>
-                                        </Grid>
-                                    )}
+        //                         <Grid container spacing={2}>
+        //                             {getFilteredSortedTemplates().length === 0 && (
+        //                                 <Grid sx={{ width: '100%' }}>
+        //                                     <Typography variant="body2" color="text.secondary">
+        //                                         Không có mẫu phù hợp. Hãy thay đổi bộ lọc hoặc tải
+        //                                         lên mẫu mới.
+        //                                     </Typography>
+        //                                 </Grid>
+        //                             )}
 
-                                    {getFilteredSortedTemplates().map(tpl => (
-                                        <Grid key={tpl.id} sx={{ width: '100%' }}>
-                                            <Box
-                                                sx={{
-                                                    p: 2,
-                                                    border: '1px solid #e0e0e0',
-                                                    borderRadius: 1,
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'space-between',
-                                                    gap: 2
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 2,
-                                                        minWidth: 0
-                                                    }}
-                                                >
-                                                    <Checkbox
-                                                        size="small"
-                                                        checked={selectedTemplateIds.has(tpl.id)}
-                                                        onChange={() => toggleSelected(tpl.id)}
-                                                    />
-                                                    <DescriptionIcon color="action" />
-                                                    <Box sx={{ minWidth: 0 }}>
-                                                        {editingTemplateId === tpl.id ? (
-                                                            <Stack
-                                                                direction="row"
-                                                                spacing={1}
-                                                                alignItems="center"
-                                                            >
-                                                                <TextField
-                                                                    size="small"
-                                                                    value={editingTemplateName}
-                                                                    onChange={e =>
-                                                                        setEditingTemplateName(
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                    sx={{ width: 220 }}
-                                                                    onKeyDown={e => {
-                                                                        if (e.key === 'Enter')
-                                                                            void handleSaveEditTemplateName();
-                                                                        if (e.key === 'Escape')
-                                                                            handleCancelEditTemplateName();
-                                                                    }}
-                                                                />
-                                                                <TextField
-                                                                    size="small"
-                                                                    placeholder="Danh mục"
-                                                                    value={editingTemplateCategory}
-                                                                    onChange={e =>
-                                                                        setEditingTemplateCategory(
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                    sx={{ width: 160 }}
-                                                                />
-                                                                <TextField
-                                                                    size="small"
-                                                                    placeholder="Mô tả"
-                                                                    value={
-                                                                        editingTemplateDescription
-                                                                    }
-                                                                    onChange={e =>
-                                                                        setEditingTemplateDescription(
-                                                                            e.target.value
-                                                                        )
-                                                                    }
-                                                                    sx={{ width: 260 }}
-                                                                />
-                                                                <Button
-                                                                    size="small"
-                                                                    variant="contained"
-                                                                    onClick={() =>
-                                                                        void handleSaveEditTemplateName()
-                                                                    }
-                                                                >
-                                                                    Lưu
-                                                                </Button>
-                                                                <Button
-                                                                    size="small"
-                                                                    variant="text"
-                                                                    onClick={
-                                                                        handleCancelEditTemplateName
-                                                                    }
-                                                                >
-                                                                    Hủy
-                                                                </Button>
-                                                            </Stack>
-                                                        ) : (
-                                                            <>
-                                                                <Typography
-                                                                    variant="subtitle2"
-                                                                    noWrap
-                                                                    title={tpl.fileName}
-                                                                >
-                                                                    {tpl.name}
-                                                                </Typography>
-                                                                <Stack
-                                                                    direction="row"
-                                                                    spacing={1}
-                                                                    alignItems="center"
-                                                                    sx={{ mb: 0.5 }}
-                                                                >
-                                                                    {tpl.category && (
-                                                                        <Chip
-                                                                            label={tpl.category}
-                                                                            size="small"
-                                                                        />
-                                                                    )}
-                                                                    {tpl.description && (
-                                                                        <Typography
-                                                                            variant="caption"
-                                                                            color="text.secondary"
-                                                                            noWrap
-                                                                        >
-                                                                            {tpl.description}
-                                                                        </Typography>
-                                                                    )}
-                                                                </Stack>
-                                                                <Typography
-                                                                    variant="caption"
-                                                                    color="text.secondary"
-                                                                >
-                                                                    {tpl.fileName} · {tpl.fileSize}{' '}
-                                                                    ·{' '}
-                                                                    {new Date(
-                                                                        tpl.uploadDate
-                                                                    ).toLocaleString()}
-                                                                </Typography>
-                                                            </>
-                                                        )}
-                                                    </Box>
-                                                </Box>
-                                                <Stack
-                                                    direction="row"
-                                                    spacing={1}
-                                                    alignItems="center"
-                                                >
-                                                    {editingTemplateId !== tpl.id && (
-                                                        <IconButton
-                                                            size="small"
-                                                            onClick={() =>
-                                                                handleStartEditTemplateName(tpl)
-                                                            }
-                                                        >
-                                                            <Edit fontSize="small" />
-                                                        </IconButton>
-                                                    )}
-                                                    <Chip
-                                                        label={
-                                                            tpl.status === 'active'
-                                                                ? 'Đang dùng'
-                                                                : 'Tạm tắt'
-                                                        }
-                                                        color={
-                                                            tpl.status === 'active'
-                                                                ? 'success'
-                                                                : 'default'
-                                                        }
-                                                        size="small"
-                                                    />
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() =>
-                                                            handleToggleStatus(tpl.id, tpl.status)
-                                                        }
-                                                    >
-                                                        {tpl.status === 'active' ? (
-                                                            <CheckCircle
-                                                                sx={{ color: '#2e7d32' }}
-                                                            />
-                                                        ) : (
-                                                            <ErrorIcon sx={{ color: '#9e9e9e' }} />
-                                                        )}
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => handleExportTemplate(tpl)}
-                                                    >
-                                                        <DownloadIcon fontSize="small" />
-                                                    </IconButton>
-                                                    <IconButton
-                                                        size="small"
-                                                        onClick={() => handleDeleteTemplate(tpl.id)}
-                                                    >
-                                                        <DeleteIcon fontSize="small" />
-                                                    </IconButton>
-                                                </Stack>
-                                            </Box>
-                                        </Grid>
-                                    ))}
+        //                             {getFilteredSortedTemplates().map(tpl => (
+        //                                 <Grid key={tpl.id} sx={{ width: '100%' }}>
+        //                                     <Box
+        //                                         sx={{
+        //                                             p: 2,
+        //                                             border: '1px solid #e0e0e0',
+        //                                             borderRadius: 1,
+        //                                             display: 'flex',
+        //                                             alignItems: 'center',
+        //                                             justifyContent: 'space-between',
+        //                                             gap: 2
+        //                                         }}
+        //                                     >
+        //                                         <Box
+        //                                             sx={{
+        //                                                 display: 'flex',
+        //                                                 alignItems: 'center',
+        //                                                 gap: 2,
+        //                                                 minWidth: 0
+        //                                             }}
+        //                                         >
+        //                                             <Checkbox
+        //                                                 size="small"
+        //                                                 checked={selectedTemplateIds.has(tpl.id)}
+        //                                                 onChange={() => toggleSelected(tpl.id)}
+        //                                             />
+        //                                             <DescriptionIcon color="action" />
+        //                                             <Box sx={{ minWidth: 0 }}>
+        //                                                 {editingTemplateId === tpl.id ? (
+        //                                                     <Stack
+        //                                                         direction="row"
+        //                                                         spacing={1}
+        //                                                         alignItems="center"
+        //                                                     >
+        //                                                         <TextField
+        //                                                             size="small"
+        //                                                             value={editingTemplateName}
+        //                                                             onChange={e =>
+        //                                                                 setEditingTemplateName(
+        //                                                                     e.target.value
+        //                                                                 )
+        //                                                             }
+        //                                                             sx={{ width: 220 }}
+        //                                                             onKeyDown={e => {
+        //                                                                 if (e.key === 'Enter')
+        //                                                                     void handleSaveEditTemplateName();
+        //                                                                 if (e.key === 'Escape')
+        //                                                                     handleCancelEditTemplateName();
+        //                                                             }}
+        //                                                         />
+        //                                                         <TextField
+        //                                                             size="small"
+        //                                                             placeholder="Danh mục"
+        //                                                             value={editingTemplateCategory}
+        //                                                             onChange={e =>
+        //                                                                 setEditingTemplateCategory(
+        //                                                                     e.target.value
+        //                                                                 )
+        //                                                             }
+        //                                                             sx={{ width: 160 }}
+        //                                                         />
+        //                                                         <TextField
+        //                                                             size="small"
+        //                                                             placeholder="Mô tả"
+        //                                                             value={
+        //                                                                 editingTemplateDescription
+        //                                                             }
+        //                                                             onChange={e =>
+        //                                                                 setEditingTemplateDescription(
+        //                                                                     e.target.value
+        //                                                                 )
+        //                                                             }
+        //                                                             sx={{ width: 260 }}
+        //                                                         />
+        //                                                         <Button
+        //                                                             size="small"
+        //                                                             variant="contained"
+        //                                                             onClick={() =>
+        //                                                                 void handleSaveEditTemplateName()
+        //                                                             }
+        //                                                         >
+        //                                                             Lưu
+        //                                                         </Button>
+        //                                                         <Button
+        //                                                             size="small"
+        //                                                             variant="text"
+        //                                                             onClick={
+        //                                                                 handleCancelEditTemplateName
+        //                                                             }
+        //                                                         >
+        //                                                             Hủy
+        //                                                         </Button>
+        //                                                     </Stack>
+        //                                                 ) : (
+        //                                                     <>
+        //                                                         <Typography
+        //                                                             variant="subtitle2"
+        //                                                             noWrap
+        //                                                             title={tpl.fileName}
+        //                                                         >
+        //                                                             {tpl.name}
+        //                                                         </Typography>
+        //                                                         <Stack
+        //                                                             direction="row"
+        //                                                             spacing={1}
+        //                                                             alignItems="center"
+        //                                                             sx={{ mb: 0.5 }}
+        //                                                         >
+        //                                                             {tpl.category && (
+        //                                                                 <Chip
+        //                                                                     label={tpl.category}
+        //                                                                     size="small"
+        //                                                                 />
+        //                                                             )}
+        //                                                             {tpl.description && (
+        //                                                                 <Typography
+        //                                                                     variant="caption"
+        //                                                                     color="text.secondary"
+        //                                                                     noWrap
+        //                                                                 >
+        //                                                                     {tpl.description}
+        //                                                                 </Typography>
+        //                                                             )}
+        //                                                         </Stack>
+        //                                                         <Typography
+        //                                                             variant="caption"
+        //                                                             color="text.secondary"
+        //                                                         >
+        //                                                             {tpl.fileName} · {tpl.fileSize}{' '}
+        //                                                             ·{' '}
+        //                                                             {new Date(
+        //                                                                 tpl.uploadDate
+        //                                                             ).toLocaleString()}
+        //                                                         </Typography>
+        //                                                     </>
+        //                                                 )}
+        //                                             </Box>
+        //                                         </Box>
+        //                                         <Stack
+        //                                             direction="row"
+        //                                             spacing={1}
+        //                                             alignItems="center"
+        //                                         >
+        //                                             {editingTemplateId !== tpl.id && (
+        //                                                 <IconButton
+        //                                                     size="small"
+        //                                                     onClick={() =>
+        //                                                         handleStartEditTemplateName(tpl)
+        //                                                     }
+        //                                                 >
+        //                                                     <Edit fontSize="small" />
+        //                                                 </IconButton>
+        //                                             )}
+        //                                             <Chip
+        //                                                 label={
+        //                                                     tpl.status === 'active'
+        //                                                         ? 'Đang dùng'
+        //                                                         : 'Tạm tắt'
+        //                                                 }
+        //                                                 color={
+        //                                                     tpl.status === 'active'
+        //                                                         ? 'success'
+        //                                                         : 'default'
+        //                                                 }
+        //                                                 size="small"
+        //                                             />
+        //                                             <IconButton
+        //                                                 size="small"
+        //                                                 onClick={() =>
+        //                                                     handleToggleStatus(tpl.id, tpl.status)
+        //                                                 }
+        //                                             >
+        //                                                 {tpl.status === 'active' ? (
+        //                                                     <CheckCircle
+        //                                                         sx={{ color: '#2e7d32' }}
+        //                                                     />
+        //                                                 ) : (
+        //                                                     <ErrorIcon sx={{ color: '#9e9e9e' }} />
+        //                                                 )}
+        //                                             </IconButton>
+        //                                             <IconButton
+        //                                                 size="small"
+        //                                                 onClick={() => handleExportTemplate(tpl)}
+        //                                             >
+        //                                                 <DownloadIcon fontSize="small" />
+        //                                             </IconButton>
+        //                                             <IconButton
+        //                                                 size="small"
+        //                                                 onClick={() => handleDeleteTemplate(tpl.id)}
+        //                                             >
+        //                                                 <DeleteIcon fontSize="small" />
+        //                                             </IconButton>
+        //                                         </Stack>
+        //                                     </Box>
+        //                                 </Grid>
+        //                             ))}
+        //                         </Grid>
+        //                     </Stack>
+        //                 </CardContent>
+        //             </Card>
+        //         </Grid>
+        //     </Grid>
+        // </Box>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', backgroundColor: '#f5f5f7' }}>
+            <Box sx={{ flexGrow: 1, p: 2 }}>
+                <Grid container spacing={2} sx={{ height: '100%' }}>
+                    <Grid >
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                 width: '70%', 
+                                height: '100%',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                flexDirection: 'column',
+                                textAlign: 'center',
+                                p: 3
+                            }}
+                        >
+                            <DocumentEditorContainerComponent
+                                id="sf-docx-editor-modal"
+                                ref={sfContainerRef}
+                                serviceUrl={SYNCFUSION_SERVICE_URL}
+                                enableToolbar={false}
+                                showPropertiesPane={false}
+                                height={'100%'}
+                                style={{ display: 'block' }}
+                                // toolbarMode={'Toolbar'}
+                                locale="vi-VN"
+                            />
+                        </Paper>
+                    </Grid>
+
+                    {/* --- Right Sidebar --- */}
+                    <Grid >
+                        <Paper
+                            elevation={0}
+                            sx={{
+                                p: 2,
+                                height: '100%',
+                                overflowY: 'auto',
+                                display: 'flex',
+                                flexDirection: 'column'
+                            }}
+                        >
+                            {/* Section: Chèn Field Nhanh */}
+                            <Box>
+                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                    Chèn Field Nhanh
+                                </Typography>
+                                <Grid container spacing={1}>
+
                                 </Grid>
-                            </Stack>
-                        </CardContent>
-                    </Card>
+                                <Typography variant="caption" display="block" color="text.secondary" sx={{ mt: 1 }}>
+                                    * Click để chèn field tại vị trí con trỏ (trong editor) - Với Office Viewer sẽ phải sự kiện cho backend/host editor thực hiện.
+                                </Typography>
+                            </Box>
+
+                            <Divider sx={{ my: 3 }} />
+
+                            {/* Section: Giá trị xem trước */}
+                            <Box sx={{ flexGrow: 1 }}>
+                                <Typography variant="subtitle1" fontWeight="bold" gutterBottom>
+                                    Giá trị xem trước
+                                </Typography>
+                                <Grid container spacing={1.5}>
+
+                                </Grid>
+                            </Box>
+                            {/* Action Button */}
+                            <Button variant="contained" fullWidth size="large" sx={{ mt: 2 }}>
+                                Điền xem trước
+                            </Button>
+                        </Paper>
+                    </Grid>
                 </Grid>
-            </Grid>
+            </Box>
         </Box>
     );
 

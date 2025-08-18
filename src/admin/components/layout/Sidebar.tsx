@@ -68,26 +68,25 @@ const scanningItems: NavigationItem[] = [
     //     path: '/forms'
     //     // badge: 'NEW'
     // },
-    {
-        id: 'word-mapper',
-        label: 'Mẫu đơn, tờ khai',
-        icon: <WordMapperIcon />,
-        path: '/word-mapper',
-        badge: 'NEW'
-    },
+    // {
+    //     id: 'word-mapper',
+    //     label: 'Mẫu đơn, tờ khai',
+    //     icon: <WordMapperIcon />,
+    //     path: '/word-mapper',
+    //     badge: 'NEW'
+    // },
     {
         id: 'template-filler',
         label: 'Soạn thảo mẫu',
         icon: <TemplateFillerIcon />,
-        path: '/template-filler',
-        badge: 'NEW'
-    },
-    {
-        id: 'word-viewer',
-        label: 'Xem Word',
-        icon: <WordViewerIcon />,
-        path: '/word-viewer'
+        path: '/template-filler'
     }
+    // {
+    //     id: 'word-viewer',
+    //     label: 'Xem Word',
+    //     icon: <WordViewerIcon />,
+    //     path: '/word-viewer'
+    // }
 ];
 
 const documentsItems: NavigationItem[] = [

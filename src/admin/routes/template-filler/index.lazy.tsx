@@ -1,48 +1,19 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
+
+
 // --- THƯ VIỆN ---
 import { Socket, io } from 'socket.io-client';
 
+
+
 // --- ICON ---
-import {
-    AddCircleOutline as AddCircleOutlineIcon,
-    Badge as BadgeIcon,
-    CalendarToday as CalendarTodayIcon,
-    CheckCircle as CheckCircleIcon,
-    Close as CloseIcon,
-    Edit as EditIcon,
-    EventAvailable as EventAvailableIcon,
-    Event as EventIcon,
-    Home as HomeIcon,
-    Info as InfoIcon,
-    Person as PersonIcon,
-    Print as PrintIcon,
-    Wc as WcIcon,
-    Wifi as WifiIcon
-} from '@mui/icons-material';
-import {
-    Alert,
-    Box,
-    Button,
-    Card,
-    CardContent,
-    CardHeader,
-    Chip,
-    CircularProgress,
-    Dialog,
-    DialogActions,
-    DialogContent,
-    DialogTitle,
-    FormControl,
-    IconButton,
-    InputLabel,
-    MenuItem,
-    Paper,
-    Select,
-    Snackbar,
-    Typography
-} from '@mui/material';
-import { Grid } from '@mui/system';
+
+import { AddCircleOutline as AddCircleOutlineIcon, Badge as BadgeIcon, CalendarToday as CalendarTodayIcon, CheckCircle as CheckCircleIcon, Close as CloseIcon, Edit as EditIcon, EventAvailable as EventAvailableIcon, Event as EventIcon, Home as HomeIcon, Info as InfoIcon, Person as PersonIcon, Print as PrintIcon, Wc as WcIcon, Wifi as WifiIcon, Download } from '@mui/icons-material';
+import AdfScannerIcon from '@mui/icons-material/AdfScanner';
+import SmartphoneIcon from '@mui/icons-material/Smartphone';
+import { Alert, Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Snackbar, TextField, Typography } from '@mui/material';
+import Divider from '@mui/material/Divider';
 // --- SYNCFUSION WORD EDITOR ---
 import '@syncfusion/ej2-base/styles/material.css';
 import '@syncfusion/ej2-buttons/styles/material.css';
@@ -52,7 +23,7 @@ import '@syncfusion/ej2-lists/styles/material.css';
 import '@syncfusion/ej2-navigations/styles/material.css';
 import '@syncfusion/ej2-popups/styles/material.css';
 import {
-    DocumentEditorContainerComponent,
+    DocumentEditorContainerComponent, Print,
     Ribbon,
     Toolbar
 } from '@syncfusion/ej2-react-documenteditor';
@@ -60,7 +31,16 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
-DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
+
+
+import { formatDDMMYYYY } from '@/admin/utils/formatDate';
+import { saveAs } from 'file-saver';
+
+
+
+
+
+DocumentEditorContainerComponent.Inject(Toolbar, Ribbon,Print);
 
 // --- CẤU HÌNH ---
 const SOCKET_URL = 'http://103.162.21.146:5003';
@@ -319,6 +299,31 @@ const filterRecords = (
     });
 };
 
+// Hàm xử lý dữ liệu thông minh
+const processDataIntelligently = (data: string): any => {
+    // Simple parsing logic - can be enhanced later
+    try {
+        // Try JSON format first
+        return JSON.parse(data);
+    } catch {
+        // Try pipe-separated format: CCCD|CMND|Họ tên|Ngày sinh|Giới tính|Địa chỉ|Ngày cấp
+        const parts = data.split('|');
+        if (parts.length >= 7) {
+            const [cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap] = parts;
+            return { cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap };
+        }
+
+        // Try comma-separated format
+        const commaParts = data.split(',');
+        if (commaParts.length >= 7) {
+            const [cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap] = commaParts;
+            return { cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap };
+        }
+
+        throw new Error('Định dạng dữ liệu không được hỗ trợ');
+    }
+};
+
 // Chuyển đổi dữ liệu từ mobile/socket sang ProcessingData
 const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
     // Handle mobile socket data format
@@ -361,7 +366,7 @@ const applyDataToSyncfusion = async (
     data: ProcessingData
 ): Promise<boolean> => {
     try {
-        console.log('🔄 Starting Syncfusion data insertion...', data);
+        console.log('🔄 Starting Syncfusion data insertion...', data.diaChi);
 
         if (!editor?.documentEditor) {
             console.error('❌ DocumentEditor is null');
@@ -383,7 +388,7 @@ const applyDataToSyncfusion = async (
             '{so_cmnd}': data.so_cmnd || data.cmnd || '',
             '{ngay_sinh}': data.ngaySinh || data.ngay_sinh || '',
             '{gioi_tinh}': data.gioiTinh || data.gioi_tinh || '',
-            '{noi_cu_tru}': data.noiCuTru || data.noi_cu_tru || '',
+            '{noi_cu_tru}': data.diaChi || data.noiCuTru || data.noi_cu_tru || '',
             '{dan_toc}': data.danToc || data.dan_toc || '',
             '{noi_cap}': data.noiCap || data.noi_cap || '',
             '{ngay_cap}': data.ngayCap || data.ngay_cap || '',
@@ -428,6 +433,8 @@ const applyDataToSyncfusion = async (
     }
 };
 
+
+
 // --- COMPONENT CHÍNH ---
 function TemplateFillerComponent() {
     // State cho danh sách mẫu
@@ -436,6 +443,27 @@ function TemplateFillerComponent() {
         linhVuc: [],
         thuTucByLinhVuc: {}
     });
+
+
+
+
+    const handlePrintClick = () => {
+        // Check if the ref and its properties are available
+        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
+            sfContainerRef.current.documentEditor.print();
+        } else {
+            console.error("Document editor not ready to print.");
+        }
+    };
+
+    const handleDownloadClick = () => {
+        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
+            const fileName = editorState.selectedRecord?.tenFile || 'Document.docx';
+            sfContainerRef.current.documentEditor.save(fileName, 'Docx');
+        } else {
+            console.error("Document editor not ready to download.");
+        }
+    };
     const [filters, setFilters] = useState<FilterState>({
         linhVuc: '',
         thuTuc: '',
@@ -451,6 +479,14 @@ function TemplateFillerComponent() {
         syncfusionLoading: false,
         syncfusionDocumentReady: false,
         socketStatus: 'disconnected'
+    });
+
+    // State cho scan & fill panel
+    const [scanState, setScanState] = useState({
+        inputMode: 'ntsoft' as 'ntsoft' | 'scanner',
+        inputText: '',
+        extractedData: null as ProcessingData | null,
+        isProcessing: false
     });
 
     // Snackbar state
@@ -501,9 +537,10 @@ function TemplateFillerComponent() {
         });
     }, []);
 
+
+    //  Chọn template
     const handleSelectTemplate = useCallback(async (record: EnhancedTTHCRecord) => {
         console.log('🎯 Template selected:', record);
-
         if (!record.isTemplateAvailable) {
             setSnackbar({
                 open: true,
@@ -517,21 +554,22 @@ function TemplateFillerComponent() {
         const templateUrl = buildDocxUrlForRecord(record);
         console.log('🔍 Testing template URL:', templateUrl);
 
-        try {
-            const testRes = await fetch(templateUrl, { method: 'HEAD' });
-            if (!testRes.ok) {
-                throw new Error(`Template not accessible: ${testRes.status} ${testRes.statusText}`);
-            }
-            console.log('✅ Template URL is accessible');
-        } catch (error) {
-            console.error('❌ Template URL test failed:', error);
-            setSnackbar({
-                open: true,
-                message: `Không thể truy cập file mẫu: ${error}`,
-                severity: 'error'
-            });
-            return;
-        }
+        // Test case
+        // try {
+        //     const testRes = await fetch(templateUrl, { method: 'HEAD' });
+        //     if (!testRes.ok) {
+        //         throw new Error(`Template not accessible: ${testRes.status} ${testRes.statusText}`);
+        //     }
+        //     console.log('✅ Template URL is accessible');
+        // } catch (error) {
+        //     console.error('❌ Template URL test failed:', error);
+        //     setSnackbar({
+        //         open: true,
+        //         message: `Không thể truy cập file mẫu: ${error}`,
+        //         severity: 'error'
+        //     });
+        //     return;
+        // }
 
         setEditorState(prev => ({
             ...prev,
@@ -543,20 +581,36 @@ function TemplateFillerComponent() {
 
         setSnackbar({
             open: true,
-            message: `Đang mở modal và tải mẫu: ${record.tenTTHC}`,
+            message: `Đang tải mẫu: ${record.tenTTHC}`,
             severity: 'info'
         });
     }, []);
 
     const handleCloseEditor = useCallback(() => {
-        setEditorState(prev => ({
-            ...prev,
-            showEditorModal: false,
+        setEditorState({
             selectedRecord: null,
+            showEditorModal: false,
             syncfusionLoading: false,
-            syncfusionDocumentReady: false
-        }));
-    }, []);
+            syncfusionDocumentReady: false,
+            socketStatus: editorState.socketStatus
+        });
+        setScanState({
+            inputMode: 'ntsoft',
+            inputText: '',
+            extractedData: null,
+            isProcessing: false
+        });
+    }, [editorState.socketStatus]);
+
+    // const handleCloseEditor = useCallback(() => {
+    //     setEditorState(prev => ({
+    //         ...prev,
+    //         showEditorModal: false,
+    //         selectedRecord: null,
+    //         syncfusionLoading: false,
+    //         syncfusionDocumentReady: false
+    //     }));
+    // }, []);
 
     const insertFieldIntoSyncfusion = useCallback((fieldPlaceholder: string) => {
         try {
@@ -799,16 +853,22 @@ function TemplateFillerComponent() {
                         processingData
                     );
 
+                    // Update extracted data in scan state
+                    setScanState(prev => ({
+                        ...prev,
+                        extractedData: processingData
+                    }));
+
                     if (success) {
                         setSnackbar({
                             open: true,
-                            message: 'Đã chèn dữ liệu từ Mobile App vào Syncfusion Editor!',
+                            message: 'Đã chèn dữ liệu từ NTS DocumentAI',
                             severity: 'success'
                         });
                     } else {
                         setSnackbar({
                             open: true,
-                            message: 'Lỗi khi chèn dữ liệu vào Syncfusion Editor',
+                            message: 'Lỗi khi chèn dữ từ NTS DocumentAI',
                             severity: 'error'
                         });
                     }
@@ -817,7 +877,7 @@ function TemplateFillerComponent() {
                         error instanceof Error ? error.message : 'Lỗi không xác định.';
                     setSnackbar({
                         open: true,
-                        message: `Lỗi xử lý dữ liệu từ Mobile App: ${errorMessage}`,
+                        message: `Lỗi xử lý dữ liệu`,
                         severity: 'error'
                     });
                     console.error('❌ Error processing socket data:', error);
@@ -836,6 +896,88 @@ function TemplateFillerComponent() {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
 
+    // Scan & Fill Panel Handlers
+    const handleInputModeChange = useCallback((mode: 'ntsoft' | 'scanner') => {
+        setScanState(prev => ({ ...prev, inputMode: mode }));
+        console.log('Input mode', mode);
+    }, []);
+
+    const handleInputTextChange = useCallback((text: string) => {
+        setScanState(prev => ({ ...prev, inputText: text }));
+    }, []);
+
+    const handleOpenDocumentAI = useCallback(() => {
+        // Logic để mở Document AI app
+        setSnackbar({
+            open: true,
+            message: 'Đang mở NTSoft Document AI...',
+            severity: 'info'
+        });
+    }, []);
+
+    const handleAnalyzeAndFill = useCallback(async () => {
+        if (!scanState.inputText.trim()) {
+            setSnackbar({
+                open: true,
+                message: 'Vui lòng nhập dữ liệu cần phân tích',
+                severity: 'warning'
+            });
+            return;
+        }
+
+        if (!editorState.selectedRecord || !editorState.syncfusionDocumentReady) {
+            setSnackbar({
+                open: true,
+                message: 'Vui lòng mở mẫu đơn trước khi điền dữ liệu',
+                severity: 'warning'
+            });
+            return;
+        }
+
+        setScanState(prev => ({ ...prev, isProcessing: true }));
+
+        try {
+            const scannedInfo = processDataIntelligently(scanState.inputText);
+            const processingData = convertScannedInfoToProcessingData({
+                ...scannedInfo,
+                ngaySinh: formatDDMMYYYY(scannedInfo.ngaySinh),
+                ngayCap: formatDDMMYYYY(scannedInfo.ngayCap)
+            });
+            setScanState(prev => ({
+                ...prev,
+                extractedData: processingData,
+                isProcessing: false
+            }));
+
+            // Apply data to Syncfusion editor
+            const success = await applyDataToSyncfusion(sfContainerRef.current, processingData);
+
+
+
+            if (success) {
+                setSnackbar({
+                    open: true,
+                    message: 'Đã phân tích và điền dữ liệu thành công!',
+                    severity: 'success'
+                });
+            } else {
+                setSnackbar({
+                    open: true,
+                    message: 'Lỗi khi điền dữ liệu vào document',
+                    severity: 'error'
+                });
+            }
+        } catch (error) {
+            const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
+            setScanState(prev => ({ ...prev, isProcessing: false }));
+            setSnackbar({
+                open: true,
+                message: `Lỗi phân tích dữ liệu: ${errorMessage}`,
+                severity: 'error'
+            });
+        }
+    }, [scanState.inputText, editorState.selectedRecord, editorState.syncfusionDocumentReady]);
+
     console.log('🎨 TemplateFillerComponent render:', {
         csvRecordsCount: csvRecords.length,
         filteredRecordsCount: filteredRecords.length,
@@ -845,8 +987,16 @@ function TemplateFillerComponent() {
         syncfusionReady: editorState.syncfusionDocumentReady
     });
 
+
+    const handleKeyDown = async (e: React.KeyboardEvent) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            await handleAnalyzeAndFill();
+        }
+    };
+
     return (
-        <Box sx={{ width: '100%', p: 3 }}>
+        <Box sx={{ width: '100%', p: 0 }}>
             {/* Filter Controls */}
             <Card sx={{ mb: 3 }}>
                 <CardContent>
@@ -904,7 +1054,7 @@ function TemplateFillerComponent() {
                             </Select>
                         </FormControl>
                     </Box>
-                    {/* 
+                    {/*
                     <Button variant="outlined" onClick={handleClearFilters} size="small">
                         Xóa bộ lọc
                     </Button> */}
@@ -1011,7 +1161,7 @@ function TemplateFillerComponent() {
                                                         handleSelectTemplate(record);
                                                     }}
                                                 >
-                                                    Soạn thảo
+                                                    Tạo trực tuyến
                                                 </Button>
                                             </Box>
                                         </Box>
@@ -1037,38 +1187,44 @@ function TemplateFillerComponent() {
             <Dialog
                 open={editorState.showEditorModal}
                 onClose={handleCloseEditor}
-                maxWidth="xl"
+                maxWidth="2xl"
                 fullWidth
                 sx={{
                     '& .MuiDialog-paper': {
-                        height: '90vh',
-                        maxHeight: '90vh'
+                        height: '95vh',
+                        maxHeight: '95vh'
                     }
                 }}
             >
-                <DialogTitle
+                {/* <DialogTitle
                     sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
                         alignItems: 'center',
-                        pb: 1
+                        pb: 1,
                     }}
                 >
-                    <Typography variant="body2" fontWeight={'bold'}>
-                        Tạo trực tuyến . NTSoft Document AI
-                    </Typography>
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Chip
-                            icon={<WifiIcon />}
-                            label={socketStatus === 'connected' ? 'Đã kết nối' : 'Mất kết nối ngắt'}
-                            color={socketStatus === 'connected' ? 'success' : 'default'}
-                            size="small"
-                        />
-                        <IconButton onClick={handleCloseEditor}>
-                            <CloseIcon />
-                        </IconButton>
-                    </Box>
-                </DialogTitle>
+                    {scanState.inputMode !== 'scanner' && (
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <Chip
+                                icon={<WifiIcon />}
+                                label={
+                                    socketStatus === 'connected' ? 'Đã kết nối' : 'Mất kết nối ngắt'
+                                }
+                                color={socketStatus === 'connected' ? 'success' : 'default'}
+                                size="small"
+                            />
+                        </Box>
+                    )}
+                </DialogTitle> */}
+
+                {/* <Divider
+                    style={{
+                        paddingLeft: 1,
+                        paddingRight: 1,
+                        height: 0.5
+                    }}
+                /> */}
 
                 <DialogContent sx={{ p: 1, height: '100%' }}>
                     <Box
@@ -1084,20 +1240,45 @@ function TemplateFillerComponent() {
                                 position: 'relative',
                                 height: '100%',
                                 width: '70%',
-                                borderRadius: 2,
-                                padding: 2
+                                // borderRadius: 1
                             }}
                         >
                             <Box
                                 p={1}
                                 sx={{
                                     display: 'flex',
-                                    alignItems: 'center'
+                                    alignItems: 'center',
+                                    justifyContent: 'space-between',
+
                                 }}
                             >
-                                <Typography variant="body2" fontWeight={'bold'}>
-                                    Mẫu đơn/tờ khai 
+                                <Typography variant="subtitle2" fontWeight={'bold'}>
+                                    Mẫu đơn/tờ khai
                                 </Typography>
+                                <Box gap={1} sx={{
+                                    display:'flex',
+                                }}>
+                                  <Box>
+                                      <Button
+                                          variant="outlined"
+                                          onClick={handleDownloadClick}
+                                          startIcon={<Download />}
+                                          disabled={!editorState.syncfusionDocumentReady}
+                                      >
+                                          Tải xuống
+                                      </Button>
+                                  </Box>
+                               <Box>
+                                   <Button
+                                       variant="outlined"
+                                       onClick={handlePrintClick}
+                                       startIcon={<PrintIcon />}
+                                       disabled={!editorState.syncfusionDocumentReady}
+                                   >
+                                       In
+                                   </Button>
+                               </Box>
+                                </Box>
                             </Box>
                             <CardContent
                                 sx={{
@@ -1159,7 +1340,7 @@ function TemplateFillerComponent() {
                                     showPropertiesPane={false}
                                     height={'100%'}
                                     style={{ display: 'block' }}
-                                    // toolbarMode={'Toolbar'}
+                                    toolbarMode={'Toolbar'}
                                     locale="vi-VN"
                                 />
                             </CardContent>
@@ -1294,34 +1475,307 @@ function TemplateFillerComponent() {
                                 </Box>
                             )} */}
                         </Card>
+                        {/* Right Panel - Quét & điền tự động */}
                         <Card
                             sx={{
-                                borderWidth: 1,
-                                borderRadius: 5,
-                                borderColor: 'yellow',
-                                backgroundColor: "yellow'",
-                                width: 200,
-                                height: 200
+                                width: '30%',
+                                height: '100%',
+                                ml: 1,
+                                // borderRadius: 1
                             }}
                         >
-                            <Card></Card>
+                            <CardContent sx={{ p: 2, height: '100%' }}>
+                                <Typography variant="body2" sx={{ mb: 2, fontWeight: 'bold' }}>
+                                    Quét & điền tự động
+                                </Typography>
+
+                                {/* Toggle Buttons */}
+                                <Box sx={{ mb: 3 }}>
+                                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+                                        <Button
+                                            variant={
+                                                scanState.inputMode === 'ntsoft'
+                                                    ? 'contained'
+                                                    : 'outlined'
+                                            }
+                                            startIcon={<SmartphoneIcon />}
+                                            size="small"
+                                            sx={{ flex: 1, textTransform: 'none' }}
+                                            onClick={() => handleInputModeChange('ntsoft')}
+                                        >
+                                            NTSoft Document AI
+                                        </Button>
+                                        <Button
+                                            variant={
+                                                scanState.inputMode === 'scanner'
+                                                    ? 'contained'
+                                                    : 'outlined'
+                                            }
+                                            startIcon={<AdfScannerIcon />}
+                                            size="small"
+                                            sx={{ flex: 1, textTransform: 'none' }}
+                                            onClick={() => handleInputModeChange('scanner')}
+                                        >
+                                            Máy quét
+                                        </Button>
+                                    </Box>
+                                    {scanState.inputMode !== 'scanner' ? (<Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mb: 1 }}
+                                    >
+                                        Mở ứng dụng di động <strong>NTSoft Document AI</strong> để
+                                        quét QR CCCD/giấy tờ.Ứng dụng sẽ tự dộng chèn vào biểu mẫu
+                                    </Typography>) : (<Typography
+                                        variant="body2"
+                                        color="text.secondary"
+                                        sx={{ mb: 1 }}
+                                    >
+                                        Đặt con trỏ chuột vào ô trống bên dưới.
+                                        Sau đó, bạn có thể dùng máy quét để quét mã hoặc dán nội dung trực tiếp vào ô. Mã/nội dung sẽ tự động xuất hiện ở đó.
+                                    </Typography>)}
+
+                                </Box>
+
+                                {/* Input Section */}
+                                {scanState.inputMode === 'scanner' && (
+                                    <>
+                                        <Box sx={{ mb: 3 }}>
+                                            <Typography
+                                                variant="body2"
+                                                fontWeight="bold"
+                                                sx={{ mb: 1 }}
+                                            >
+                                                Dán chuỗi dữ liệu trả về sau đó thực hiện ấn phim enter:
+                                            </Typography>
+                                            <TextField
+                                                autoFocus
+                                                multiline
+                                                rows={4}
+                                                fullWidth
+                                                value={scanState.inputText}
+                                                onKeyDown={handleKeyDown}
+                                                onChange={(
+                                                    e: React.ChangeEvent<HTMLInputElement>
+                                                ) => handleInputTextChange(e.target.value)}
+                                                placeholder='VD: 012345678901|NGUYEN VAN A|01/01/1990|Nam|Hà Nội|01/01/2022 hoặc {"cccd":"012345678901",...}'
+                                                variant="outlined"
+                                                size="small"
+                                                sx={{
+                                                    '& .MuiInputBase-input': {
+                                                        fontSize: '0.875rem',
+                                                        fontFamily: 'monospace'
+                                                    }
+                                                }}
+                                            />
+                                        </Box>
+                                        {/* Action Button */}
+                                        {/* <Button
+                                            variant="contained"
+                                            color="primary"
+                                            size="medium"
+                                            sx={{
+                                                mb: 3,
+                                                textTransform: 'none',
+                                                width: '100%'
+                                            }}
+                                            onClick={handleAnalyzeAndFill}
+                                            disabled={
+                                                scanState.isProcessing ||
+                                                !scanState.inputText.trim()
+                                            }
+                                            startIcon={
+                                                scanState.isProcessing && (
+                                                    <CircularProgress size={16} />
+                                                )
+                                            }
+                                        >
+                                            {scanState.isProcessing
+                                                ? 'Đang xử lý...'
+                                                : 'Phân tích & điền'}
+                                        </Button> */}
+                                    </>
+                                )}
+
+                                {/* Results Section */}
+                                <Box>
+                                    <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
+                                        Kết quả trích xuất
+                                    </Typography>
+                                    <Typography
+                                        variant="caption"
+                                        color="text.secondary"
+                                        sx={{ mb: 2, display: 'block' }}
+                                    >
+                                        (Tự động map vào các trường tương ứng & file Word)
+                                    </Typography>
+
+                                    <Box
+                                        sx={{
+                                            display: 'grid',
+                                            gridTemplateColumns: '1fr 1fr',
+                                            gap: 2
+                                        }}
+                                    >
+                                        <Box>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Số CMND
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {scanState.extractedData?.cmnd ||
+                                                        scanState.extractedData?.so_cmnd ||
+                                                        '—'}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Số CCCD
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {scanState.extractedData?.cccd ||
+                                                        scanState.extractedData?.so_cccd ||
+                                                        '—'}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Họ tên
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {scanState.extractedData?.hoTen ||
+                                                        scanState.extractedData?.ho_ten ||
+                                                        '—'}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Ngày sinh
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {
+                                                        scanState.extractedData?.ngaySinh ||
+                                                        scanState.extractedData?.ngay_sinh ||
+                                                        '—'
+                                                    }
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Giới tính
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {scanState.extractedData?.gioiTinh ||
+                                                        scanState.extractedData?.gioi_tinh ||
+                                                        '—'}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Ngày cấp
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {
+                                                        scanState.extractedData?.ngayCap ||
+                                                        scanState.extractedData?.ngay_cap ||
+                                                        '—'
+                                                    }
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                        <Box sx={{
+                                            width: "100%"
+                                        }}>
+                                            <Box>
+                                                <Typography variant="caption" fontWeight="bold">
+                                                    Địa chỉ
+                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        borderBottom: '1px solid #ddd',
+                                                        py: 0.5,
+                                                        minHeight: 20,
+                                                        fontSize: 12
+                                                    }}
+                                                >
+                                                    {scanState.extractedData?.diaChi ||
+                                                        scanState.extractedData?.noi_cu_tru ||
+                                                        '—'}
+                                                </Box>
+                                            </Box>
+                                        </Box>
+                                    </Box>
+                                </Box>
+                            </CardContent>
                         </Card>
                     </Box>
                 </DialogContent>
 
-                <DialogActions sx={{ p: 2 }}>
-                    <Button
-                        variant="outlined"
-                        onClick={() => {
-                            try {
-                                sfContainerRef.current?.documentEditor?.print();
-                            } catch {}
-                        }}
-                        startIcon={<PrintIcon />}
-                        disabled={!editorState.syncfusionDocumentReady}
-                    >
-                        In
-                    </Button>
+                 <DialogActions sx={{ p: 2 }}>
+                    {/*<Button*/}
+                    {/*    variant="outlined"*/}
+                    {/*    onClick={() => {*/}
+                    {/*        try {*/}
+                    {/*            sfContainerRef.current?.documentEditor?.print();*/}
+                    {/*        } catch { }*/}
+                    {/*    }}*/}
+                    {/*    startIcon={<PrintIcon />}*/}
+                    {/*    disabled={!editorState.syncfusionDocumentReady}*/}
+                    {/*>*/}
+                    {/*    In*/}
+                    {/*</Button>*/}
                     <Button onClick={handleCloseEditor} variant="contained">
                         Đóng
                     </Button>
