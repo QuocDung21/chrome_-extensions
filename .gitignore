@@ -38,3 +38,4 @@ out/
 *.pem
 
 .cache/
+dist.zip
