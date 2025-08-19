@@ -419,7 +419,7 @@ const TemplateCard = React.memo<{
         sx={{
             p: 3,
             mb: 3,
-            borderRadius: 3,
+            borderRadius: 1,
             border: '1px solid #939AA0FF',
             background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
             position: 'relative',
@@ -536,7 +536,7 @@ const TemplateCard = React.memo<{
                         onSelectTemplate(record);
                     }}
                     sx={{
-                        borderRadius: 2,
+                        borderRadius: 1,
                         textTransform: 'none',
                         fontWeight: 600,
                         px: 3,
@@ -642,7 +642,6 @@ function TemplateFillerComponent() {
     });
 
     const handlePrintClick = () => {
-        // Check if the ref and its properties are available
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
             sfContainerRef.current.documentEditor.print();
         } else {
@@ -1234,7 +1233,7 @@ function TemplateFillerComponent() {
                 <Card
                     sx={{
                         mb: 4,
-                        borderRadius: 3,
+                        borderRadius: 1,
                         boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                         backdropFilter: 'blur(10px)',
                         background: 'rgba(255,255,255,0.9)',
@@ -1269,7 +1268,7 @@ function TemplateFillerComponent() {
                                 size="medium"
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2,
+                                        borderRadius: 1,
                                         transition: 'all 0.3s ease',
                                         '&:hover': {
                                             boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
@@ -1302,7 +1301,7 @@ function TemplateFillerComponent() {
                                 size="medium"
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2,
+                                        borderRadius: 1,
                                         transition: 'all 0.3s ease',
                                         '&:hover': {
                                             boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
@@ -1336,7 +1335,7 @@ function TemplateFillerComponent() {
                                 size="medium"
                                 sx={{
                                     '& .MuiOutlinedInput-root': {
-                                        borderRadius: 2,
+                                        borderRadius: 1,
                                         transition: 'all 0.3s ease',
                                         '&:hover': {
                                             boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
@@ -1383,7 +1382,7 @@ function TemplateFillerComponent() {
                 {/* Template List */}
                 <Card
                     sx={{
-                        borderRadius: 3,
+                        borderRadius: 1,
                         boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                         backdropFilter: 'blur(10px)',
                         background: 'rgba(255,255,255,0.95)',
@@ -1445,7 +1444,7 @@ function TemplateFillerComponent() {
                                         sx={{
                                             mb: 3,
                                             p: 3,
-                                            borderRadius: 2,
+                                            borderRadius: 1,
                                             border: '1px solid #e0e0e0',
                                             animation: 'pulse 1.5s ease-in-out infinite alternate'
                                         }}
@@ -1559,7 +1558,7 @@ function TemplateFillerComponent() {
                                         sx={{
                                             p: 6,
                                             textAlign: 'center',
-                                            borderRadius: 3,
+                                            borderRadius: 1,
                                             background:
                                                 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
                                             border: '2px dashed #dee2e6'
@@ -1599,7 +1598,7 @@ function TemplateFillerComponent() {
                                             variant="outlined"
                                             onClick={handleClearFilters}
                                             sx={{
-                                                borderRadius: 2,
+                                                borderRadius: 1,
                                                 textTransform: 'none',
                                                 fontWeight: 600
                                             }}
@@ -1638,7 +1637,7 @@ function TemplateFillerComponent() {
                     }}
                 >
                     {/* Enhanced Header */}
-                    <Box
+                    {/* <Box
                         sx={{
                             background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
                             color: 'white',
@@ -1693,7 +1692,7 @@ function TemplateFillerComponent() {
                             </Box>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
-                            {/* {scanState.inputMode !== 'scanner' && (
+                            {scanState.inputMode !== 'scanner' && (
                                 <Chip
                                     icon={<WifiIcon />}
                                     label={socketStatus === 'connected' ? '🟢 AI' : '🔴 Lỗi'}
@@ -1713,7 +1712,7 @@ function TemplateFillerComponent() {
                                         }
                                     }}
                                 />
-                            )} */}
+                            )}
                             <IconButton
                                 onClick={handleCloseEditor}
                                 size={window.innerWidth < 600 ? 'small' : 'medium'}
@@ -1732,7 +1731,7 @@ function TemplateFillerComponent() {
                                 />
                             </IconButton>
                         </Box>
-                    </Box>
+                    </Box> */}
                     {/* <DialogTitle
                     sx={{
                         display: 'flex',
@@ -1837,7 +1836,7 @@ function TemplateFillerComponent() {
                                             }}
                                             startIcon={<EditIcon />}
                                             sx={{
-                                                borderRadius: 2,
+                                                borderRadius: 1,
                                                 textTransform: 'none',
                                                 fontWeight: 600,
                                                 '&:hover': {
@@ -1855,7 +1854,7 @@ function TemplateFillerComponent() {
                                             startIcon={<Download />}
                                             disabled={!editorState.syncfusionDocumentReady}
                                             sx={{
-                                                borderRadius: 2,
+                                                borderRadius: 1,
                                                 textTransform: 'none',
                                                 fontWeight: 600,
                                                 '&:hover': {
@@ -1873,7 +1872,7 @@ function TemplateFillerComponent() {
                                             startIcon={<PrintIcon />}
                                             disabled={!editorState.syncfusionDocumentReady}
                                             sx={{
-                                                borderRadius: 2,
+                                                borderRadius: 1,
                                                 textTransform: 'none',
                                                 fontWeight: 600,
                                                 '&:hover': {
@@ -1966,7 +1965,7 @@ function TemplateFillerComponent() {
                                         background:
                                             'linear-gradient(135deg, #fff 0%, #f8f9fa 100%)',
                                         border: '1px solid #e0e0e0',
-                                        borderRadius: 2,
+                                        borderRadius: 1,
                                         boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
                                         p: 2,
                                         maxWidth: 280,
@@ -2091,7 +2090,7 @@ function TemplateFillerComponent() {
                                 sx={{
                                     width: { xs: '100%', lg: '30%' },
                                     height: { xs: '40%', lg: '100%' },
-                                    borderRadius: { xs: 2, sm: 3 },
+                                    borderRadius: { xs: 1, sm: 2 },
                                     boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                                     background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                                     overflow: 'hidden'
@@ -2162,7 +2161,7 @@ function TemplateFillerComponent() {
                                                 mb: 3,
                                                 p: 1,
                                                 background: 'rgba(0,0,0,0.05)',
-                                                borderRadius: 2
+                                                borderRadius: 1
                                             }}
                                         >
                                             <Button
@@ -2217,7 +2216,7 @@ function TemplateFillerComponent() {
                                                 sx={{
                                                     // background:
                                                     //     'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
-                                                    borderRadius: 2,
+                                                    borderRadius: 1,
                                                     p: 2,
                                                     border: '1px solid rgba(25,118,210,0.2)'
                                                 }}
@@ -2290,7 +2289,7 @@ function TemplateFillerComponent() {
                                                 sx={{
                                                     // background:
                                                     //     'linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%)',
-                                                    borderRadius: 2,
+                                                    borderRadius: 1,
                                                     p: 2,
                                                     border: '1px solid rgba(156,39,176,0.2)'
                                                 }}
@@ -2329,19 +2328,6 @@ function TemplateFillerComponent() {
                                     {scanState.inputMode === 'scanner' && (
                                         <>
                                             <Box sx={{ mb: 4 }}>
-                                                {/* <Typography
-                                                    variant="subtitle2"
-                                                    sx={{
-                                                        mb: 2,
-                                                        fontWeight: 700,
-                                                        color: 'secondary.main',
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        gap: 1
-                                                    }}
-                                                >
-                                                    ⌨️ Nhập dữ liệu để xử lý:
-                                                </Typography> */}
                                                 <TextField
                                                     autoFocus
                                                     multiline
@@ -2352,22 +2338,13 @@ function TemplateFillerComponent() {
                                                     onChange={(
                                                         e: React.ChangeEvent<HTMLInputElement>
                                                     ) => handleInputTextChange(e.target.value)}
-                                                    placeholder="Ví dụ: 012345678901|NGUYEN VAN A|01/01/1990|Nam|Hà Nội|01/01/2022
-                                                    ✨ Nhấn Enter để xử lý dữ liệu"
+                                                    placeholder="Ví dụ: 012345678901|012345678901|NGUYEN VAN A|01/01/1990|Nam|Hà Nội|01/01/2022"
                                                     variant="outlined"
                                                     sx={{
                                                         '& .MuiOutlinedInput-root': {
-                                                            borderRadius: 2,
+                                                            borderRadius: 1,
                                                             background:
                                                                 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)'
-                                                            // '&:hover': {
-                                                            //     boxShadow:
-                                                            //         '0 4px 12px rgba(156,39,176,0.15)'
-                                                            // },
-                                                            // '&.Mui-focused': {
-                                                            //     boxShadow:
-                                                            //         '0 4px 20px rgba(156,39,176,0.25)'
-                                                            // }
                                                         },
                                                         '& .MuiInputBase-input': {
                                                             fontSize: '0.9rem',
@@ -2518,7 +2495,7 @@ function TemplateFillerComponent() {
                                                         background: field.value
                                                             ? 'linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%)'
                                                             : 'linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%)',
-                                                        borderRadius: 2,
+                                                        borderRadius: 1,
                                                         p: 2,
                                                         border: field.value
                                                             ? '1px solid rgba(76,175,80,0.3)'
@@ -2614,7 +2591,7 @@ function TemplateFillerComponent() {
                                 variant="contained"
                                 size="large"
                                 sx={{
-                                    borderRadius: 2,
+                                    borderRadius: 1,
                                     textTransform: 'none',
                                     fontWeight: 600,
                                     px: 4,
@@ -2641,7 +2618,7 @@ function TemplateFillerComponent() {
                     fullWidth
                     sx={{
                         '& .MuiDialog-paper': {
-                            borderRadius: 3,
+                            borderRadius: 1,
                             background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                             boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
                         }
@@ -2678,7 +2655,7 @@ function TemplateFillerComponent() {
                                     variant="outlined"
                                     sx={{
                                         p: 3,
-                                        borderRadius: 2,
+                                        borderRadius: 1,
                                         border: '2px solid transparent',
                                         background:
                                             'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
@@ -2732,7 +2709,7 @@ function TemplateFillerComponent() {
                                             size="medium"
                                             startIcon={<EditIcon />}
                                             sx={{
-                                                borderRadius: 2,
+                                                borderRadius: 1,
                                                 textTransform: 'none',
                                                 fontWeight: 600,
                                                 background:
