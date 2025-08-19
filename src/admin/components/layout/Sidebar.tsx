@@ -15,7 +15,8 @@ import {
     DriveFileRenameOutline as TemplateFillerIcon,
     CloudUpload as UploadIcon,
     EditNote as WordMapperIcon,
-    Description as WordViewerIcon
+    Description as WordViewerIcon,
+    ArticleOutlined as ArticleIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -68,25 +69,31 @@ const scanningItems: NavigationItem[] = [
     //     path: '/forms'
     //     // badge: 'NEW'
     // },
-    // {
-    //     id: 'word-mapper',
-    //     label: 'Mẫu đơn, tờ khai',
-    //     icon: <WordMapperIcon />,
-    //     path: '/word-mapper',
-    //     badge: 'NEW'
-    // },
+    {
+        id: 'word-mapper',
+        label: 'Mẫu đơn, tờ khai',
+        icon: <WordMapperIcon />,
+        path: '/word-mapper',
+        badge: 'NEW'
+    },
     {
         id: 'template-filler',
         label: 'Soạn thảo mẫu',
         icon: <TemplateFillerIcon />,
         path: '/template-filler'
-    }
+    },
     // {
     //     id: 'word-viewer',
     //     label: 'Xem Word',
     //     icon: <WordViewerIcon />,
     //     path: '/word-viewer'
     // }
+    {
+        id: 'procedures',
+        label: 'Thủ tục hành chính',
+        icon: <ArticleIcon />,
+        path: '/procedures'
+    }
 ];
 
 const documentsItems: NavigationItem[] = [
