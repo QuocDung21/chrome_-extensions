@@ -85,8 +85,14 @@ interface ProcessingData {
     [key: string]: any;
 }
 
+interface MauDon {
+    tenGiayTo: string | null;
+    tenFile: string;
+    duongDan: string;
+}
+
 interface TTHCRecord {
-    stt: string;
+    stt: number;
     maTTHC: string;
     tenTTHC: string;
     qdCongBo: string;
@@ -95,13 +101,12 @@ interface TTHCRecord {
     coQuanCongKhai: string;
     capThucHien: string;
     tinhTrang: string;
-    tenGiayTo: string;
-    mauDon: string;
-    tenFile: string;
+    danhSachMauDon: MauDon[];
 }
 
 interface EnhancedTTHCRecord extends TTHCRecord {
     isTemplateAvailable: boolean;
+    selectedMauDon?: MauDon;
 }
 
 interface FilterOptions {
@@ -211,32 +216,21 @@ const parseJSONData = (jsonArray: any[]): TTHCRecord[] => {
     const records: TTHCRecord[] = jsonArray
         .map(item => {
             const record: TTHCRecord = {
-                stt: item['STT'] !== undefined && item['STT'] !== null ? String(item['STT']) : '',
-                maTTHC: item['Mã TTHC'] ?? '',
-                tenTTHC: item['Tên TTHC'] ?? '',
-                qdCongBo: item['QĐ Công bố'] ?? '',
-                doiTuong: item['Đối tượng'] ?? '',
-                linhVuc: item['Lĩnh vực'] ?? '',
-                coQuanCongKhai: item['Cơ quan công khai'] ?? '',
-                capThucHien: item['Cấp thực hiện'] ?? '',
-                tinhTrang: item['Tình trạng'] ?? '',
-                tenGiayTo: item['Tên giấy tờ'] ?? '',
-                mauDon: item['Mẫu đơn, tờ khai'] ?? '',
-                tenFile: item['Tên File'] ?? ''
-            } as TTHCRecord;
-
-            // Normalize all fields to string
-            (Object.keys(record) as Array<keyof TTHCRecord>).forEach(key => {
-                (record as any)[key] = record[key] ? String(record[key]) : '';
-            });
+                stt: item['stt'] || 0,
+                maTTHC: item['maTTHC'] ?? '',
+                tenTTHC: item['tenTTHC'] ?? '',
+                qdCongBo: item['qdCongBo'] ?? '',
+                doiTuong: item['doiTuong'] ?? '',
+                linhVuc: item['linhVuc'] ?? '',
+                coQuanCongKhai: item['coQuanCongKhai'] ?? '',
+                capThucHien: item['capThucHien'] ?? '',
+                tinhTrang: item['tinhTrang'] ?? '',
+                danhSachMauDon: item['danhSachMauDon'] || []
+            };
 
             return record;
         })
-        .filter(
-            r =>
-                (r.tenFile && r.tenFile.toLowerCase().includes('.doc')) ||
-                (r.mauDon && r.mauDon.toLowerCase().includes('.doc'))
-        );
+        .filter(r => r.danhSachMauDon.length > 0);
 
     return records;
 };
@@ -274,9 +268,9 @@ const createFilterOptions = (records: TTHCRecord[]): FilterOptions => {
 
 const sanitizeCodeForPath = (code: string): string => (code || '').replace(/[\\/]/g, '_').trim();
 
-const buildDocxUrlForRecord = (record: TTHCRecord): string => {
+const buildDocxUrlForRecord = (record: TTHCRecord, mauDon: MauDon): string => {
     const code = sanitizeCodeForPath(record.maTTHC);
-    const templateName = record.tenFile || extractTemplateName(record.mauDon);
+    const templateName = mauDon.tenFile;
     const encodedCode = encodeURIComponent(code);
     const encodedName = encodeURIComponent(templateName);
     const path = `templates_by_code/${encodedCode}/docx/${encodedName}`.replace(/\/+/g, '/');
@@ -289,9 +283,9 @@ const extractTemplateName = (fullPath: string): string => {
     return parts[parts.length - 1];
 };
 
-const checkTemplateExists = async (record: TTHCRecord): Promise<boolean> => {
+const checkTemplateExists = async (record: TTHCRecord, mauDon: MauDon): Promise<boolean> => {
     try {
-        const url = buildDocxUrlForRecord(record);
+        const url = buildDocxUrlForRecord(record, mauDon);
         const res = await fetch(url, { method: 'HEAD' });
         return res.ok;
     } catch {
@@ -302,8 +296,30 @@ const checkTemplateExists = async (record: TTHCRecord): Promise<boolean> => {
 const enhanceRecordsWithAvailability = async (
     records: TTHCRecord[]
 ): Promise<EnhancedTTHCRecord[]> => {
-    const checks = await Promise.all(records.map(r => checkTemplateExists(r)));
-    return records.map((record, idx) => ({ ...record, isTemplateAvailable: checks[idx] }));
+    const enhancedRecords: EnhancedTTHCRecord[] = [];
+
+    for (const record of records) {
+        // Check if any template in danhSachMauDon exists
+        let hasAvailableTemplate = false;
+        let selectedMauDon: MauDon | undefined;
+
+        for (const mauDon of record.danhSachMauDon) {
+            const exists = await checkTemplateExists(record, mauDon);
+            if (exists) {
+                hasAvailableTemplate = true;
+                selectedMauDon = mauDon;
+                break;
+            }
+        }
+
+        enhancedRecords.push({
+            ...record,
+            isTemplateAvailable: hasAvailableTemplate,
+            selectedMauDon
+        });
+    }
+
+    return enhancedRecords;
 };
 
 const filterRecords = (
@@ -396,7 +412,8 @@ const TemplateCard = React.memo<{
     record: EnhancedTTHCRecord;
     index: number;
     onSelect: (record: EnhancedTTHCRecord) => void;
-}>(({ record, index, onSelect }) => (
+    onSelectTemplate: (record: EnhancedTTHCRecord) => void;
+}>(({ record, index, onSelect, onSelectTemplate }) => (
     <Paper
         variant="outlined"
         sx={{
@@ -500,7 +517,7 @@ const TemplateCard = React.memo<{
                 }}
             >
                 <Chip
-                    label="Sẵn sàng"
+                    label={`${record.danhSachMauDon.length} mẫu`}
                     color="success"
                     size="small"
                     variant="filled"
@@ -516,7 +533,7 @@ const TemplateCard = React.memo<{
                     startIcon={<EditIcon />}
                     onClick={e => {
                         e.stopPropagation();
-                        onSelect(record);
+                        onSelectTemplate(record);
                     }}
                     sx={{
                         borderRadius: 2,
@@ -533,7 +550,7 @@ const TemplateCard = React.memo<{
                         transition: 'all 0.3s ease'
                     }}
                 >
-                    Tạo ngay
+                    Chọn mẫu
                 </Button>
             </Box>
         </Box>
@@ -635,7 +652,7 @@ function TemplateFillerComponent() {
 
     const handleDownloadClick = () => {
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            const fileName = editorState.selectedRecord?.tenFile || 'Document.docx';
+            const fileName = editorState.selectedRecord?.selectedMauDon?.tenFile || 'Document.docx';
             sfContainerRef.current.documentEditor.save(fileName, 'Docx');
         } else {
             console.error('Document editor not ready to download.');
@@ -656,6 +673,12 @@ function TemplateFillerComponent() {
         syncfusionLoading: false,
         syncfusionDocumentReady: false,
         socketStatus: 'disconnected'
+    });
+
+    // State cho modal chọn mẫu đơn
+    const [templateSelectionModal, setTemplateSelectionModal] = useState({
+        open: false,
+        record: null as EnhancedTTHCRecord | null
     });
 
     // State cho scan & fill panel
@@ -729,17 +752,17 @@ function TemplateFillerComponent() {
     //  Chọn template
     const handleSelectTemplate = useCallback(async (record: EnhancedTTHCRecord) => {
         console.log('🎯 Template selected:', record);
-        if (!record.isTemplateAvailable) {
+        if (!record.isTemplateAvailable || !record.selectedMauDon) {
             setSnackbar({
                 open: true,
-                message: `Mẫu đơn "${record.tenFile || extractTemplateName(record.mauDon)}" chưa có sẵn trong hệ thống`,
+                message: `Mẫu đơn "${record.tenTTHC}" chưa có sẵn trong hệ thống`,
                 severity: 'warning'
             });
             return;
         }
 
         // Test template URL immediately
-        const templateUrl = buildDocxUrlForRecord(record);
+        const templateUrl = buildDocxUrlForRecord(record, record.selectedMauDon);
         console.log('🔍 Testing template URL:', templateUrl);
 
         setEditorState(prev => ({
@@ -837,7 +860,11 @@ function TemplateFillerComponent() {
 
         try {
             console.log('🔄 Loading template into Syncfusion...');
-            const templateUrl = buildDocxUrlForRecord(record);
+            if (!record.selectedMauDon) {
+                throw new Error('Không có mẫu đơn được chọn');
+            }
+
+            const templateUrl = buildDocxUrlForRecord(record, record.selectedMauDon);
             console.log('📁 Template URL:', templateUrl);
 
             const res = await fetch(templateUrl);
@@ -850,7 +877,7 @@ function TemplateFillerComponent() {
             console.log('📦 Template blob size:', blob.size, 'bytes');
 
             const form = new FormData();
-            form.append('files', blob, record.tenFile || 'template.docx');
+            form.append('files', blob, record.selectedMauDon.tenFile);
 
             console.log('🔄 Converting DOCX to SFDT...');
             console.log('🌐 Syncfusion service URL:', SYNCFUSION_SERVICE_URL + 'Import');
@@ -979,7 +1006,7 @@ function TemplateFillerComponent() {
 
     // Load template when editor modal opens
     useEffect(() => {
-        console.log('📋 Modal state changed:', {
+        console.log('Modal state changed:', {
             showEditorModal: editorState.showEditorModal,
             selectedRecord: editorState.selectedRecord?.tenTTHC || 'none',
             syncfusionLoading: editorState.syncfusionLoading
@@ -1286,10 +1313,10 @@ function TemplateFillerComponent() {
                                     }
                                 }}
                             >
-                                <InputLabel sx={{ fontWeight: 500 }}>📋 Thủ tục</InputLabel>
+                                <InputLabel sx={{ fontWeight: 500 }}>Thủ tục</InputLabel>
                                 <Select
                                     value={filters.thuTuc}
-                                    label="📋 Thủ tục"
+                                    label="Thủ tục"
                                     onChange={e => handleFilterChange('thuTuc', e.target.value)}
                                     disabled={!filters.linhVuc}
                                 >
@@ -1518,6 +1545,12 @@ function TemplateFillerComponent() {
                                         record={record}
                                         index={index}
                                         onSelect={handleSelectTemplate}
+                                        onSelectTemplate={record => {
+                                            setTemplateSelectionModal({
+                                                open: true,
+                                                record
+                                            });
+                                        }}
                                     />
                                 ))}
 
@@ -1645,6 +1678,18 @@ function TemplateFillerComponent() {
                                     {editorState.selectedRecord?.maTTHC} •{' '}
                                     {editorState.selectedRecord?.linhVuc}
                                 </Typography>
+                                {editorState.selectedRecord?.selectedMauDon && (
+                                    <Typography
+                                        variant="caption"
+                                        sx={{
+                                            opacity: 0.8,
+                                            fontSize: { xs: '0.65rem', sm: '0.75rem' },
+                                            fontStyle: 'italic'
+                                        }}
+                                    >
+                                        📄 {editorState.selectedRecord.selectedMauDon.tenFile}
+                                    </Typography>
+                                )}
                             </Box>
                         </Box>
                         <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
@@ -1780,6 +1825,30 @@ function TemplateFillerComponent() {
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={() => {
+                                                if (editorState.selectedRecord) {
+                                                    setTemplateSelectionModal({
+                                                        open: true,
+                                                        record: editorState.selectedRecord
+                                                    });
+                                                }
+                                            }}
+                                            startIcon={<EditIcon />}
+                                            sx={{
+                                                borderRadius: 2,
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                '&:hover': {
+                                                    transform: 'translateY(-2px)',
+                                                    boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
+                                                },
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            Đổi mẫu
+                                        </Button>
                                         <Button
                                             variant="outlined"
                                             onClick={handleDownloadClick}
@@ -2562,6 +2631,127 @@ function TemplateFillerComponent() {
                             </Button>
                         </Box>
                     </Box> */}
+                </Dialog>
+
+                {/* Modal chọn mẫu đơn */}
+                <Dialog
+                    open={templateSelectionModal.open}
+                    onClose={() => setTemplateSelectionModal({ open: false, record: null })}
+                    maxWidth="md"
+                    fullWidth
+                    sx={{
+                        '& .MuiDialog-paper': {
+                            borderRadius: 3,
+                            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                            boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
+                        }
+                    }}
+                >
+                    <Box
+                        sx={{
+                            background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                            color: 'white',
+                            p: 3,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}
+                    >
+                        <Typography variant="body2" sx={{ fontWeight: 700 }}>
+                            Chọn mẫu đơn - {templateSelectionModal.record?.tenTTHC}
+                        </Typography>
+                        <IconButton
+                            onClick={() => setTemplateSelectionModal({ open: false, record: null })}
+                            sx={{ color: 'white' }}
+                        >
+                            <CloseIcon />
+                        </IconButton>
+                    </Box>
+                    <DialogContent sx={{ p: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            Vui lòng chọn một mẫu đơn từ danh sách bên dưới để tiếp tục:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                            {templateSelectionModal.record?.danhSachMauDon.map((mauDon, index) => (
+                                <Paper
+                                    key={index}
+                                    variant="outlined"
+                                    sx={{
+                                        p: 3,
+                                        borderRadius: 2,
+                                        border: '2px solid transparent',
+                                        background:
+                                            'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                                        cursor: 'pointer',
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                            transform: 'translateY(-2px)',
+                                            boxShadow: '0 8px 25px rgba(25,118,210,0.15)',
+                                            borderColor: '#1976d2'
+                                        }
+                                    }}
+                                    onClick={() => {
+                                        // Cập nhật selectedMauDon cho record
+                                        const updatedRecord = {
+                                            ...templateSelectionModal.record!,
+                                            selectedMauDon: mauDon
+                                        };
+                                        setTemplateSelectionModal({ open: false, record: null });
+                                        handleSelectTemplate(updatedRecord);
+                                    }}
+                                >
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            justifyContent: 'space-between',
+                                            alignItems: 'center'
+                                        }}
+                                    >
+                                        <Box sx={{ flex: 1 }}>
+                                            <Typography
+                                                variant="h6"
+                                                sx={{ fontWeight: 600, mb: 1 }}
+                                            >
+                                                {mauDon.tenFile}
+                                            </Typography>
+                                            {mauDon.tenGiayTo && (
+                                                <Typography variant="body2" color="text.secondary">
+                                                    {mauDon.tenGiayTo}
+                                                </Typography>
+                                            )}
+                                            <Typography
+                                                variant="caption"
+                                                color="primary"
+                                                sx={{ fontStyle: 'italic' }}
+                                            >
+                                                {mauDon.duongDan}
+                                            </Typography>
+                                        </Box>
+                                        <Button
+                                            variant="contained"
+                                            size="medium"
+                                            startIcon={<EditIcon />}
+                                            sx={{
+                                                borderRadius: 2,
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                background:
+                                                    'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                '&:hover': {
+                                                    background:
+                                                        'linear-gradient(45deg, #1565c0, #1976d2)',
+                                                    transform: 'translateY(-2px)'
+                                                },
+                                                transition: 'all 0.3s ease'
+                                            }}
+                                        >
+                                            Sử dụng mẫu này
+                                        </Button>
+                                    </Box>
+                                </Paper>
+                            ))}
+                        </Box>
+                    </DialogContent>
                 </Dialog>
 
                 {/* Snackbar for notifications */}
