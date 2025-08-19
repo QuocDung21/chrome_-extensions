@@ -391,20 +391,7 @@
         "Mẫu đơn, tờ khai":null,
         "Tên File":null
     },
-    {
-        "STT":29.0,
-        "Mã TTHC":"2.000635.000.00.00.H12",
-        "Tên TTHC":"Cấp bản sao Trích lục hộ tịch, bản sao Giấy khai sinh",
-        "QĐ Công bố":"1242\/QĐ-UBND",
-        "Đối tượng":"Công dân Việt Nam; Tổ chức (không bao gồm doanh nghiệp, HTX)",
-        "Lĩnh vực":"Hộ tịch (Bộ Tư pháp)",
-        "Cơ quan công khai":"UBND tỉnh Cà Mau",
-        "Cấp thực hiện":"Cấp Tỉnh; Cấp Xã",
-        "Tình trạng":"Công khai",
-        "Tên giấy tờ":"Tờ khai đề nghị bản sao Trích lục hộ tịch theo mẫu trong trường hợp người yêu cầu là cá nhân hoặc Văn bản yêu cầu cấp bản sao Trích lục hộ tịch nêu rõ lý do trong trường hợp người yêu cầu là cơ quan, tổ chức (nếu người có yêu cầu lựa chọn nộp hồ sơ theo hình thức trực tiếp)",
-        "Mẫu đơn, tờ khai":"2.000635.000.00.00.H12\/18.TKyeucaubansaotrichluchotich.docx",
-        "Tên File":"18.TKyeucaubansaotrichluchotich.docx"
-    },
+  
     {
         "STT":30.0,
         "Mã TTHC":"1.001257.000.00.00.H12",

@@ -1,18 +1,55 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-
-
+import { saveAs } from 'file-saver';
 // --- THƯ VIỆN ---
 import { Socket, io } from 'socket.io-client';
 
-
-
+import { Global, css } from '@emotion/react';
 // --- ICON ---
 
-import { AddCircleOutline as AddCircleOutlineIcon, Badge as BadgeIcon, CalendarToday as CalendarTodayIcon, CheckCircle as CheckCircleIcon, Close as CloseIcon, Edit as EditIcon, EventAvailable as EventAvailableIcon, Event as EventIcon, Home as HomeIcon, Info as InfoIcon, Person as PersonIcon, Print as PrintIcon, Wc as WcIcon, Wifi as WifiIcon, Download } from '@mui/icons-material';
+import {
+    AddCircleOutline as AddCircleOutlineIcon,
+    Badge as BadgeIcon,
+    CalendarToday as CalendarTodayIcon,
+    CheckCircle as CheckCircleIcon,
+    Close as CloseIcon,
+    Download,
+    Edit as EditIcon,
+    EventAvailable as EventAvailableIcon,
+    Event as EventIcon,
+    Home as HomeIcon,
+    Info as InfoIcon,
+    Person as PersonIcon,
+    Print as PrintIcon,
+    Wc as WcIcon,
+    Wifi as WifiIcon
+} from '@mui/icons-material';
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
-import { Alert, Box, Button, Card, CardContent, CardHeader, Chip, CircularProgress, Dialog, DialogActions, DialogContent, DialogTitle, FormControl, Grid, IconButton, InputLabel, MenuItem, Paper, Select, Snackbar, TextField, Typography } from '@mui/material';
+import {
+    Alert,
+    Box,
+    Button,
+    Card,
+    CardContent,
+    CardHeader,
+    Chip,
+    CircularProgress,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    FormControl,
+    Grid,
+    IconButton,
+    InputLabel,
+    MenuItem,
+    Paper,
+    Select,
+    Snackbar,
+    TextField,
+    Typography
+} from '@mui/material';
 import Divider from '@mui/material/Divider';
 // --- SYNCFUSION WORD EDITOR ---
 import '@syncfusion/ej2-base/styles/material.css';
@@ -23,7 +60,8 @@ import '@syncfusion/ej2-lists/styles/material.css';
 import '@syncfusion/ej2-navigations/styles/material.css';
 import '@syncfusion/ej2-popups/styles/material.css';
 import {
-    DocumentEditorContainerComponent, Print,
+    DocumentEditorContainerComponent,
+    Print,
     Ribbon,
     Toolbar
 } from '@syncfusion/ej2-react-documenteditor';
@@ -31,16 +69,9 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
-
-
 import { formatDDMMYYYY } from '@/admin/utils/formatDate';
-import { saveAs } from 'file-saver';
 
-
-
-
-
-DocumentEditorContainerComponent.Inject(Toolbar, Ribbon,Print);
+DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
 
 // --- CẤU HÌNH ---
 const SOCKET_URL = 'http://103.162.21.146:5003';
@@ -360,6 +391,157 @@ const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
     return data;
 };
 
+// --- MEMOIZED COMPONENTS ---
+const TemplateCard = React.memo<{
+    record: EnhancedTTHCRecord;
+    index: number;
+    onSelect: (record: EnhancedTTHCRecord) => void;
+}>(({ record, index, onSelect }) => (
+    <Paper
+        variant="outlined"
+        sx={{
+            p: 3,
+            mb: 3,
+            borderRadius: 3,
+            border: '1px solid #939AA0FF',
+            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+            position: 'relative',
+            overflow: 'hidden',
+            '&::before': {
+                content: '""',
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background:
+                    'linear-gradient(135deg, rgba(25,118,210,0.03) 0%, rgba(66,165,245,0.03) 100%)',
+                opacity: 0,
+                transition: 'opacity 0.3s ease',
+                zIndex: 0
+            },
+            '&:hover': {
+                transform: 'translateY(-4px)',
+                boxShadow: '0 12px 40px rgba(25,118,210,0.15)',
+                borderColor: '#1976d2',
+                '&::before': {
+                    opacity: 1
+                }
+            },
+            transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
+            cursor: 'pointer',
+            animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
+        }}
+        onClick={() => onSelect(record)}
+    >
+        <Box
+            sx={{
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'flex-start',
+                position: 'relative',
+                zIndex: 1
+            }}
+        >
+            <Box sx={{ flex: 1, pr: 2 }}>
+                <Typography
+                    variant="body2"
+                    sx={{
+                        fontWeight: 700,
+                        mb: 2,
+                        background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                        backgroundClip: 'text',
+                        WebkitBackgroundClip: 'text',
+                        WebkitTextFillColor: 'transparent',
+                        lineHeight: 1.2
+                    }}
+                >
+                    {record.tenTTHC}
+                </Typography>
+
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                    <Chip
+                        label={record.maTTHC}
+                        size="small"
+                        variant="outlined"
+                        color="primary"
+                        sx={{
+                            fontWeight: 600,
+                            fontSize: '0.75rem'
+                        }}
+                    />
+                    <Chip
+                        label={record.linhVuc}
+                        size="small"
+                        variant="filled"
+                        color="secondary"
+                        sx={{
+                            fontWeight: 500,
+                            fontSize: '0.75rem'
+                        }}
+                    />
+                </Box>
+
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <PersonIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                    <Typography variant="body2" color="text.secondary">
+                        {record.doiTuong || 'Công dân Việt Nam'}
+                    </Typography>
+                </Box>
+            </Box>
+
+            <Box
+                sx={{
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2,
+                    alignItems: 'flex-end',
+                    minWidth: 140
+                }}
+            >
+                <Chip
+                    label="Sẵn sàng"
+                    color="success"
+                    size="small"
+                    variant="filled"
+                    sx={{
+                        fontWeight: 600,
+                        fontSize: '0.75rem',
+                        boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
+                    }}
+                />
+                <Button
+                    variant="contained"
+                    size="medium"
+                    startIcon={<EditIcon />}
+                    onClick={e => {
+                        e.stopPropagation();
+                        onSelect(record);
+                    }}
+                    sx={{
+                        borderRadius: 2,
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        px: 3,
+                        background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                        boxShadow: '0 4px 15px rgba(25,118,210,0.4)',
+                        '&:hover': {
+                            background: 'linear-gradient(45deg, #1565c0, #1976d2)',
+                            boxShadow: '0 6px 20px rgba(25,118,210,0.6)',
+                            transform: 'translateY(-2px)'
+                        },
+                        transition: 'all 0.3s ease'
+                    }}
+                >
+                    Tạo ngay
+                </Button>
+            </Box>
+        </Box>
+    </Paper>
+));
+
+TemplateCard.displayName = 'TemplateCard';
+
 // Apply data to Syncfusion editor
 const applyDataToSyncfusion = async (
     editor: DocumentEditorContainerComponent | null,
@@ -433,8 +615,6 @@ const applyDataToSyncfusion = async (
     }
 };
 
-
-
 // --- COMPONENT CHÍNH ---
 function TemplateFillerComponent() {
     // State cho danh sách mẫu
@@ -444,13 +624,12 @@ function TemplateFillerComponent() {
         thuTucByLinhVuc: {}
     });
 
-
     const handlePrintClick = () => {
         // Check if the ref and its properties are available
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
             sfContainerRef.current.documentEditor.print();
         } else {
-            console.error("Document editor not ready to print.");
+            console.error('Document editor not ready to print.');
         }
     };
 
@@ -459,7 +638,7 @@ function TemplateFillerComponent() {
             const fileName = editorState.selectedRecord?.tenFile || 'Document.docx';
             sfContainerRef.current.documentEditor.save(fileName, 'Docx');
         } else {
-            console.error("Document editor not ready to download.");
+            console.error('Document editor not ready to download.');
         }
     };
     const [filters, setFilters] = useState<FilterState>({
@@ -511,6 +690,18 @@ function TemplateFillerComponent() {
         return filterOptions.thuTucByLinhVuc[filters.linhVuc];
     }, [filters.linhVuc, filterOptions.thuTucByLinhVuc]);
 
+    // Memoized available templates for performance
+    const availableTemplates = useMemo(() => {
+        return filteredRecords.filter(r => r.isTemplateAvailable);
+    }, [filteredRecords]);
+
+    // Memoized statistics for header
+    const templateStats = useMemo(() => {
+        const available = filteredRecords.filter(r => r.isTemplateAvailable).length;
+        const total = filteredRecords.length;
+        return { available, total };
+    }, [filteredRecords]);
+
     // Event handlers
     const handleFilterChange = useCallback((filterType: keyof FilterState, value: string) => {
         setFilters(prev => {
@@ -535,7 +726,6 @@ function TemplateFillerComponent() {
         });
     }, []);
 
-
     //  Chọn template
     const handleSelectTemplate = useCallback(async (record: EnhancedTTHCRecord) => {
         console.log('🎯 Template selected:', record);
@@ -551,23 +741,6 @@ function TemplateFillerComponent() {
         // Test template URL immediately
         const templateUrl = buildDocxUrlForRecord(record);
         console.log('🔍 Testing template URL:', templateUrl);
-
-        // Test case
-        // try {
-        //     const testRes = await fetch(templateUrl, { method: 'HEAD' });
-        //     if (!testRes.ok) {
-        //         throw new Error(`Template not accessible: ${testRes.status} ${testRes.statusText}`);
-        //     }
-        //     console.log('✅ Template URL is accessible');
-        // } catch (error) {
-        //     console.error('❌ Template URL test failed:', error);
-        //     setSnackbar({
-        //         open: true,
-        //         message: `Không thể truy cập file mẫu: ${error}`,
-        //         severity: 'error'
-        //     });
-        //     return;
-        // }
 
         setEditorState(prev => ({
             ...prev,
@@ -599,16 +772,6 @@ function TemplateFillerComponent() {
             isProcessing: false
         });
     }, [editorState.socketStatus]);
-
-    // const handleCloseEditor = useCallback(() => {
-    //     setEditorState(prev => ({
-    //         ...prev,
-    //         showEditorModal: false,
-    //         selectedRecord: null,
-    //         syncfusionLoading: false,
-    //         syncfusionDocumentReady: false
-    //     }));
-    // }, []);
 
     const insertFieldIntoSyncfusion = useCallback((fieldPlaceholder: string) => {
         try {
@@ -950,8 +1113,6 @@ function TemplateFillerComponent() {
             // Apply data to Syncfusion editor
             const success = await applyDataToSyncfusion(sfContainerRef.current, processingData);
 
-
-
             if (success) {
                 setSnackbar({
                     open: true,
@@ -985,7 +1146,6 @@ function TemplateFillerComponent() {
         syncfusionReady: editorState.syncfusionDocumentReady
     });
 
-
     const handleKeyDown = async (e: React.KeyboardEvent) => {
         if (e.key === 'Enter') {
             e.preventDefault();
@@ -994,118 +1154,274 @@ function TemplateFillerComponent() {
     };
 
     return (
-        <Box sx={{ width: '100%', p: 0 }}>
-            {/* Filter Controls */}
-            <Card sx={{ mb: 3 }}>
-                <CardContent>
-                    <Box
+        <>
+            {/* <Global
+                styles={css`
+                    @keyframes fadeInUp {
+                        from {
+                            opacity: 0;
+                            transform: translateY(30px);
+                        }
+                        to {
+                            opacity: 1;
+                            transform: translateY(0);
+                        }
+                    }
+
+                    @keyframes pulse {
+                        0%,
+                        100% {
+                            opacity: 1;
+                            transform: scale(1);
+                        }
+                        50% {
+                            opacity: 0.7;
+                            transform: scale(0.95);
+                        }
+                    }
+
+                    @keyframes shimmer {
+                        0% {
+                            background-position: -200px 0;
+                        }
+                        100% {
+                            background-position: calc(200px + 100%) 0;
+                        }
+                    }
+
+                    .shimmer {
+                        background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
+                        background-size: 200px 100%;
+                        animation: shimmer 1.5s infinite;
+                    }
+                `}
+            /> */}
+            <Box
+                sx={{
+                    width: '100%',
+                    minHeight: '100vh',
+                    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
+                    p: { xs: 1, sm: 1, md: 1 }
+                }}
+            >
+                <Card
+                    sx={{
+                        mb: 4,
+                        borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        backdropFilter: 'blur(10px)',
+                        background: 'rgba(255,255,255,0.9)',
+                        border: '1px solid rgba(255,255,255,0.2)'
+                    }}
+                >
+                    <CardHeader
+                        title="🔍 Bộ lọc tìm kiếm"
                         sx={{
-                            display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                            gap: 2,
-                            mb: 2
+                            pb: 1,
+                            '& .MuiCardHeader-title': {
+                                fontSize: '1.1rem',
+                                fontWeight: 600
+                            }
                         }}
-                    >
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Lĩnh vực</InputLabel>
-                            <Select
-                                value={filters.linhVuc}
-                                label="Lĩnh vực"
-                                onChange={e => handleFilterChange('linhVuc', e.target.value)}
+                    />
+                    <CardContent sx={{ pt: 0 }}>
+                        <Box
+                            sx={{
+                                display: 'grid',
+                                gridTemplateColumns: {
+                                    xs: '1fr',
+                                    sm: '1fr 1fr',
+                                    md: 'repeat(3, 1fr)'
+                                },
+                                gap: 3,
+                                mb: 2
+                            }}
+                        >
+                            <FormControl
+                                fullWidth
+                                size="medium"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
+                                        },
+                                        '&.Mui-focused': {
+                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
+                                        }
+                                    }
+                                }}
                             >
-                                <MenuItem value="">Tất cả</MenuItem>
-                                {filterOptions.linhVuc.map(item => (
-                                    <MenuItem key={item} value={item}>
-                                        {item}
+                                <InputLabel sx={{ fontWeight: 500 }}>🏢 Lĩnh vực</InputLabel>
+                                <Select
+                                    value={filters.linhVuc}
+                                    label="🏢 Lĩnh vực"
+                                    onChange={e => handleFilterChange('linhVuc', e.target.value)}
+                                >
+                                    <MenuItem value="">
+                                        <em>Tất cả lĩnh vực</em>
                                     </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                                    {filterOptions.linhVuc.map(item => (
+                                        <MenuItem key={item} value={item}>
+                                            {item}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Thủ tục</InputLabel>
-                            <Select
-                                value={filters.thuTuc}
-                                label="Thủ tục"
-                                onChange={e => handleFilterChange('thuTuc', e.target.value)}
-                                disabled={!filters.linhVuc}
+                            <FormControl
+                                fullWidth
+                                size="medium"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
+                                        },
+                                        '&.Mui-focused': {
+                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
+                                        }
+                                    }
+                                }}
                             >
-                                <MenuItem value="">Tất cả</MenuItem>
-                                {availableThuTuc.map(item => (
-                                    <MenuItem key={item} value={item}>
-                                        {item}
+                                <InputLabel sx={{ fontWeight: 500 }}>📋 Thủ tục</InputLabel>
+                                <Select
+                                    value={filters.thuTuc}
+                                    label="📋 Thủ tục"
+                                    onChange={e => handleFilterChange('thuTuc', e.target.value)}
+                                    disabled={!filters.linhVuc}
+                                >
+                                    <MenuItem value="">
+                                        <em>Tất cả thủ tục</em>
                                     </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+                                    {availableThuTuc.map(item => (
+                                        <MenuItem key={item} value={item}>
+                                            {item}
+                                        </MenuItem>
+                                    ))}
+                                </Select>
+                            </FormControl>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Trạng thái mẫu</InputLabel>
-                            <Select
-                                value={filters.availability}
-                                label="Trạng thái mẫu"
-                                onChange={e => handleFilterChange('availability', e.target.value)}
+                            <FormControl
+                                fullWidth
+                                size="medium"
+                                sx={{
+                                    '& .MuiOutlinedInput-root': {
+                                        borderRadius: 2,
+                                        transition: 'all 0.3s ease',
+                                        '&:hover': {
+                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
+                                        },
+                                        '&.Mui-focused': {
+                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
+                                        }
+                                    }
+                                }}
                             >
-                                <MenuItem value="all">Tất cả</MenuItem>
-                                <MenuItem value="available">Có sẵn mẫu</MenuItem>
-                                <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
-                    {/*
+                                <InputLabel sx={{ fontWeight: 500 }}>✅ Trạng thái mẫu</InputLabel>
+                                <Select
+                                    value={filters.availability}
+                                    label="✅ Trạng thái mẫu"
+                                    onChange={e =>
+                                        handleFilterChange('availability', e.target.value)
+                                    }
+                                >
+                                    <MenuItem value="all">
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <span>📂</span> Tất cả
+                                        </Box>
+                                    </MenuItem>
+                                    <MenuItem value="available">
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <span>✅</span> Có sẵn mẫu
+                                        </Box>
+                                    </MenuItem>
+                                    <MenuItem value="unavailable">
+                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                            <span>❌</span> Chưa có mẫu
+                                        </Box>
+                                    </MenuItem>
+                                </Select>
+                            </FormControl>
+                        </Box>
+                        {/*
                     <Button variant="outlined" onClick={handleClearFilters} size="small">
                         Xóa bộ lọc
                     </Button> */}
-                </CardContent>
-            </Card>
+                    </CardContent>
+                </Card>
 
-            {/* Template List */}
-            <Card>
-                <CardContent>
-                    <Box
+                {/* Template List */}
+                <Card
+                    sx={{
+                        borderRadius: 3,
+                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        backdropFilter: 'blur(10px)',
+                        background: 'rgba(255,255,255,0.95)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        transition: 'all 0.3s ease'
+                    }}
+                >
+                    <CardHeader
+                        title="📚 Danh sách mẫu đơn"
                         sx={{
-                            display: 'flex',
-                            justifyContent: 'space-between',
-                            alignItems: 'center',
-                            mb: 2
+                            pb: 1,
+                            '& .MuiCardHeader-title': {
+                                fontSize: '1.1rem',
+                                fontWeight: 600
+                            }
                         }}
-                    >
-                        <Box sx={{ display: 'flex', gap: 1 }}>
-                            <Chip
-                                icon={<CheckCircleIcon />}
-                                label={`${filteredRecords.filter(r => r.isTemplateAvailable).length} có mẫu`}
-                                color="success"
-                                size="small"
-                                variant="outlined"
-                            />
-                        </Box>
-                    </Box>
-
-                    {csvLoading ? (
-                        <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                            <CircularProgress />
-                        </Box>
-                    ) : (
-                        <Box sx={{ maxHeight: '60vh', overflowY: 'auto' }}>
-                            {filteredRecords
-                                .filter(r => r.isTemplateAvailable)
-                                .map((record, index) => (
-                                    <Paper
-                                        key={index}
-                                        variant="outlined"
+                        action={
+                            <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                                <Chip
+                                    icon={<CheckCircleIcon />}
+                                    label={`${templateStats.available} có sẵn`}
+                                    color="success"
+                                    size="small"
+                                    variant="filled"
+                                    sx={{
+                                        fontWeight: 600,
+                                        '& .MuiChip-icon': {
+                                            color: 'inherit'
+                                        }
+                                    }}
+                                />
+                                <Chip
+                                    label={`${templateStats.total} tổng cộng`}
+                                    color="primary"
+                                    size="small"
+                                    variant="outlined"
+                                    sx={{ fontWeight: 500 }}
+                                />
+                            </Box>
+                        }
+                    />
+                    <CardContent sx={{ pt: 0 }}>
+                        {csvLoading ? (
+                            <Box sx={{ p: 2 }}>
+                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
+                                    <CircularProgress size={24} />
+                                    <Typography
+                                        variant="body1"
+                                        color="primary"
+                                        sx={{ fontWeight: 500 }}
+                                    >
+                                        🔄 Đang tải danh sách mẫu đơn...
+                                    </Typography>
+                                </Box>
+                                {/* Skeleton Loading */}
+                                {[1, 2, 3].map(item => (
+                                    <Box
+                                        key={item}
                                         sx={{
-                                            p: 2,
-                                            mb: 2,
+                                            mb: 3,
+                                            p: 3,
                                             borderRadius: 2,
                                             border: '1px solid #e0e0e0',
-                                            '&:hover': {
-                                                boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                                borderColor: '#1976d2'
-                                            },
-                                            transition: 'all 0.2s ease-in-out',
-                                            cursor: 'pointer'
+                                            animation: 'pulse 1.5s ease-in-out infinite alternate'
                                         }}
-                                        onClick={() => handleSelectTemplate(record)}
                                     >
                                         <Box
                                             sx={{
@@ -1115,26 +1431,35 @@ function TemplateFillerComponent() {
                                             }}
                                         >
                                             <Box sx={{ flex: 1 }}>
-                                                <Typography
-                                                    variant="subtitle1"
-                                                    color="primary"
-                                                    sx={{ fontWeight: 'bold', mb: 1 }}
-                                                >
-                                                    {record.maTTHC} - {record.tenTTHC}
-                                                </Typography>
-                                                <Typography
-                                                    variant="body2"
-                                                    color="text.secondary"
-                                                    sx={{ mb: 1 }}
-                                                >
-                                                    Lĩnh vực: {record.linhVuc}
-                                                </Typography>
-                                                <Typography variant="body2" color="text.secondary">
-                                                    Đối tượng:{' '}
-                                                    {record.doiTuong || 'Công dân Việt Nam'}
-                                                </Typography>
+                                                <Box
+                                                    sx={{
+                                                        height: 24,
+                                                        bgcolor: '#f0f0f0',
+                                                        borderRadius: 1,
+                                                        mb: 2,
+                                                        width: '70%',
+                                                        animation:
+                                                            'shimmer 1.5s ease-in-out infinite'
+                                                    }}
+                                                />
+                                                <Box
+                                                    sx={{
+                                                        height: 16,
+                                                        bgcolor: '#f5f5f5',
+                                                        borderRadius: 1,
+                                                        mb: 1,
+                                                        width: '50%'
+                                                    }}
+                                                />
+                                                <Box
+                                                    sx={{
+                                                        height: 16,
+                                                        bgcolor: '#f5f5f5',
+                                                        borderRadius: 1,
+                                                        width: '60%'
+                                                    }}
+                                                />
                                             </Box>
-
                                             <Box
                                                 sx={{
                                                     display: 'flex',
@@ -1143,58 +1468,227 @@ function TemplateFillerComponent() {
                                                     alignItems: 'flex-end'
                                                 }}
                                             >
-                                                <Chip
-                                                    label="Có sẵn mẫu"
-                                                    color="success"
-                                                    size="small"
-                                                    icon={<CheckCircleIcon />}
-                                                />
-                                                <Button
-                                                    variant="contained"
-                                                    color="primary"
-                                                    size="small"
-                                                    startIcon={<EditIcon />}
-                                                    onClick={e => {
-                                                        e.stopPropagation();
-                                                        handleSelectTemplate(record);
+                                                <Box
+                                                    sx={{
+                                                        height: 24,
+                                                        width: 80,
+                                                        bgcolor: '#e8f5e8',
+                                                        borderRadius: 12
                                                     }}
-                                                >
-                                                    Tạo trực tuyến
-                                                </Button>
+                                                />
+                                                <Box
+                                                    sx={{
+                                                        height: 32,
+                                                        width: 120,
+                                                        bgcolor: '#e3f2fd',
+                                                        borderRadius: 1
+                                                    }}
+                                                />
                                             </Box>
                                         </Box>
-                                    </Paper>
+                                    </Box>
+                                ))}
+                            </Box>
+                        ) : (
+                            <Box
+                                sx={{
+                                    maxHeight: '65vh',
+                                    overflowY: 'auto',
+                                    pr: 1,
+                                    pt: 1,
+                                    '&::-webkit-scrollbar': {
+                                        width: '8px'
+                                    },
+                                    '&::-webkit-scrollbar-track': {
+                                        background: '#f1f1f1',
+                                        borderRadius: '4px'
+                                    },
+                                    '&::-webkit-scrollbar-thumb': {
+                                        background: '#c1c1c1',
+                                        borderRadius: '4px',
+                                        '&:hover': {
+                                            background: '#a8a8a8'
+                                        }
+                                    }
+                                }}
+                            >
+                                {availableTemplates.map((record, index) => (
+                                    <TemplateCard
+                                        key={`${record.maTTHC}-${index}`}
+                                        record={record}
+                                        index={index}
+                                        onSelect={handleSelectTemplate}
+                                    />
                                 ))}
 
-                            {filteredRecords.filter(r => r.isTemplateAvailable).length === 0 && (
-                                <Paper sx={{ p: 4, textAlign: 'center' }}>
-                                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                                        Không tìm thấy mẫu đơn nào
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp
-                                    </Typography>
-                                </Paper>
-                            )}
-                        </Box>
-                    )}
-                </CardContent>
-            </Card>
+                                {templateStats.available === 0 && (
+                                    <Paper
+                                        sx={{
+                                            p: 6,
+                                            textAlign: 'center',
+                                            borderRadius: 3,
+                                            background:
+                                                'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                                            border: '2px dashed #dee2e6'
+                                        }}
+                                    >
+                                        <Box sx={{ mb: 3 }}>
+                                            <Typography
+                                                variant="h1"
+                                                sx={{
+                                                    fontSize: '4rem',
+                                                    opacity: 0.7,
+                                                    mb: 2
+                                                }}
+                                            >
+                                                📄
+                                            </Typography>
+                                        </Box>
+                                        <Typography
+                                            variant="h5"
+                                            color="text.secondary"
+                                            sx={{
+                                                mb: 2,
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            Không tìm thấy mẫu đơn nào
+                                        </Typography>
+                                        <Typography
+                                            variant="body1"
+                                            color="text.secondary"
+                                            sx={{ mb: 3 }}
+                                        >
+                                            Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp với nhu
+                                            cầu của bạn
+                                        </Typography>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleClearFilters}
+                                            sx={{
+                                                borderRadius: 2,
+                                                textTransform: 'none',
+                                                fontWeight: 600
+                                            }}
+                                        >
+                                            🔄 Xóa tất cả bộ lọc
+                                        </Button>
+                                    </Paper>
+                                )}
+                            </Box>
+                        )}
+                    </CardContent>
+                </Card>
 
-            {/* Syncfusion Editor Modal */}
-            <Dialog
-                open={editorState.showEditorModal}
-                onClose={handleCloseEditor}
-                maxWidth="2xl"
-                fullWidth
-                sx={{
-                    '& .MuiDialog-paper': {
-                        height: '95vh',
-                        maxHeight: '95vh'
-                    }
-                }}
-            >
-                {/* <DialogTitle
+                {/* Syncfusion Editor Modal */}
+                <Dialog
+                    open={editorState.showEditorModal}
+                    onClose={handleCloseEditor}
+                    maxWidth={false}
+                    fullWidth
+                    sx={{
+                        '& .MuiDialog-paper': {
+                            width: { xs: '100vw', sm: '95vw' },
+                            height: { xs: '100vh', sm: '95vh' },
+                            maxHeight: { xs: '100vh', sm: '95vh' },
+                            maxWidth: { xs: '100vw', sm: '95vw' },
+                            borderRadius: { xs: 0, sm: 3 },
+                            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                            boxShadow: '0 24px 48px rgba(0,0,0,0.2)',
+                            overflow: 'hidden',
+                            margin: { xs: 0, sm: 'auto' }
+                        },
+                        '& .MuiBackdrop-root': {
+                            backgroundColor: 'rgba(0,0,0,0.8)',
+                            backdropFilter: 'blur(4px)'
+                        }
+                    }}
+                >
+                    {/* Enhanced Header */}
+                    <Box
+                        sx={{
+                            background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                            color: 'white',
+                            p: 3,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            boxShadow: '0 4px 20px rgba(25,118,210,0.3)'
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+                            <Box sx={{ minWidth: 0, flex: 1 }}>
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        fontWeight: 500,
+                                        mb: 0.5,
+                                        // fontSize: { xs: '0.9rem', sm: '1.25rem' },
+                                        fontSize: '1rem',
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: { xs: 'nowrap', sm: 'normal' }
+                                    }}
+                                >
+                                    {editorState.selectedRecord?.tenTTHC}
+                                </Typography>
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        opacity: 0.9,
+                                        fontSize: { xs: '0.75rem', sm: '0.875rem' },
+                                        overflow: 'hidden',
+                                        textOverflow: 'ellipsis',
+                                        whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    {editorState.selectedRecord?.maTTHC} •{' '}
+                                    {editorState.selectedRecord?.linhVuc}
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: { xs: 1, sm: 2 } }}>
+                            {/* {scanState.inputMode !== 'scanner' && (
+                                <Chip
+                                    icon={<WifiIcon />}
+                                    label={socketStatus === 'connected' ? '🟢 AI' : '🔴 Lỗi'}
+                                    variant="filled"
+                                    size={window.innerWidth < 600 ? 'small' : 'medium'}
+                                    sx={{
+                                        backgroundColor:
+                                            socketStatus === 'connected'
+                                                ? 'rgba(76,175,80,0.3)'
+                                                : 'rgba(244,67,54,0.3)',
+                                        color: 'white',
+                                        fontWeight: 600,
+                                        fontSize: { xs: '0.7rem', sm: '0.8rem' },
+                                        display: { xs: 'none', sm: 'flex' },
+                                        '& .MuiChip-icon': {
+                                            color: 'white'
+                                        }
+                                    }}
+                                />
+                            )} */}
+                            <IconButton
+                                onClick={handleCloseEditor}
+                                size={window.innerWidth < 600 ? 'small' : 'medium'}
+                                sx={{
+                                    color: 'white',
+                                    backgroundColor: 'rgba(255,255,255,0.1)',
+                                    '&:hover': {
+                                        backgroundColor: 'rgba(255,255,255,0.2)',
+                                        transform: 'scale(1.1)'
+                                    },
+                                    transition: 'all 0.2s ease'
+                                }}
+                            >
+                                <CloseIcon
+                                    fontSize={window.innerWidth < 600 ? 'small' : 'medium'}
+                                />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                    {/* <DialogTitle
                     sx={{
                         display: 'flex',
                         justifyContent: 'space-between',
@@ -1216,7 +1710,7 @@ function TemplateFillerComponent() {
                     )}
                 </DialogTitle> */}
 
-                {/* <Divider
+                    {/* <Divider
                     style={{
                         paddingLeft: 1,
                         paddingRight: 1,
@@ -1224,90 +1718,112 @@ function TemplateFillerComponent() {
                     }}
                 /> */}
 
-                <DialogContent sx={{ p: 1, height: '100%' }}>
-                    <Box
+                    <DialogContent
                         sx={{
-                            display: 'flex',
-                            flexDirection: 'row',
-                            width: '100%',
-                            height: '100%'
+                            p: 0,
+                            height: 'calc(100% - 120px)',
+                            background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)'
                         }}
                     >
-                        <Card
+                        <Box
                             sx={{
-                                position: 'relative',
+                                display: 'flex',
+                                flexDirection: { xs: 'column', lg: 'row' },
+                                width: '100%',
                                 height: '100%',
-                                width: '70%',
-                                // borderRadius: 1
+                                gap: { xs: 1, sm: 2 },
+                                p: { xs: 1, sm: 2 }
                             }}
                         >
-                            <Box
-                                p={1}
+                            <Card
                                 sx={{
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'space-between',
-
+                                    position: 'relative',
+                                    height: { xs: '60%', lg: '100%' },
+                                    width: { xs: '100%', lg: '70%' },
+                                    borderRadius: { xs: 2, sm: 3 },
+                                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                    background: 'rgba(255,255,255,0.95)',
+                                    overflow: 'hidden'
                                 }}
                             >
-                                <Typography variant="subtitle2" fontWeight={'bold'}>
-                                    Mẫu đơn/tờ khai
-                                </Typography>
-                                <Box gap={1} sx={{
-                                    display:'flex',
-                                }}>
-                                  <Box>
-                                      <Button
-                                          variant="outlined"
-                                          onClick={handleDownloadClick}
-                                          startIcon={<Download />}
-                                          disabled={!editorState.syncfusionDocumentReady}
-                                      >
-                                          Tải xuống
-                                      </Button>
-                                  </Box>
-                               <Box>
-                                   <Button
-                                       variant="outlined"
-                                       onClick={handlePrintClick}
-                                       startIcon={<PrintIcon />}
-                                       disabled={!editorState.syncfusionDocumentReady}
-                                   >
-                                       In
-                                   </Button>
-                               </Box>
-                                </Box>
-                            </Box>
-                            <CardContent
-                                sx={{
-                                    height: '100%'
-                                }}
-                            >
-                                {editorState.syncfusionLoading && (
-                                    <Box
-                                        sx={{
-                                            position: 'absolute',
-                                            top: 0,
-                                            left: 0,
-                                            right: 0,
-                                            bottom: 0,
-                                            backgroundColor: 'rgba(255, 255, 255, 0.8)',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center',
-                                            zIndex: 1000,
-                                            flexDirection: 'column',
-                                            gap: 2
-                                        }}
-                                    >
-                                        <CircularProgress />
-                                        <Typography variant="body2" color="text.secondary">
-                                            Đang tải tài liệu...
+                                <Box
+                                    sx={{
+                                        background:
+                                            'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                                        borderBottom: '1px solid rgba(0,0,0,0.1)',
+                                        p: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between'
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                        {/* <Box
+                                            sx={{
+                                                width: 32,
+                                                height: 32,
+                                                borderRadius: '50%',
+                                                background:
+                                                    'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                display: 'flex',
+                                                alignItems: 'center',
+                                                justifyContent: 'center',
+                                                color: 'white',
+                                                fontSize: '1rem'
+                                            }}
+                                        ></Box> */}
+                                        <Typography
+                                            variant="body1"
+                                            sx={{ fontWeight: 700, color: 'primary.main' }}
+                                        >
+                                            Mẫu đơn/tờ khai
                                         </Typography>
                                     </Box>
-                                )}
-                                {!editorState.syncfusionDocumentReady &&
-                                    !editorState.syncfusionLoading && (
+                                    <Box sx={{ display: 'flex', gap: 1 }}>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handleDownloadClick}
+                                            startIcon={<Download />}
+                                            disabled={!editorState.syncfusionDocumentReady}
+                                            sx={{
+                                                borderRadius: 2,
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                '&:hover': {
+                                                    transform: 'translateY(-2px)',
+                                                    boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
+                                                },
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            Tải xuống
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
+                                            onClick={handlePrintClick}
+                                            startIcon={<PrintIcon />}
+                                            disabled={!editorState.syncfusionDocumentReady}
+                                            sx={{
+                                                borderRadius: 2,
+                                                textTransform: 'none',
+                                                fontWeight: 600,
+                                                '&:hover': {
+                                                    transform: 'translateY(-2px)',
+                                                    boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
+                                                },
+                                                transition: 'all 0.2s ease'
+                                            }}
+                                        >
+                                            In
+                                        </Button>
+                                    </Box>
+                                </Box>
+                                <CardContent
+                                    sx={{
+                                        height: '100%'
+                                    }}
+                                >
+                                    {editorState.syncfusionLoading && (
                                         <Box
                                             sx={{
                                                 position: 'absolute',
@@ -1315,36 +1831,64 @@ function TemplateFillerComponent() {
                                                 left: 0,
                                                 right: 0,
                                                 bottom: 0,
-                                                backgroundColor: 'rgba(245, 245, 245, 0.9)',
+                                                backgroundColor: 'rgba(255, 255, 255, 0.8)',
                                                 display: 'flex',
                                                 alignItems: 'center',
                                                 justifyContent: 'center',
-                                                zIndex: 999,
+                                                zIndex: 1000,
                                                 flexDirection: 'column',
                                                 gap: 2
                                             }}
                                         >
-                                            <InfoIcon color="info" sx={{ fontSize: 48 }} />
-                                            <Typography variant="h6" color="text.secondary">
-                                                Đang chuẩn bị tài liệu
+                                            <CircularProgress />
+                                            <Typography variant="body2" color="text.secondary">
+                                                Đang tải tài liệu...
                                             </Typography>
                                         </Box>
                                     )}
-                                <DocumentEditorContainerComponent
-                                    id="sf-docx-editor-modal"
-                                    ref={sfContainerRef}
-                                    serviceUrl={SYNCFUSION_SERVICE_URL}
-                                    enableToolbar={false}
-                                    showPropertiesPane={false}
-                                    height={'100%'}
-                                    style={{ display: 'block',borderWidth: 0, borderColor: 0 }}
-                                    toolbarMode={'Toolbar'}
-                                    locale="vi-VN"
-                                />
-                            </CardContent>
+                                    {!editorState.syncfusionDocumentReady &&
+                                        !editorState.syncfusionLoading && (
+                                            <Box
+                                                sx={{
+                                                    position: 'absolute',
+                                                    top: 0,
+                                                    left: 0,
+                                                    right: 0,
+                                                    bottom: 0,
+                                                    backgroundColor: 'rgba(245, 245, 245, 0.9)',
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    zIndex: 999,
+                                                    flexDirection: 'column',
+                                                    gap: 2
+                                                }}
+                                            >
+                                                <InfoIcon color="info" sx={{ fontSize: 48 }} />
+                                                <Typography variant="h6" color="text.secondary">
+                                                    Đang chuẩn bị tài liệu
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    <DocumentEditorContainerComponent
+                                        id="sf-docx-editor-modal"
+                                        ref={sfContainerRef}
+                                        serviceUrl={SYNCFUSION_SERVICE_URL}
+                                        enableToolbar={false}
+                                        showPropertiesPane={false}
+                                        height={'100%'}
+                                        style={{
+                                            display: 'block',
+                                            borderWidth: '0',
+                                            borderColor: '0'
+                                        }}
+                                        toolbarMode={'Toolbar'}
+                                        locale="vi-VN"
+                                    />
+                                </CardContent>
 
-                            {/* Quick Insert Field Panel */}
-                            {/* {editorState.syncfusionDocumentReady && (
+                                {/* Quick Insert Field Panel */}
+                                {/* {editorState.syncfusionDocumentReady && (
                                 <Box
                                     sx={{
                                         position: 'absolute',
@@ -1472,125 +2016,301 @@ function TemplateFillerComponent() {
                                     </Typography>
                                 </Box>
                             )} */}
-                        </Card>
-                        {/* Right Panel - Quét & điền tự động */}
-                        <Card
-                            sx={{
-                                width: '30%',
-                                height: '100%',
-                                ml: 1,
-                                // borderRadius: 1
-                            }}
-                        >
-                            <CardContent sx={{ p: 2, height: '100%' }}>
-                                <Typography variant="body2" sx={{ mb: 2, fontWeight: 'bold' }}>
-                                    Quét & điền tự động
-                                </Typography>
-
-                                {/* Toggle Buttons */}
-                                <Box sx={{ mb: 3 }}>
-                                    <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
-                                        <Button
-                                            variant={
-                                                scanState.inputMode === 'ntsoft'
-                                                    ? 'contained'
-                                                    : 'outlined'
-                                            }
-                                            startIcon={<SmartphoneIcon />}
-                                            size="small"
-                                            sx={{ flex: 1, textTransform: 'none' }}
-                                            onClick={() => handleInputModeChange('ntsoft')}
-                                        >
-                                            NTSoft Document AI
-                                        </Button>
-                                        <Button
-                                            variant={
-                                                scanState.inputMode === 'scanner'
-                                                    ? 'contained'
-                                                    : 'outlined'
-                                            }
-                                            startIcon={<AdfScannerIcon />}
-                                            size="small"
-                                            sx={{ flex: 1, textTransform: 'none' }}
-                                            onClick={() => handleInputModeChange('scanner')}
-                                        >
-                                            Máy quét
-                                        </Button>
+                            </Card>
+                            {/* Right Panel - Quét & điền tự động */}
+                            <Card
+                                sx={{
+                                    width: { xs: '100%', lg: '30%' },
+                                    height: { xs: '40%', lg: '100%' },
+                                    borderRadius: { xs: 2, sm: 3 },
+                                    boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                                    background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                                    overflow: 'hidden'
+                                }}
+                            >
+                                {/* <Box
+                                    sx={{
+                                        background:
+                                            'linear-gradient(135deg, #667eea 0%, #764ba2 100%)',
+                                        color: 'white',
+                                        p: 2,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 2,
+                                        borderBottom: '1px solid rgba(0,0,0,0.1)'
+                                    }}
+                                >
+                                    <Box
+                                        sx={{
+                                            width: 32,
+                                            height: 32,
+                                            borderRadius: '50%',
+                                            background: 'rgba(255,255,255,0.2)',
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            justifyContent: 'center',
+                                            fontSize: '1rem'
+                                        }}
+                                    >
+                                        🤖
                                     </Box>
-                                    {scanState.inputMode !== 'scanner' ? (
-                                       <Box gap={5} sx={{
-                                           gap: 3
-                                       }}>
-                                          <Box>
-                                              <Chip
-                                                  icon={<WifiIcon />}
-                                                  label={
-                                                      socketStatus === 'connected' ? 'Đã kết nối' : 'Mất kết nối ngắt'
-                                                  }
-                                                  color={socketStatus === 'connected' ? 'success' : 'default'}
-                                                  size="small"
-                                              />
-                                          </Box>
-                                          <Box>
-                                              <Typography
-                                              variant="body2"
-                                              color="text.secondary"
-                                              sx={{ mb: 1,fontSize: 12, mt: 2 }}
-                                          >
-                                              Mở ứng dụng di động <strong>NTSoft Document AI</strong> để
-                                              quét QR CCCD/giấy tờ.Ứng dụng sẽ tự dộng chèn vào biểu mẫu
-                                          </Typography></Box>
-                                       </Box>
-                                    ) : (
-                                      <>
-                                          <Typography
-                                              variant="body2"
-                                              color="text.secondary"
-                                              sx={{ mb: 1 }}
-                                          >
-                                              Đặt con trỏ chuột vào ô trống bên dưới.
-                                              Sau đó, bạn có thể dùng máy quét để quét mã hoặc dán nội dung trực tiếp vào ô. Mã/nội dung sẽ tự động xuất hiện ở đó.
-                                          </Typography>
+                                    <Typography variant="h6" sx={{ fontWeight: 700 }}>
+                                        🚀 AI Assistant
+                                    </Typography>
+                                </Box> */}
+                                <CardContent
+                                    sx={{ p: 3, height: 'calc(100% - 60px)', overflow: 'auto' }}
+                                >
+                                    {/* <Typography
+                                        variant="subtitle1"
+                                        sx={{
+                                            mb: 3,
+                                            fontWeight: 700,
+                                            color: 'primary.main',
+                                            textAlign: 'center'
+                                        }}
+                                    >
+                                        ⚡ Quét & điền tự động
+                                    </Typography> */}
 
-                                      </>
-                                    )}
-
-                                </Box>
-
-                                {/* Input Section */}
-                                {scanState.inputMode === 'scanner' && (
-                                    <>
-                                        <Box sx={{ mb: 3 }}>
-                                            <Typography
-                                                variant="body2"
-                                                fontWeight="bold"
-                                                sx={{ mb: 1 }}
-                                            >
-                                                Dán chuỗi dữ liệu trả về sau đó thực hiện ấn phim enter:
-                                            </Typography>
-                                            <TextField
-                                                autoFocus
-                                                multiline
-                                                rows={4}
-                                                fullWidth
-                                                value={scanState.inputText}
-                                                onKeyDown={handleKeyDown}
-                                                onChange={(
-                                                    e: React.ChangeEvent<HTMLInputElement>
-                                                ) => handleInputTextChange(e.target.value)}
-                                                placeholder='VD: 012345678901|NGUYEN VAN A|01/01/1990|Nam|Hà Nội|01/01/2022 hoặc {"cccd":"012345678901",...}'
-                                                variant="outlined"
-                                                size="small"
+                                    {/* Toggle Buttons */}
+                                    <Box sx={{ mb: 4 }}>
+                                        {/* <Typography
+                                            variant="body2"
+                                            sx={{
+                                                mb: 2,
+                                                fontWeight: 600,
+                                                color: 'text.secondary',
+                                                textAlign: 'center'
+                                            }}
+                                        >
+                                            Chọn phương thức nhập liệu
+                                        </Typography> */}
+                                        <Box
+                                            sx={{
+                                                display: 'flex',
+                                                gap: 1,
+                                                mb: 3,
+                                                p: 1,
+                                                background: 'rgba(0,0,0,0.05)',
+                                                borderRadius: 2
+                                            }}
+                                        >
+                                            <Button
+                                                variant={
+                                                    scanState.inputMode === 'ntsoft'
+                                                        ? 'contained'
+                                                        : 'outlined'
+                                                }
+                                                startIcon={<SmartphoneIcon />}
+                                                size="medium"
                                                 sx={{
-                                                    '& .MuiInputBase-input': {
-                                                        fontSize: '0.875rem',
-                                                        fontFamily: 'monospace'
-                                                    }
+                                                    flex: 1,
+                                                    textTransform: 'none',
+                                                    borderRadius: 1.5,
+                                                    fontWeight: 600,
+                                                    ...(scanState.inputMode === 'ntsoft' && {
+                                                        background:
+                                                            'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                        boxShadow: '0 4px 15px rgba(25,118,210,0.4)'
+                                                    })
                                                 }}
-                                            />
+                                                onClick={() => handleInputModeChange('ntsoft')}
+                                            >
+                                                NTSoft AI
+                                            </Button>
+                                            <Button
+                                                variant={
+                                                    scanState.inputMode === 'scanner'
+                                                        ? 'contained'
+                                                        : 'outlined'
+                                                }
+                                                startIcon={<AdfScannerIcon />}
+                                                size="medium"
+                                                sx={{
+                                                    flex: 1,
+                                                    textTransform: 'none',
+                                                    borderRadius: 1.5,
+                                                    fontWeight: 600,
+                                                    ...(scanState.inputMode === 'scanner' && {
+                                                        background:
+                                                            'linear-gradient(45deg, #9c27b0, #e91e63)',
+                                                        boxShadow: '0 4px 15px rgba(156,39,176,0.4)'
+                                                    })
+                                                }}
+                                                onClick={() => handleInputModeChange('scanner')}
+                                            >
+                                                Scanner
+                                            </Button>
                                         </Box>
-                                        {/* Action Button */}
-                                        {/* <Button
+                                        {scanState.inputMode !== 'scanner' ? (
+                                            <Box
+                                                sx={{
+                                                    // background:
+                                                    //     'linear-gradient(135deg, #e3f2fd 0%, #f3e5f5 100%)',
+                                                    borderRadius: 2,
+                                                    p: 2,
+                                                    border: '1px solid rgba(25,118,210,0.2)'
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        justifyContent: 'center',
+                                                        mb: 2
+                                                    }}
+                                                >
+                                                    <Chip
+                                                        icon={
+                                                            <WifiIcon
+                                                                style={{
+                                                                    color: 'white'
+                                                                }}
+                                                            />
+                                                        }
+                                                        label={
+                                                            socketStatus === 'connected'
+                                                                ? 'Đã kết nối'
+                                                                : 'Mất kết nối'
+                                                        }
+                                                        variant="filled"
+                                                        sx={{
+                                                            backgroundColor:
+                                                                socketStatus === 'connected'
+                                                                    ? 'success.main'
+                                                                    : 'error.main',
+                                                            color: 'white',
+                                                            fontWeight: 600,
+                                                            animation:
+                                                                socketStatus === 'connected'
+                                                                    ? 'pulse 2s infinite'
+                                                                    : 'none'
+                                                        }}
+                                                    />
+                                                </Box>
+                                                <Box sx={{ textAlign: 'center' }}>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{
+                                                            mb: 1,
+                                                            fontWeight: 600,
+                                                            color: 'primary.main'
+                                                        }}
+                                                    >
+                                                        Hướng dẫn sử dụng
+                                                    </Typography>
+                                                    <Typography
+                                                        variant="body2"
+                                                        color="text.secondary"
+                                                        sx={{
+                                                            lineHeight: 1.2,
+                                                            fontStyle: 'italic'
+                                                        }}
+                                                    >
+                                                        1. Mở ứng dụng{' '}
+                                                        <strong>NTSoft Document AI</strong>
+                                                        <br />
+                                                        2. Quét QR code CCCD/CMND
+                                                        <br />
+                                                        3. Dữ liệu sẽ tự động điền vào mẫu đơn
+                                                    </Typography>
+                                                </Box>
+                                            </Box>
+                                        ) : (
+                                            <Box
+                                                sx={{
+                                                    // background:
+                                                    //     'linear-gradient(135deg, #fce4ec 0%, #f3e5f5 100%)',
+                                                    borderRadius: 2,
+                                                    p: 2,
+                                                    border: '1px solid rgba(156,39,176,0.2)'
+                                                }}
+                                            >
+                                                <Box sx={{ textAlign: 'center', mb: 2 }}>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{
+                                                            fontWeight: 600,
+                                                            color: 'secondary.main'
+                                                        }}
+                                                    >
+                                                        Hướng dẫn sử dụng
+                                                    </Typography>
+                                                </Box>
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{
+                                                        lineHeight: 1.6,
+                                                        fontStyle: 'italic',
+                                                        textAlign: 'center'
+                                                    }}
+                                                >
+                                                    1. Đặt con trỏ vào ô nhập liệu
+                                                    <br />
+                                                    2. Kết nối máy quét và quét
+                                                    <br />
+                                                    3. <strong>Dữ liệu</strong> sẽ tự động chèn vào
+                                                </Typography>
+                                            </Box>
+                                        )}
+                                    </Box>
+
+                                    {/* Input Section */}
+                                    {scanState.inputMode === 'scanner' && (
+                                        <>
+                                            <Box sx={{ mb: 4 }}>
+                                                {/* <Typography
+                                                    variant="subtitle2"
+                                                    sx={{
+                                                        mb: 2,
+                                                        fontWeight: 700,
+                                                        color: 'secondary.main',
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: 1
+                                                    }}
+                                                >
+                                                    ⌨️ Nhập dữ liệu để xử lý:
+                                                </Typography> */}
+                                                <TextField
+                                                    autoFocus
+                                                    multiline
+                                                    rows={5}
+                                                    fullWidth
+                                                    value={scanState.inputText}
+                                                    onKeyDown={handleKeyDown}
+                                                    onChange={(
+                                                        e: React.ChangeEvent<HTMLInputElement>
+                                                    ) => handleInputTextChange(e.target.value)}
+                                                    placeholder="Ví dụ: 012345678901|NGUYEN VAN A|01/01/1990|Nam|Hà Nội|01/01/2022
+                                                    ✨ Nhấn Enter để xử lý dữ liệu"
+                                                    variant="outlined"
+                                                    sx={{
+                                                        '& .MuiOutlinedInput-root': {
+                                                            borderRadius: 2,
+                                                            background:
+                                                                'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)'
+                                                            // '&:hover': {
+                                                            //     boxShadow:
+                                                            //         '0 4px 12px rgba(156,39,176,0.15)'
+                                                            // },
+                                                            // '&.Mui-focused': {
+                                                            //     boxShadow:
+                                                            //         '0 4px 20px rgba(156,39,176,0.25)'
+                                                            // }
+                                                        },
+                                                        '& .MuiInputBase-input': {
+                                                            fontSize: '0.9rem',
+                                                            fontFamily:
+                                                                'Monaco, "Lucida Console", monospace',
+                                                            lineHeight: 1.6
+                                                        }
+                                                    }}
+                                                />
+                                            </Box>
+                                            {/* Action Button */}
+                                            {/* <Button
                                             variant="contained"
                                             color="primary"
                                             size="medium"
@@ -1614,214 +2334,253 @@ function TemplateFillerComponent() {
                                                 ? 'Đang xử lý...'
                                                 : 'Phân tích & điền'}
                                         </Button> */}
-                                    </>
-                                )}
+                                        </>
+                                    )}
 
-                                <Divider />
+                                    <Box sx={{ my: 3 }}>
+                                        <Divider
+                                            sx={{
+                                                borderColor: 'rgba(0,0,0,0.1)',
+                                                '&::before, &::after': {
+                                                    borderColor: 'rgba(0,0,0,0.1)'
+                                                }
+                                            }}
+                                        >
+                                            <Chip
+                                                label="Dữ liệu đã trích xuất"
+                                                size="small"
+                                                sx={{
+                                                    backgroundColor: 'primary.main',
+                                                    color: 'white',
+                                                    fontWeight: 600
+                                                }}
+                                            />
+                                        </Divider>
+                                    </Box>
 
-                                {/* Results Section */}
-                                <Box sx={{
-                                    paddingTop:3
-                                }}>
-                                    <Typography variant="body2" fontWeight="bold" sx={{ mb: 1 }}>
-                                        Kết quả trích xuất
-                                    </Typography>
-                                    <Typography
-                                        variant="caption"
-                                        color="text.secondary"
-                                        sx={{ mb: 2, display: 'block' }}
-                                    >
-                                        (Tự động map vào các trường tương ứng & file Word)
-                                    </Typography>
-
-                                    <Box
-                                        sx={{
-                                            display: 'grid',
-                                            gridTemplateColumns: '1fr 1fr',
-                                            gap: 2
-                                        }}
-                                    >
-                                        <Box>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Số CMND
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {scanState.extractedData?.cmnd ||
-                                                        scanState.extractedData?.so_cmnd ||
-                                                        '—'}
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                        <Box>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Số CCCD
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {scanState.extractedData?.cccd ||
-                                                        scanState.extractedData?.so_cccd ||
-                                                        '—'}
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                        <Box>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Họ tên
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {scanState.extractedData?.hoTen ||
-                                                        scanState.extractedData?.ho_ten ||
-                                                        '—'}
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                        <Box>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Ngày sinh
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {
+                                    {/* Results Section */}
+                                    <Box>
+                                        {/* <Box sx={{ textAlign: 'center', mb: 3 }}>
+                                            <Typography
+                                                variant="subtitle1"
+                                                sx={{
+                                                    fontWeight: 700,
+                                                    color: 'primary.main',
+                                                    mb: 1
+                                                }}
+                                            >
+                                                Dữ liệu đã trích xuất
+                                            </Typography>
+                                            <Typography
+                                                variant="caption"
+                                                color="text.secondary"
+                                                sx={{
+                                                    fontStyle: 'italic',
+                                                    background: 'rgba(25,118,210,0.1)',
+                                                    px: 2,
+                                                    py: 0.5,
+                                                    borderRadius: 1
+                                                }}
+                                            >
+                                                ✨ Tự động áp dụng vào mẫu đơn
+                                            </Typography>
+                                        </Box> */}
+                                        <Box
+                                            sx={{
+                                                display: 'grid',
+                                                gridTemplateColumns: '1fr',
+                                                gap: 2
+                                            }}
+                                        >
+                                            {[
+                                                {
+                                                    label: '🆔 Số CMND',
+                                                    value:
+                                                        scanState.extractedData?.cmnd ||
+                                                        scanState.extractedData?.so_cmnd,
+                                                    icon: '🆔'
+                                                },
+                                                {
+                                                    label: '🆔 Số CCCD',
+                                                    value:
+                                                        scanState.extractedData?.cccd ||
+                                                        scanState.extractedData?.so_cccd,
+                                                    icon: '💳'
+                                                },
+                                                {
+                                                    label: '👤 Họ tên',
+                                                    value:
+                                                        scanState.extractedData?.hoTen ||
+                                                        scanState.extractedData?.ho_ten,
+                                                    icon: '👤'
+                                                },
+                                                {
+                                                    label: '🎂 Ngày sinh',
+                                                    value:
                                                         scanState.extractedData?.ngaySinh ||
-                                                        scanState.extractedData?.ngay_sinh ||
-                                                        '—'
-                                                    }
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                        <Box>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Giới tính
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {scanState.extractedData?.gioiTinh ||
-                                                        scanState.extractedData?.gioi_tinh ||
-                                                        '—'}
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                        <Box>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Ngày cấp
-                                                </Typography>
-                                                <Box
-                                                    sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
-                                                    }}
-                                                >
-                                                    {
+                                                        scanState.extractedData?.ngay_sinh,
+                                                    icon: '🎂'
+                                                },
+                                                {
+                                                    label: '⚧ Giới tính',
+                                                    value:
+                                                        scanState.extractedData?.gioiTinh ||
+                                                        scanState.extractedData?.gioi_tinh,
+                                                    icon: '⚧'
+                                                },
+                                                {
+                                                    label: '📅 Ngày cấp',
+                                                    value:
                                                         scanState.extractedData?.ngayCap ||
-                                                        scanState.extractedData?.ngay_cap ||
-                                                        '—'
-                                                    }
-                                                </Box>
-                                            </Box>
-                                        </Box>
-                                        <Box sx={{
-                                            width: "100%"
-                                        }}>
-                                            <Box>
-                                                <Typography variant="caption" fontWeight="bold">
-                                                    Địa chỉ
-                                                </Typography>
+                                                        scanState.extractedData?.ngay_cap,
+                                                    icon: '📅'
+                                                },
+                                                {
+                                                    label: '🏠 Địa chỉ',
+                                                    value:
+                                                        scanState.extractedData?.diaChi ||
+                                                        scanState.extractedData?.noi_cu_tru,
+                                                    icon: '🏠'
+                                                }
+                                            ].map((field, index) => (
                                                 <Box
+                                                    key={index}
                                                     sx={{
-                                                        borderBottom: '1px solid #ddd',
-                                                        py: 0.5,
-                                                        minHeight: 20,
-                                                        fontSize: 12
+                                                        background: field.value
+                                                            ? 'linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%)'
+                                                            : 'linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%)',
+                                                        borderRadius: 2,
+                                                        p: 2,
+                                                        border: field.value
+                                                            ? '1px solid rgba(76,175,80,0.3)'
+                                                            : '1px solid rgba(0,0,0,0.1)',
+                                                        transition: 'all 0.3s ease',
+                                                        '&:hover': {
+                                                            transform: 'translateY(-2px)',
+                                                            boxShadow: field.value
+                                                                ? '0 4px 12px rgba(76,175,80,0.2)'
+                                                                : '0 4px 12px rgba(0,0,0,0.1)'
+                                                        }
                                                     }}
                                                 >
-                                                    {scanState.extractedData?.diaChi ||
-                                                        scanState.extractedData?.noi_cu_tru ||
-                                                        '—'}
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            gap: 1,
+                                                            mb: 1
+                                                        }}
+                                                    >
+                                                        <Typography
+                                                            variant="body2"
+                                                            sx={{
+                                                                fontWeight: 700,
+                                                                color: field.value
+                                                                    ? 'success.main'
+                                                                    : 'text.secondary',
+                                                                fontSize: '0.8rem'
+                                                            }}
+                                                        >
+                                                            {field.label}
+                                                        </Typography>
+                                                    </Box>
+                                                    <Typography
+                                                        variant="body1"
+                                                        sx={{
+                                                            fontWeight: field.value ? 600 : 400,
+                                                            color: field.value
+                                                                ? 'text.primary'
+                                                                : 'text.secondary',
+                                                            fontFamily: field.value
+                                                                ? 'inherit'
+                                                                : 'monospace',
+                                                            fontSize: '0.9rem',
+                                                            wordBreak: 'break-word'
+                                                        }}
+                                                    >
+                                                        {field.value || '— Chưa có dữ liệu —'}
+                                                    </Typography>
                                                 </Box>
-                                            </Box>
+                                            ))}
                                         </Box>
                                     </Box>
-                                </Box>
-                            </CardContent>
-                        </Card>
-                    </Box>
-                </DialogContent>
+                                </CardContent>
+                            </Card>
+                        </Box>
+                    </DialogContent>
 
-                 <DialogActions sx={{ p: 2 }}>
-                    {/*<Button*/}
-                    {/*    variant="outlined"*/}
-                    {/*    onClick={() => {*/}
-                    {/*        try {*/}
-                    {/*            sfContainerRef.current?.documentEditor?.print();*/}
-                    {/*        } catch { }*/}
-                    {/*    }}*/}
-                    {/*    startIcon={<PrintIcon />}*/}
-                    {/*    disabled={!editorState.syncfusionDocumentReady}*/}
-                    {/*>*/}
-                    {/*    In*/}
-                    {/*</Button>*/}
-                    <Button onClick={handleCloseEditor} variant="contained">
-                        Đóng
-                    </Button>
-                </DialogActions>
-            </Dialog>
+                    {/* <Box
+                        sx={{
+                            background: 'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                            borderTop: '1px solid rgba(0,0,0,0.1)',
+                            p: 3,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center'
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Box
+                                    sx={{
+                                        width: 8,
+                                        height: 8,
+                                        borderRadius: '50%',
+                                        backgroundColor: editorState.syncfusionDocumentReady
+                                            ? 'success.main'
+                                            : 'warning.main',
+                                        animation: 'pulse 2s infinite'
+                                    }}
+                                />
+                                <Typography variant="body2" color="text.secondary">
+                                    {editorState.syncfusionDocumentReady
+                                        ? '✅ Sẵn sàng'
+                                        : '⏳ Đang tải...'}
+                                </Typography>
+                            </Box>
+                        </Box>
+                        <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Button
+                                onClick={handleCloseEditor}
+                                variant="contained"
+                                size="large"
+                                sx={{
+                                    borderRadius: 2,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    px: 4,
+                                    background: 'linear-gradient(45deg, #f44336, #e91e63)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(45deg, #d32f2f, #c2185b)',
+                                        transform: 'translateY(-2px)',
+                                        boxShadow: '0 6px 20px rgba(244,67,54,0.4)'
+                                    },
+                                    transition: 'all 0.3s ease'
+                                }}
+                            >
+                                🚪 Đóng Editor
+                            </Button>
+                        </Box>
+                    </Box> */}
+                </Dialog>
 
-            {/* Snackbar for notifications */}
-            <Snackbar
-                open={snackbar.open}
-                autoHideDuration={4000}
-                onClose={handleSnackbarClose}
-                anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
-            >
-                <Alert
+                {/* Snackbar for notifications */}
+                <Snackbar
+                    open={snackbar.open}
+                    autoHideDuration={4000}
                     onClose={handleSnackbarClose}
-                    severity={snackbar.severity}
-                    sx={{ width: '100%' }}
+                    anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
                 >
-                    {snackbar.message}
-                </Alert>
-            </Snackbar>
-        </Box>
+                    <Alert
+                        onClose={handleSnackbarClose}
+                        severity={snackbar.severity}
+                        sx={{ width: '100%' }}
+                    >
+                        {snackbar.message}
+                    </Alert>
+                </Snackbar>
+            </Box>
+        </>
     );
 }
 
