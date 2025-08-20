@@ -94,6 +94,9 @@ import {
     TemplateSelectorModal
 } from '../../components/word-mapper/TemplateSelectorModal';
 
+import { db } from '../../db/db';
+import { thuTucHCRepository } from '../../repository/ThuTucHCRepository';
+
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
 
 // --- CẤU HÌNH ---
@@ -1546,15 +1549,30 @@ function ProceduresComponent() {
         const loadData = async () => {
             setCsvLoading(true);
             try {
-                // Load JSON data
-                const jsonResponse = await fetch('/DanhSachTTHC.json');
+                // Load ThuTucHC list via repository (uses IndexedDB cache)
+                const thuTucList = await thuTucHCRepository.getAllThuTucHC();
 
-                if (!jsonResponse.ok) {
-                    throw new Error('Không thể tải dữ liệu JSON');
-                }
-
-                const jsonContent = await jsonResponse.json();
-                const rawRecords = parseJSONData(jsonContent);
+                // Map to local TTHCRecord shape and filter entries that have a doc template reference
+                const rawRecords: TTHCRecord[] = thuTucList
+                    .map(item => ({
+                        stt: '',
+                        maTTHC: item.maTTHC || '',
+                        tenTTHC: item.tenTTHC || '',
+                        qdCongBo: item.qdCongBo || '',
+                        doiTuong: item.doiTuong || '',
+                        linhVuc: item.linhVuc || '',
+                        coQuanCongKhai: item.coQuanCongKhai || '',
+                        capThucHien: item.capThucHien || '',
+                        tinhTrang: item.tinhTrang || '',
+                        tenGiayTo: item.tenGiayTo || '',
+                        mauDon: item.mauDon || '',
+                        tenFile: item.tenFile || ''
+                    }))
+                    .filter(
+                        r =>
+                            (r.tenFile && r.tenFile.toLowerCase().includes('.doc')) ||
+                            (r.mauDon && r.mauDon.toLowerCase().includes('.doc'))
+                    );
                 const enhancedRecords = await enhanceRecordsWithAvailability(rawRecords);
 
                 setCsvRecords(enhancedRecords);
@@ -4009,14 +4027,84 @@ function ProceduresComponent() {
         [resetProcessing, state.uploadedTemplateUrl]
     );
 
+    // Upload a DOCX file and replace the current working document
+    const handleUploadReplaceDocument = useCallback(
+        (file: File) => {
+            if (!file) return;
+            if (!file.name.toLowerCase().endsWith('.docx')) {
+                setSnackbar({
+                    open: true,
+                    message: 'Vui lòng chọn file .docx',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // Create object URL for the new file
+            const url = URL.createObjectURL(file);
+            
+            // Update state to replace current working document
+            setState(prev => ({
+                ...prev,
+                uploadedTemplateUrl: url,
+                uploadedTemplateName: file.name,
+                selectedTemplatePath: url,
+                generatedBlob: null, // Clear any generated content
+                error: null
+            }));
+
+            // Reset processing state
+            resetProcessing();
+            
+            // Clear any existing preview content
+            if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
+                // Load the new document into Syncfusion editor
+                sfContainerRef.current.documentEditor.open(file);
+            }
+
+            setSnackbar({ 
+                open: true, 
+                message: `Đã thay thế tài liệu hiện tại bằng "${file.name}"`, 
+                severity: 'success' 
+            });
+        },
+        [resetProcessing, previewMode]
+    );
+
+    const saveWorkingDocToDb = useCallback(
+        async (maTTHC: string, blob: Blob, fileName: string, mimeType: string) => {
+            try {
+                if (!maTTHC) return;
+                await db.workingDocuments.put({
+                    maTTHC,
+                    fileName,
+                    mimeType,
+                    blob,
+                    updatedAt: Date.now()
+                });
+            } catch (e) {
+                console.error('Failed to save working document to IndexedDB', e);
+            }
+        },
+        []
+    );
+
     // Download the current working document (filled document, custom template, or original template)
     const handleDownloadWorkingDocument = useCallback(async () => {
         try {
+            const maTTHC = selectedRecord?.maTTHC || '';
             // Priority 1: If Syncfusion editor is active and ready, download the current edited content
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
                 const baseName = displayTemplateName || 'file';
                 const fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.docx`;
-                sfContainerRef.current.documentEditor.save(fileName, 'Docx');
+                const blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
+                await saveWorkingDocToDb(
+                    maTTHC,
+                    blob,
+                    fileName,
+                    blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
+                saveAs(blob, fileName);
                 setSnackbar({
                     open: true,
                     message: 'Đã tải xuống tài liệu đã chỉnh sửa thành công!',
@@ -4032,6 +4120,7 @@ function ProceduresComponent() {
                 const baseName = displayTemplateName || 'file';
                 const fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.html`;
                 const blob = new Blob([htmlContent], { type: 'text/html' });
+                await saveWorkingDocToDb(maTTHC, blob, fileName, 'text/html');
                 saveAs(blob, fileName);
                 setSnackbar({
                     open: true,
@@ -4045,6 +4134,12 @@ function ProceduresComponent() {
             if (state.generatedBlob) {
                 const baseName = displayTemplateName || 'file';
                 const newName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
+                await saveWorkingDocToDb(
+                    maTTHC,
+                    state.generatedBlob,
+                    newName,
+                    state.generatedBlob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
                 saveAs(state.generatedBlob, newName);
                 setSnackbar({
                     open: true,
@@ -4059,6 +4154,12 @@ function ProceduresComponent() {
                 const response = await fetch(state.uploadedTemplateUrl);
                 const blob = await response.blob();
                 const fileName = state.uploadedTemplateName || 'mau_da_chinh.docx';
+                await saveWorkingDocToDb(
+                    maTTHC,
+                    blob,
+                    fileName,
+                    blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
                 saveAs(blob, fileName);
                 setSnackbar({
                     open: true,
@@ -4074,6 +4175,12 @@ function ProceduresComponent() {
                 const blob = await response.blob();
                 const baseName = displayTemplateName || 'mau_goc';
                 const fileName = `${baseName.replace(/\s/g, '_')}.docx`;
+                await saveWorkingDocToDb(
+                    maTTHC,
+                    blob,
+                    fileName,
+                    blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                );
                 saveAs(blob, fileName);
                 setSnackbar({
                     open: true,
@@ -4097,7 +4204,7 @@ function ProceduresComponent() {
                 severity: 'error'
             });
         }
-    }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode]);
+    }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode, selectedRecord, saveWorkingDocToDb]);
 
     return (
         <Box sx={{ width: '100%' }}>
@@ -4266,6 +4373,24 @@ function ProceduresComponent() {
                                 disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) || (previewMode === 'html' && htmlIframeRef.current?.contentDocument))}
                             >
                                 Tải mẫu đã chỉnh
+                            </Button>
+                            <Button
+                                component="label"
+                                variant="outlined"
+                                startIcon={<UploadIcon />}
+                            >
+                                Thay thế tài liệu
+                                <input
+                                    type="file"
+                                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                    hidden
+                                    onChange={e => {
+                                        const file = e.target.files?.[0];
+                                        if (file) handleUploadReplaceDocument(file);
+                                        // Reset input value to allow selecting the same file again
+                                        e.target.value = '';
+                                    }}
+                                />
                             </Button>
                             {/* <Button
                             variant="contained"
@@ -4625,7 +4750,7 @@ function ProceduresComponent() {
                 <DialogTitle>Hướng dẫn chèn {`{field}`} vào mẫu Word (.docx)</DialogTitle>
                 <DialogContent dividers>
                     {/* Quick actions */}
-                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+                    {/* <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
                         <Button
                             size="small"
                             startIcon={<GetAppIcon />}
@@ -4641,7 +4766,26 @@ function ProceduresComponent() {
                         >
                             Tải mẫu đã chỉnh
                         </Button>
-                    </Box>
+                        <Button
+                            component="label"
+                            size="small"
+                            startIcon={<UploadIcon />}
+                            variant="outlined"
+                        >
+                            Thay thế tài liệu
+                            <input
+                                type="file"
+                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                hidden
+                                onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (file) handleUploadReplaceDocument(file);
+                                    // Reset input value to allow selecting the same file again
+                                    e.target.value = '';
+                                }}
+                            />
+                        </Button>
+                    </Box> */}
 
                     <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
                         3 bước đơn giản

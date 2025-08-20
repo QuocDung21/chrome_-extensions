@@ -10,9 +10,35 @@ export interface LinhVuc {
     moTa: string;
 }
 
+// Định nghĩa interface cho tài liệu làm việc được lưu theo Mã TTHC
+export interface WorkingDocument {
+    maTTHC: string; // primary key
+    fileName: string;
+    mimeType: string;
+    blob: Blob;
+    updatedAt: number; // epoch millis
+}
+
+// Định nghĩa interface cho ThuTucHC (Thủ tục hành chính)
+export interface ThuTucHC {
+    maTTHC: string;
+    tenTTHC: string;
+    qdCongBo: string;
+    doiTuong: string;
+    linhVuc: string;
+    coQuanCongKhai: string;
+    capThucHien: string;
+    tinhTrang: string;
+    tenGiayTo: string;
+    mauDon: string;
+    tenFile: string;
+}
+
 // --- DATABASE CLASS ---
 export class AppDatabase extends Dexie {
     linhVuc!: Table<LinhVuc, string>; 
+    workingDocuments!: Table<WorkingDocument, string>;
+    thuTucHC!: Table<ThuTucHC, string>;
 
     constructor() {
         super('DocumentAI_DB');
@@ -23,6 +49,18 @@ export class AppDatabase extends Dexie {
             // 'maLinhVuc' là khóa chính (primary key).
             // 'tenLinhVuc' là một trường được đánh chỉ mục (index) để tìm kiếm nhanh hơn.
             linhVuc: 'maLinhVuc, tenLinhVuc'
+        });
+
+        // Thêm store cho tài liệu làm việc theo Mã TTHC
+        this.version(2).stores({
+            // 'maTTHC' là khóa chính. 'updatedAt' làm chỉ mục phụ giúp truy vấn theo thời gian
+            workingDocuments: 'maTTHC, updatedAt'
+        });
+
+        // Thêm store cho ThuTucHC (TTHC)
+        this.version(3).stores({
+            // Khóa chính là 'maTTHC'. Đánh chỉ mục phụ theo 'tenTTHC' và 'linhVuc' để truy vấn nhanh
+            thuTucHC: 'maTTHC, tenTTHC, linhVuc'
         });
     }
 }
