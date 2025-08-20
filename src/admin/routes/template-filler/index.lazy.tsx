@@ -689,8 +689,6 @@ const applyDataToSyncfusion = async (
 function TemplateFillerComponent() {
     // State cho danh sách mẫu
     const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
-    const [showPrintModal, setShowPrintModal] = useState(false);
-    const [printHtmlContent, setPrintHtmlContent] = useState('');
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
         doiTuong: [],
@@ -700,10 +698,6 @@ function TemplateFillerComponent() {
 
     const navigate = useNavigate();
     const { history } = useRouter();
-
-    const [unfilledObjects, setUnfilledObjects] = useState<number[]>([]);
-    const [selectedObjectIndex, setSelectedObjectIndex] = useState<number | ''>('');
-    
 
     const handlePrintClick = async () => {
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
@@ -719,89 +713,6 @@ function TemplateFillerComponent() {
         }
     };
 
-    const handlePrintClickAlternative = async () => {
-        try {
-            if (!sfContainerRef.current || !sfContainerRef.current.documentEditor) {
-                console.error('Document editor not ready to print.');
-                setSnackbar({
-                    open: true,
-                    message: 'Document editor chưa sẵn sàng để in',
-                    severity: 'error'
-                });
-                return;
-            }
-            if (!editorState.syncfusionDocumentReady) {
-                setSnackbar({
-                    open: true,
-                    message: 'Vui lòng đợi document tải xong trước khi in',
-                    severity: 'warning'
-                });
-                return;
-            }
-            // Sử dụng Print service module của Syncfusion
-            console.log('🖨️ Using Syncfusion Print service...');
-            // Lấy SFDT content
-            const sfdtContent = sfContainerRef.current.documentEditor.serialize();
-            if (!sfdtContent) {
-                throw new Error('Không thể lấy nội dung tài liệu');
-            }
-            // Gửi đến Syncfusion Print service
-            const printServiceUrl = `${SYNCFUSION_SERVICE_URL}SystemClipboard`;
-            const response = await fetch(printServiceUrl, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({
-                    content: sfdtContent,
-                    type: 'Print'
-                })
-            });
-            if (response.ok) {
-                // Trigger browser print dialog
-                const printContent = await response.text();
-                // Tạo iframe để print
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                document.body.appendChild(iframe);
-                const iframeDoc = iframe.contentDocument || iframe.contentWindow?.document;
-                if (iframeDoc) {
-                    iframeDoc.write(printContent);
-                    iframeDoc.close();
-                    iframe.contentWindow?.focus();
-                    iframe.contentWindow?.print();
-                    // Cleanup
-                    setTimeout(() => {
-                        document.body.removeChild(iframe);
-                    }, 1000);
-                }
-                setSnackbar({
-                    open: true,
-                    message: 'Đã mở hộp thoại in',
-                    severity: 'success'
-                });
-            } else {
-                throw new Error(`Print service error: ${response.status}`);
-            }
-        } catch (error: any) {
-            console.error('❌ Print service failed:', error);
-            // Fallback to simple print
-            try {
-                sfContainerRef.current?.documentEditor?.print();
-                setSnackbar({
-                    open: true,
-                    message: 'Sử dụng chức năng in mặc định',
-                    severity: 'info'
-                });
-            } catch (fallbackError) {
-                setSnackbar({
-                    open: true,
-                    message: `Lỗi khi in: ${error?.message || 'Không xác định'}`,
-                    severity: 'error'
-                });
-            }
-        }
-    };
     const handleDownloadClick = () => {
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
             const fileName = editorState.selectedRecord?.selectedMauDon?.tenFile || 'Document.docx';
