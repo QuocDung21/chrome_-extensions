@@ -3,6 +3,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { saveAs } from 'file-saver';
 // --- THƯ VIỆN ---
 import { Socket, io } from 'socket.io-client';
+import Swal from 'sweetalert2';
 
 import { Global, css } from '@emotion/react';
 // --- ICON ---
@@ -69,11 +70,12 @@ import {
     DocumentEditorContainerComponent,
     Print,
     Ribbon,
+    SfdtExport,
     Toolbar
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
-import { createLazyFileRoute } from '@tanstack/react-router';
+import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
@@ -108,7 +110,6 @@ interface TTHCRecord {
     danhSachMauDon: MauDon[];
 }
 interface EnhancedTTHCRecord extends TTHCRecord {
-    isTemplateAvailable: boolean;
     selectedMauDon?: MauDon;
 }
 interface FilterOptions {
@@ -293,20 +294,14 @@ const enhanceRecordsWithAvailability = async (
 ): Promise<EnhancedTTHCRecord[]> => {
     const enhancedRecords: EnhancedTTHCRecord[] = [];
     for (const record of records) {
-        // Check if any template in danhSachMauDon exists
-        let hasAvailableTemplate = false;
-        let selectedMauDon: MauDon | undefined;
-        for (const mauDon of record.danhSachMauDon) {
-            const exists = await checkTemplateExists(record, mauDon);
-            if (exists) {
-                hasAvailableTemplate = true;
-                selectedMauDon = mauDon;
-                break;
-            }
-        }
+        // Nếu có danhSachMauDon thì coi như có sẵn template
+        const selectedMauDon =
+            record.danhSachMauDon && record.danhSachMauDon.length > 0
+                ? record.danhSachMauDon[0]
+                : undefined;
+
         enhancedRecords.push({
             ...record,
-            isTemplateAvailable: hasAvailableTemplate,
             selectedMauDon
         });
     }
@@ -342,10 +337,17 @@ const filterRecords = (
         if (filters.capThucHien && !record.capThucHien.includes(filters.capThucHien)) {
             return false;
         }
-        if (filters.availability === 'available' && !record.isTemplateAvailable) {
+        if (
+            filters.availability === 'available' &&
+            (!record.danhSachMauDon || record.danhSachMauDon.length === 0)
+        ) {
             return false;
         }
-        if (filters.availability === 'unavailable' && record.isTemplateAvailable) {
+        if (
+            filters.availability === 'unavailable' &&
+            record.danhSachMauDon &&
+            record.danhSachMauDon.length > 0
+        ) {
             return false;
         }
         return true;
@@ -626,12 +628,18 @@ const TemplateCard = React.memo<{
                     sx={{
                         display: 'flex',
                         alignItems: 'center',
-                        justifyContent: 'flex-start',
+                        justifyContent: 'space-between',
                         mb: 1.5,
                         gap: 1
                     }}
                 >
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: 1
+                        }}
+                    >
                         <Star sx={{ color: 'text.secondary', fontSize: '1.25rem' }} />
                         <Typography variant="body2" color="text.secondary">
                             <Typography
@@ -645,13 +653,42 @@ const TemplateCard = React.memo<{
                             </Typography>{' '}
                             {record.maTTHC}
                         </Typography>
-                    </Box>
-                    <Typography variant="body2" color="text.secondary">
-                        <Typography component="span" fontWeight="500" fontSize={14}>
-                            Cấp thực hiện:
+                        <Typography variant="body2" color="text.secondary">
+                            <Typography component="span" fontWeight="500" fontSize={14}>
+                                Cấp thực hiện:
+                            </Typography>
+                            {record.capThucHien}
                         </Typography>
-                        {record.capThucHien}
-                    </Typography>
+                    </Box>
+
+                    <Box>
+                        {!hasTemplates ? (
+                            <Typography variant="body2" color="text.secondary" fontStyle="italic">
+                                (Chưa có mẫu đơn/tờ khai trong dữ liệu)
+                            </Typography>
+                        ) : (
+                            <Button
+                                variant="contained"
+                                size="small"
+                                onClick={() => onSelect(record)}
+                                startIcon={<EditIcon />}
+                                sx={{
+                                    borderRadius: 1,
+                                    textTransform: 'none',
+                                    fontWeight: 600,
+                                    background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                    '&:hover': {
+                                        background: 'linear-gradient(45deg, #1565c0, #1976d2)',
+                                        transform: 'translateY(-2px)',
+                                        boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
+                                    },
+                                    transition: 'all 0.3s ease'
+                                }}
+                            >
+                                {record.danhSachMauDon.length === 1 ? 'Chọn mẫu' : 'Chọn mẫu'}
+                            </Button>
+                        )}
+                    </Box>
                 </Box>
                 <Divider sx={{ my: 1.5 }} />
                 {/* Phần Body: Thông tin chi tiết */}
@@ -728,24 +765,6 @@ const TemplateCard = React.memo<{
                         </Button>
                     </Box>
                 </Box> */}
-                <CardActions
-                    sx={{
-                        justifyContent: 'space-between',
-                        alignItems: 'center',
-                        p: 1.5,
-                        borderRadius: 1
-                    }}
-                >
-                    {!hasTemplates ? (
-                        <Typography variant="body2" color="text.secondary" fontStyle="italic">
-                            (Chưa có mẫu đơn/tờ khai trong dữ liệu)
-                        </Typography>
-                    ) : (
-                        <Button variant="contained" size="small" onClick={() => onSelect(record)}>
-                            Xem chi tiết
-                        </Button>
-                    )}
-                </CardActions>
             </Box>
         </Card>
     );
@@ -753,6 +772,7 @@ const TemplateCard = React.memo<{
 
 TemplateCard.displayName = 'TemplateCard';
 // Apply data to Syncfusion editor
+
 const applyDataToSyncfusion = async (
     editor: DocumentEditorContainerComponent | null,
     data: ProcessingData
@@ -819,19 +839,32 @@ const applyDataToSyncfusion = async (
 function TemplateFillerComponent() {
     // State cho danh sách mẫu
     const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
+    const [showPrintModal, setShowPrintModal] = useState(false);
+    const [printHtmlContent, setPrintHtmlContent] = useState('');
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
         doiTuong: [],
         capThucHien: [],
         thuTucByLinhVuc: {}
     });
+
+    const navigate = useNavigate();
+    const { history } = useRouter();
+
     const handlePrintClick = async () => {
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            await sfContainerRef.current.documentEditor.print();
+            await sfContainerRef.current.documentEditor.print(window);
+            await window.print();
+            // await history.back();
+            await navigate({
+                to: '/template-filler'
+            });
+            window.location.reload();
         } else {
             console.error('Document editor not ready to print.');
         }
     };
+
     const handlePrintClickAlternative = async () => {
         try {
             if (!sfContainerRef.current || !sfContainerRef.current.documentEditor) {
@@ -974,11 +1007,13 @@ function TemplateFillerComponent() {
     }, [filters.linhVuc, filterOptions.thuTucByLinhVuc]);
     // Memoized available templates for performance
     const availableTemplates = useMemo(() => {
-        return filteredRecords.filter(r => r.isTemplateAvailable);
+        return filteredRecords.filter(r => r.danhSachMauDon && r.danhSachMauDon.length > 0);
     }, [filteredRecords]);
     // Memoized statistics for header
     const templateStats = useMemo(() => {
-        const available = filteredRecords.filter(r => r.isTemplateAvailable).length;
+        const available = filteredRecords.filter(
+            r => r.danhSachMauDon && r.danhSachMauDon.length > 0
+        ).length;
         const total = filteredRecords.length;
         return { available, total };
     }, [filteredRecords]);
@@ -1004,7 +1039,9 @@ function TemplateFillerComponent() {
     //  Chọn template
     const handleSelectTemplate = useCallback(async (record: EnhancedTTHCRecord) => {
         console.log('🎯 Template selected:', record);
-        if (!record.isTemplateAvailable || !record.selectedMauDon) {
+
+        // Kiểm tra xem record có mẫu đơn nào không
+        if (!record.danhSachMauDon || record.danhSachMauDon.length === 0) {
             setSnackbar({
                 open: true,
                 message: `Mẫu đơn "${record.tenTTHC}" chưa có sẵn trong hệ thống`,
@@ -1012,20 +1049,32 @@ function TemplateFillerComponent() {
             });
             return;
         }
-        // Test template URL immediately
-        const templateUrl = buildDocxUrlForRecord(record, record.selectedMauDon);
-        console.log('🔍 Testing template URL:', templateUrl);
-        setEditorState(prev => ({
-            ...prev,
-            selectedRecord: record,
-            showEditorModal: true,
-            syncfusionLoading: true,
-            syncfusionDocumentReady: false
-        }));
-        setSnackbar({
+
+        // Nếu chỉ có 1 mẫu đơn, sử dụng trực tiếp
+        if (record.danhSachMauDon.length === 1) {
+            const singleMauDon = record.danhSachMauDon[0];
+            const updatedRecord = { ...record, selectedMauDon: singleMauDon };
+
+            setEditorState(prev => ({
+                ...prev,
+                selectedRecord: updatedRecord,
+                showEditorModal: true,
+                syncfusionLoading: true,
+                syncfusionDocumentReady: false
+            }));
+
+            setSnackbar({
+                open: true,
+                message: `Đang tải mẫu: ${record.tenTTHC}`,
+                severity: 'info'
+            });
+            return;
+        }
+
+        // Nếu có nhiều mẫu đơn, mở modal chọn mẫu
+        setTemplateSelectionModal({
             open: true,
-            message: `Đang tải mẫu: ${record.tenTTHC}`,
-            severity: 'info'
+            record: record
         });
     }, []);
     const handleCloseEditor = useCallback(() => {
@@ -1198,7 +1247,9 @@ function TemplateFillerComponent() {
                 setCsvRecords(enhancedRecords);
                 setFilterOptions(createFilterOptions(rawRecords));
                 setFilteredRecords(enhancedRecords);
-                const availableCount = enhancedRecords.filter(r => r.isTemplateAvailable).length;
+                const availableCount = enhancedRecords.filter(
+                    r => r.danhSachMauDon && r.danhSachMauDon.length > 0
+                ).length;
                 const totalCount = enhancedRecords.length;
                 setSnackbar({
                     open: true,
@@ -1434,226 +1485,107 @@ function TemplateFillerComponent() {
                         />
                     </CardContent>
                 </Card> */}
-                <Card
+
+                <Box
                     sx={{
-                        mb: 4,
+                        display: 'flex',
+                        flexWrap: 'wrap',
+                        gap: 1,
+                        p: 2,
                         borderRadius: 1,
                         boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                         backdropFilter: 'blur(10px)',
-                        background: 'rgba(255,255,255,0.9)',
-                        border: '1px solid rgba(255,255,255,0.2)'
+                        background: 'rgba(255,255,255,0.95)',
+                        border: '1px solid rgba(255,255,255,0.2)',
+                        transition: 'all 0.3s ease',
+                        mb: 1
                     }}
                 >
-                    <CardHeader
-                        title="Bộ lọc tìm kiếm"
+                    <TextField
+                        size="small"
+                        value={filters.searchText}
+                        onChange={e => handleFilterChange('searchText', e.target.value)}
+                        placeholder="Tìm kiếm thủ tục, mã, lĩnh vực..."
+                        variant="outlined"
                         sx={{
-                            pb: 1,
-                            '& .MuiCardHeader-title': {
-                                fontSize: '1.1rem',
-                                fontWeight: 600
+                            minWidth: 220, // 👈 nhỏ gọn
+                            flex: 1,
+                            '& .MuiOutlinedInput-root': {
+                                borderRadius: 1,
+                                transition: 'all 0.3s ease',
+                                '&:hover': {
+                                    boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
+                                },
+                                '&.Mui-focused': {
+                                    boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
+                                }
                             }
                         }}
                     />
-                    <CardContent sx={{ pt: 0 }}>
-                        <LinhVucListComponent />
-                        <Box
-                            sx={{
-                                display: 'grid',
-                                gridTemplateColumns: {
-                                    xs: '1fr',
-                                    sm: '1fr 1fr',
-                                    md: 'repeat(4, 1fr)'
-                                },
-                                gap: 3,
-                                mb: 2
-                            }}
+
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Lĩnh vực</InputLabel>
+                        <Select
+                            value={filters.linhVuc}
+                            onChange={e => handleFilterChange('linhVuc', e.target.value)}
                         >
-                            <FormControl
-                                fullWidth
-                                size="medium"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 1,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                        },
-                                        '&.Mui-focused': {
-                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                        }
-                                    }
-                                }}
-                            >
-                                <InputLabel sx={{ fontWeight: 500 }}> Lĩnh vực</InputLabel>
-                                <Select
-                                    value={filters.linhVuc}
-                                    label="🏢 Lĩnh vực"
-                                    onChange={e => handleFilterChange('linhVuc', e.target.value)}
-                                >
-                                    <MenuItem value="">
-                                        <em>Tất cả lĩnh vực</em>
-                                    </MenuItem>
-                                    {filterOptions.linhVuc.map(item => (
-                                        <MenuItem key={item} value={item}>
-                                            {item}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl
-                                fullWidth
-                                size="medium"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 1,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                        },
-                                        '&.Mui-focused': {
-                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                        }
-                                    }
-                                }}
-                            >
-                                <InputLabel sx={{ fontWeight: 500 }}> Đối tượng</InputLabel>
-                                <Select
-                                    value={filters.doiTuong}
-                                    label="👥 Đối tượng"
-                                    onChange={e => handleFilterChange('doiTuong', e.target.value)}
-                                >
-                                    <MenuItem value="">
-                                        <em>Tất cả đối tượng</em>
-                                    </MenuItem>
-                                    {filterOptions.doiTuong.map(item => (
-                                        <MenuItem key={item} value={item}>
-                                            {item}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl
-                                fullWidth
-                                size="medium"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 1,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                        },
-                                        '&.Mui-focused': {
-                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                        }
-                                    }
-                                }}
-                            >
-                                <InputLabel sx={{ fontWeight: 500, fontSize: 14 }}>
-                                    Cấp thực hiện
-                                </InputLabel>
-                                <Select
-                                    value={filters.capThucHien}
-                                    label=" Cấp thực hiện"
-                                    onChange={e =>
-                                        handleFilterChange('capThucHien', e.target.value)
-                                    }
-                                >
-                                    <MenuItem value="">
-                                        <em>Tất cả cấp</em>
-                                    </MenuItem>
-                                    {filterOptions.capThucHien.map(item => (
-                                        <MenuItem key={item} value={item}>
-                                            {item}
-                                        </MenuItem>
-                                    ))}
-                                </Select>
-                            </FormControl>
-                            <FormControl
-                                fullWidth
-                                size="medium"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 1,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                        },
-                                        '&.Mui-focused': {
-                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                        }
-                                    }
-                                }}
-                            >
-                                <InputLabel sx={{ fontWeight: 500 }}>✅ Trạng thái mẫu</InputLabel>
-                                <Select
-                                    value={filters.availability}
-                                    label="Trạng thái mẫu"
-                                    onChange={e =>
-                                        handleFilterChange('availability', e.target.value)
-                                    }
-                                >
-                                    <MenuItem value="all">
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            Tất cả
-                                        </Box>
-                                    </MenuItem>
-                                    <MenuItem value="available">
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            Có sẵn mẫu
-                                        </Box>
-                                    </MenuItem>
-                                    <MenuItem value="unavailable">
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            Chưa có mẫu
-                                        </Box>
-                                    </MenuItem>
-                                </Select>
-                            </FormControl>
-                        </Box>
-                        <Box sx={{ pt: 0 }}>
-                            <TextField
-                                fullWidth
-                                size="medium"
-                                value={filters.searchText}
-                                onChange={e => handleFilterChange('searchText', e.target.value)}
-                                placeholder="Tìm kiếm thủ tục, mã, lĩnh vực, đối tượng, quyết định công bố..."
-                                variant="outlined"
-                                sx={{
-                                    '& .MuiOutlinedInput-root': {
-                                        borderRadius: 1,
-                                        transition: 'all 0.3s ease',
-                                        '&:hover': {
-                                            boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                        },
-                                        '&.Mui-focused': {
-                                            boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                        }
-                                    }
-                                }}
-                            />
-                        </Box>
-                        {/* <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                            <Button
-                                variant="outlined"
-                                onClick={handleClearFilters}
-                                size="medium"
-                                sx={{
-                                    borderRadius: 1,
-                                    textTransform: 'none',
-                                    fontWeight: 600,
-                                    px: 3,
-                                    '&:hover': {
-                                        transform: 'translateY(-2px)',
-                                        boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
-                                    },
-                                    transition: 'all 0.2s ease'
-                                }}
-                            >
-                                Xóa bộ lọc
-                            </Button>
-                        </Box> */}
-                    </CardContent>
-                </Card>
+                            <MenuItem value="">
+                                <em>Tất cả</em>
+                            </MenuItem>
+                            {filterOptions.linhVuc.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Đối tượng</InputLabel>
+                        <Select
+                            value={filters.doiTuong}
+                            onChange={e => handleFilterChange('doiTuong', e.target.value)}
+                        >
+                            <MenuItem value="">
+                                <em>Tất cả</em>
+                            </MenuItem>
+                            {filterOptions.doiTuong.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Cấp thực hiện</InputLabel>
+                        <Select
+                            value={filters.capThucHien}
+                            onChange={e => handleFilterChange('capThucHien', e.target.value)}
+                        >
+                            <MenuItem value="">
+                                <em>Tất cả</em>
+                            </MenuItem>
+                            {filterOptions.capThucHien.map(item => (
+                                <MenuItem key={item} value={item}>
+                                    {item}
+                                </MenuItem>
+                            ))}
+                        </Select>
+                    </FormControl>
+
+                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                        <InputLabel>Trạng thái mẫu</InputLabel>
+                        <Select
+                            value={filters.availability}
+                            onChange={e => handleFilterChange('availability', e.target.value)}
+                        >
+                            <MenuItem value="all">Tất cả</MenuItem>
+                            <MenuItem value="available">Có sẵn mẫu</MenuItem>
+                            <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Box>
                 {/* Template List */}
                 <Card
                     sx={{
@@ -1662,7 +1594,8 @@ function TemplateFillerComponent() {
                         backdropFilter: 'blur(10px)',
                         background: 'rgba(255,255,255,0.95)',
                         border: '1px solid rgba(255,255,255,0.2)',
-                        transition: 'all 0.3s ease'
+                        transition: 'all 0.3s ease',
+                        height: '90vh'
                     }}
                 >
                     <CardHeader
@@ -1678,7 +1611,7 @@ function TemplateFillerComponent() {
                             <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
                                 <Chip
                                     icon={<CheckCircleIcon />}
-                                    label={`${templateStats.available} có sẵn`}
+                                    label={`${availableTemplates.length} có sẵn`}
                                     color="success"
                                     size="small"
                                     variant="filled"
@@ -1690,7 +1623,7 @@ function TemplateFillerComponent() {
                                     }}
                                 />
                                 <Chip
-                                    label={`${templateStats.total} tổng cộng`}
+                                    label={`${filteredRecords.length} tổng cộng`}
                                     color="primary"
                                     size="small"
                                     variant="outlined"
@@ -1699,7 +1632,7 @@ function TemplateFillerComponent() {
                             </Box>
                         }
                     />
-                    <CardContent sx={{ pt: 0 }}>
+                    <CardContent>
                         {csvLoading ? (
                             <Box sx={{ p: 2 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -1793,7 +1726,6 @@ function TemplateFillerComponent() {
                         ) : (
                             <Box
                                 sx={{
-                                    maxHeight: '65vh',
                                     overflowY: 'auto',
                                     pr: 1,
                                     pt: 1,
@@ -1819,15 +1751,10 @@ function TemplateFillerComponent() {
                                         record={record}
                                         index={index}
                                         onSelect={handleSelectTemplate}
-                                        onSelectTemplate={record => {
-                                            setTemplateSelectionModal({
-                                                open: true,
-                                                record
-                                            });
-                                        }}
+                                        onSelectTemplate={handleSelectTemplate}
                                     />
                                 ))}
-                                {templateStats.available === 0 && (
+                                {availableTemplates.length === 0 && (
                                     <Paper
                                         sx={{
                                             p: 6,
@@ -2111,14 +2038,29 @@ function TemplateFillerComponent() {
                                         enableToolbar={false}
                                         showPropertiesPane={false}
                                         height={'100%'}
+                                        // toolbarMode={'Ribbon'}
+                                        // ribbonLayout={'Classic'}
+                                        // locale="vi-VN"
+                                        fileMenuItems={['Print']}
+                                        enableLocalPaste={true}
+                                    />
+                                    {/* <DocumentEditorContainerComponent
+                                        id="sf-docx-editor-modal"
+                                        ref={sfContainerRef}
+                                        serviceUrl={SYNCFUSION_SERVICE_URL}
+                                        enableToolbar={true}
+                                        showPropertiesPane={false}
+                                        height={'100%'}
                                         style={{
                                             display: 'block',
                                             borderWidth: '0',
                                             borderColor: '0'
                                         }}
                                         toolbarMode={'Ribbon'}
+                                        ribbonLayout={'Classic'}
                                         locale="vi-VN"
-                                    />
+                                        fileMenuItems={['Print']}
+                                    /> */}
                                 </CardContent>
                             </Card>
                             <Card
@@ -2345,7 +2287,7 @@ function TemplateFillerComponent() {
                                             }}
                                         >
                                             <Chip
-                                                label="Dữ liệu đã trích xuất"
+                                                label="Thông tin thủ tục"
                                                 size="small"
                                                 sx={{
                                                     backgroundColor: 'primary.main',
@@ -2355,119 +2297,83 @@ function TemplateFillerComponent() {
                                             />
                                         </Divider>
                                     </Box>
-                                    {/* Results Section */}
+                                    {/* Thông tin thủ tục Section */}
                                     <Box>
-                                        <Box
-                                            sx={{
-                                                display: 'grid',
-                                                gridTemplateColumns: '1fr',
-                                                gap: 2
-                                            }}
-                                        >
-                                            {[
-                                                {
-                                                    label: 'Số CMND',
-                                                    value:
-                                                        scanState.extractedData?.cmnd ||
-                                                        scanState.extractedData?.so_cmnd
-                                                },
-                                                {
-                                                    label: 'Số CCCD',
-                                                    value:
-                                                        scanState.extractedData?.cccd ||
-                                                        scanState.extractedData?.so_cccd
-                                                },
-                                                {
-                                                    label: 'Họ tên',
-                                                    value:
-                                                        scanState.extractedData?.hoTen ||
-                                                        scanState.extractedData?.ho_ten
-                                                },
-                                                {
-                                                    label: 'Ngày sinh',
-                                                    value:
-                                                        scanState.extractedData?.ngaySinh ||
-                                                        scanState.extractedData?.ngay_sinh
-                                                },
-                                                {
-                                                    label: 'Giới tính',
-                                                    value:
-                                                        scanState.extractedData?.gioiTinh ||
-                                                        scanState.extractedData?.gioi_tinh
-                                                },
-                                                {
-                                                    label: 'Ngày cấp',
-                                                    value:
-                                                        scanState.extractedData?.ngayCap ||
-                                                        scanState.extractedData?.ngay_cap
-                                                },
-                                                {
-                                                    label: 'Địa chỉ',
-                                                    value:
-                                                        scanState.extractedData?.diaChi ||
-                                                        scanState.extractedData?.noi_cu_tru
-                                                }
-                                            ].map((field, index) => (
-                                                <Box
-                                                    key={index}
+                                        {[
+                                            {
+                                                label: 'Lĩnh vực',
+                                                value:
+                                                    editorState.selectedRecord?.linhVuc ||
+                                                    '— Chưa chọn mẫu —'
+                                            },
+                                            {
+                                                label: 'Tên thủ tục',
+                                                value:
+                                                    editorState.selectedRecord?.tenTTHC ||
+                                                    '— Chưa chọn mẫu —'
+                                            },
+                                            {
+                                                label: 'Đối tượng thực hiện',
+                                                value:
+                                                    editorState.selectedRecord?.doiTuong ||
+                                                    '— Chưa chọn mẫu —'
+                                            },
+                                            {
+                                                label: 'Mã thủ tục',
+                                                value:
+                                                    editorState.selectedRecord?.maTTHC ||
+                                                    '— Chưa chọn mẫu —'
+                                            },
+                                            {
+                                                label: 'Cấp thực hiện',
+                                                value:
+                                                    editorState.selectedRecord?.capThucHien ||
+                                                    '— Chưa chọn mẫu —'
+                                            },
+                                            {
+                                                label: 'Quyết định công bố',
+                                                value:
+                                                    editorState.selectedRecord?.qdCongBo ||
+                                                    '— Chưa chọn mẫu —'
+                                            }
+                                        ].map((field, index) => (
+                                            <Box
+                                                key={index}
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'start',
+                                                    mb: 1
+                                                }}
+                                            >
+                                                <Typography
+                                                    variant="body2"
                                                     sx={{
-                                                        background: field.value
-                                                            ? 'linear-gradient(135deg, #e8f5e8 0%, #f1f8e9 100%)'
-                                                            : 'linear-gradient(135deg, #f5f5f5 0%, #eeeeee 100%)',
-                                                        borderRadius: 1,
-                                                        p: 2,
-                                                        border: field.value
-                                                            ? '1px solid rgba(76,175,80,0.3)'
-                                                            : '1px solid rgba(0,0,0,0.1)',
-                                                        transition: 'all 0.3s ease',
-                                                        '&:hover': {
-                                                            transform: 'translateY(-2px)',
-                                                            boxShadow: field.value
-                                                                ? '0 4px 12px rgba(76,175,80,0.2)'
-                                                                : '0 4px 12px rgba(0,0,0,0.1)'
-                                                        }
+                                                        fontWeight: 600,
+                                                        color: 'text.secondary',
+                                                        minWidth: 160 // 👈 căn label gọn gàng
                                                     }}
                                                 >
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: 1,
-                                                            mb: 1
-                                                        }}
-                                                    >
-                                                        <Typography
-                                                            variant="body2"
-                                                            sx={{
-                                                                fontWeight: 700,
-                                                                color: field.value
-                                                                    ? 'success.main'
-                                                                    : 'text.secondary',
-                                                                fontSize: '0.8rem'
-                                                            }}
-                                                        >
-                                                            {field.label}
-                                                        </Typography>
-                                                    </Box>
-                                                    <Typography
-                                                        variant="body1"
-                                                        sx={{
-                                                            fontWeight: field.value ? 600 : 400,
-                                                            color: field.value
+                                                    {field.label}:
+                                                </Typography>
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{
+                                                        color:
+                                                            field.value &&
+                                                            field.value !== '— Chưa chọn mẫu —'
                                                                 ? 'text.primary'
-                                                                : 'text.secondary',
-                                                            fontFamily: field.value
-                                                                ? 'inherit'
-                                                                : 'monospace',
-                                                            fontSize: '0.9rem',
-                                                            wordBreak: 'break-word'
-                                                        }}
-                                                    >
-                                                        {field.value || '— Chưa có dữ liệu —'}
-                                                    </Typography>
-                                                </Box>
-                                            ))}
-                                        </Box>
+                                                                : 'text.disabled',
+                                                        fontStyle:
+                                                            field.value &&
+                                                            field.value !== '— Chưa chọn mẫu —'
+                                                                ? 'normal'
+                                                                : 'italic'
+                                                    }}
+                                                >
+                                                    {field.value}
+                                                </Typography>
+                                            </Box>
+                                        ))}
                                     </Box>
                                 </CardContent>
                             </Card>
@@ -2538,7 +2444,21 @@ function TemplateFillerComponent() {
                                             selectedMauDon: mauDon
                                         };
                                         setTemplateSelectionModal({ open: false, record: null });
-                                        handleSelectTemplate(updatedRecord);
+
+                                        // Trực tiếp mở editor thay vì gọi handleSelectTemplate
+                                        setEditorState(prev => ({
+                                            ...prev,
+                                            selectedRecord: updatedRecord,
+                                            showEditorModal: true,
+                                            syncfusionLoading: true,
+                                            syncfusionDocumentReady: false
+                                        }));
+
+                                        setSnackbar({
+                                            open: true,
+                                            message: `Đang tải mẫu: ${updatedRecord.tenTTHC}`,
+                                            severity: 'info'
+                                        });
                                     }}
                                 >
                                     <Box

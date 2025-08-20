@@ -108,7 +108,7 @@ export default function AdminLayout({ children, title = '' }: AdminLayoutProps):
                     open={mobileOpen}
                     onClose={handleDrawerToggle}
                     ModalProps={{
-                        keepMounted: true 
+                        keepMounted: true
                     }}
                     sx={{
                         display: { xs: 'block', md: 'none' },
@@ -146,11 +146,11 @@ export default function AdminLayout({ children, title = '' }: AdminLayoutProps):
                 component="main"
                 sx={{
                     flexGrow: 1,
-                    p: 1,
+                    p: 0,
                     width: {
                         md: desktopOpen ? `calc(100% - ${DRAWER_WIDTH}px)` : '100%'
                     },
-                    mt: '64px', 
+                    mt: '64px',
                     transition: theme.transitions.create(['width', 'margin'], {
                         easing: theme.transitions.easing.sharp,
                         duration: theme.transitions.duration.leavingScreen
