@@ -79,7 +79,7 @@ import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-rou
 
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
-import { formatDDMMYYYY } from '@/admin/utils/formatDate';
+import { formatDDMMYYYY, getCurrentDateParts } from '@/admin/utils/formatDate';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
 // --- CẤU HÌNH ---
@@ -407,152 +407,6 @@ const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
     }
     return data;
 };
-// --- MEMOIZED COMPONENTS ---
-// const TemplateCard = React.memo<{
-//     record: EnhancedTTHCRecord;
-//     index: number;
-//     onSelect: (record: EnhancedTTHCRecord) => void;
-//     onSelectTemplate: (record: EnhancedTTHCRecord) => void;
-// }>(({ record, index, onSelect, onSelectTemplate }) => (
-//     <Paper
-//         variant="outlined"
-//         sx={{
-//             p: 3,
-//             mb: 3,
-//             borderRadius: 1,
-//             border: '1px solid #939AA0FF',
-//             background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-//             position: 'relative',
-//             overflow: 'hidden',
-//             '&::before': {
-//                 content: '""',
-//                 position: 'absolute',
-//                 top: 0,
-//                 left: 0,
-//                 right: 0,
-//                 bottom: 0,
-//                 background:
-//                     'linear-gradient(135deg, rgba(25,118,210,0.03) 0%, rgba(66,165,245,0.03) 100%)',
-//                 opacity: 0,
-//                 transition: 'opacity 0.3s ease',
-//                 zIndex: 0
-//             },
-//             '&:hover': {
-//                 transform: 'translateY(-4px)',
-//                 boxShadow: '0 12px 40px rgba(25,118,210,0.15)',
-//                 borderColor: '#1976d2',
-//                 '&::before': {
-//                     opacity: 1
-//                 }
-//             },
-//             transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
-//             cursor: 'pointer',
-//             animation: `fadeInUp 0.6s ease-out ${index * 0.1}s both`
-//         }}
-//         onClick={() => onSelect(record)}
-//     >
-//         <Box
-//             sx={{
-//                 display: 'flex',
-//                 justifyContent: 'space-between',
-//                 alignItems: 'flex-start',
-//                 position: 'relative',
-//                 zIndex: 1
-//             }}
-//         >
-//             <Box sx={{ flex: 1, pr: 2 }}>
-//                 <Typography
-//                     variant="body2"
-//                     sx={{
-//                         fontWeight: 700,
-//                         mb: 2,
-//                         background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-//                         backgroundClip: 'text',
-//                         WebkitBackgroundClip: 'text',
-//                         WebkitTextFillColor: 'transparent',
-//                         lineHeight: 1.2
-//                     }}
-//                 >
-//                     {record.tenTTHC}
-//                 </Typography>
-//                 <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-//                     <Chip
-//                         label={record.maTTHC}
-//                         size="small"
-//                         variant="outlined"
-//                         color="primary"
-//                         sx={{
-//                             fontWeight: 600,
-//                             fontSize: '0.75rem'
-//                         }}
-//                     />
-//                     <Chip
-//                         label={record.linhVuc}
-//                         size="small"
-//                         variant="filled"
-//                         color="secondary"
-//                         sx={{
-//                             fontWeight: 500,
-//                             fontSize: '0.75rem'
-//                         }}
-//                     />
-//                 </Box>
-//                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-//                     <PersonIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-//                     <Typography variant="body2" color="text.secondary">
-//                         {record.doiTuong || 'Công dân Việt Nam'}
-//                     </Typography>
-//                 </Box>
-//             </Box>
-//             <Box
-//                 sx={{
-//                     display: 'flex',
-//                     flexDirection: 'column',
-//                     gap: 2,
-//                     alignItems: 'flex-end',
-//                     minWidth: 140
-//                 }}
-//             >
-//                 <Chip
-//                     label={`${record.danhSachMauDon.length} mẫu`}
-//                     color="success"
-//                     size="small"
-//                     variant="filled"
-//                     sx={{
-//                         fontWeight: 600,
-//                         fontSize: '0.75rem',
-//                         boxShadow: '0 2px 8px rgba(76,175,80,0.3)'
-//                     }}
-//                 />
-//                 <Button
-//                     variant="contained"
-//                     size="medium"
-//                     startIcon={<EditIcon />}
-//                     onClick={e => {
-//                         e.stopPropagation();
-//                         onSelectTemplate(record);
-//                     }}
-//                     sx={{
-//                         borderRadius: 1,
-//                         textTransform: 'none',
-//                         fontWeight: 600,
-//                         px: 3,
-//                         background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-//                         boxShadow: '0 4px 15px rgba(25,118,210,0.4)',
-//                         '&:hover': {
-//                             background: 'linear-gradient(45deg, #1565c0, #1976d2)',
-//                             boxShadow: '0 6px 20px rgba(25,118,210,0.6)',
-//                             transform: 'translateY(-2px)'
-//                         },
-//                         transition: 'all 0.3s ease'
-//                     }}
-//                 >
-//                     Chọn mẫu
-//                 </Button>
-//             </Box>
-//         </Box>
-//     </Paper>
-// ));
 
 function LinhVucListComponent() {
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
@@ -788,25 +642,21 @@ const applyDataToSyncfusion = async (
             console.error('❌ Failed to serialize document');
             return false;
         }
+        const { day: dayCurrent, month: monthCurent, year: yearCurrent } = getCurrentDateParts();
+
         // Create replace map for exact placeholder matching
         const replaceMap: Record<string, string> = {
             '{ho_ten}': data.hoTen || data.ho_ten || '',
-            '{cccd}': data.cccd || data.so_cccd || '',
-            '{cmnd}': data.cmnd || data.so_cmnd || '',
             '{so_cccd}': data.so_cccd || data.cccd || '',
             '{so_cmnd}': data.so_cmnd || data.cmnd || '',
             '{ngay_sinh}': data.ngaySinh || data.ngay_sinh || '',
             '{gioi_tinh}': data.gioiTinh || data.gioi_tinh || '',
             '{noi_cu_tru}': data.diaChi || data.noiCuTru || data.noi_cu_tru || '',
-            '{dan_toc}': data.danToc || data.dan_toc || '',
-            '{noi_cap}': data.noiCap || data.noi_cap || '',
             '{ngay_cap}': data.ngayCap || data.ngay_cap || '',
-            '{ns_ngay}': data.ns_ngay || '',
-            '{ns_thang}': data.ns_thang || '',
-            '{ns_nam}': data.ns_nam || '',
-            '{nc_ngay}': data.nc_ngay || '',
-            '{nc_thang}': data.nc_thang || '',
-            '{nc_nam}': data.nc_nam || ''
+            // Current date time
+            '{n_ht}': dayCurrent.toString() || '',
+            '{t_ht}': monthCurent.toString() || '',
+            '{h_ht}': yearCurrent.toString() || ''
         };
         console.log('📝 Replace map:', replaceMap);
         let totalReplacements = 0;
@@ -851,11 +701,15 @@ function TemplateFillerComponent() {
     const navigate = useNavigate();
     const { history } = useRouter();
 
+    const [unfilledObjects, setUnfilledObjects] = useState<number[]>([]);
+    const [selectedObjectIndex, setSelectedObjectIndex] = useState<number | ''>('');
+    
+
     const handlePrintClick = async () => {
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            await sfContainerRef.current.documentEditor.print(window);
+            await sfContainerRef.current.documentEditor.print();
             await window.print();
-            // await history.back();
+            await history.back();
             await navigate({
                 to: '/template-filler'
             });
