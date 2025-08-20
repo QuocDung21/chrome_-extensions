@@ -4009,6 +4009,96 @@ function ProceduresComponent() {
         [resetProcessing, state.uploadedTemplateUrl]
     );
 
+    // Download the current working document (filled document, custom template, or original template)
+    const handleDownloadWorkingDocument = useCallback(async () => {
+        try {
+            // Priority 1: If Syncfusion editor is active and ready, download the current edited content
+            if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
+                const baseName = displayTemplateName || 'file';
+                const fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.docx`;
+                sfContainerRef.current.documentEditor.save(fileName, 'Docx');
+                setSnackbar({
+                    open: true,
+                    message: 'Đã tải xuống tài liệu đã chỉnh sửa thành công!',
+                    severity: 'success'
+                });
+                return;
+            }
+
+            // Priority 2: If HTML preview is active, download the current HTML content
+            if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
+                const doc = htmlIframeRef.current.contentDocument;
+                const htmlContent = doc.documentElement.outerHTML;
+                const baseName = displayTemplateName || 'file';
+                const fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.html`;
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                saveAs(blob, fileName);
+                setSnackbar({
+                    open: true,
+                    message: 'Đã tải xuống tài liệu HTML đã chỉnh sửa thành công!',
+                    severity: 'success'
+                });
+                return;
+            }
+
+            // Priority 3: Download the filled document if available
+            if (state.generatedBlob) {
+                const baseName = displayTemplateName || 'file';
+                const newName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
+                saveAs(state.generatedBlob, newName);
+                setSnackbar({
+                    open: true,
+                    message: 'Đã tải xuống tài liệu đã điền thành công!',
+                    severity: 'success'
+                });
+                return;
+            }
+
+            // Priority 4: Download the custom uploaded template if available
+            if (state.uploadedTemplateUrl) {
+                const response = await fetch(state.uploadedTemplateUrl);
+                const blob = await response.blob();
+                const fileName = state.uploadedTemplateName || 'mau_da_chinh.docx';
+                saveAs(blob, fileName);
+                setSnackbar({
+                    open: true,
+                    message: 'Đã tải xuống mẫu đã chỉnh thành công!',
+                    severity: 'success'
+                });
+                return;
+            }
+
+            // Priority 5: Download the original template if available
+            if (state.selectedTemplatePath) {
+                const response = await fetch(state.selectedTemplatePath);
+                const blob = await response.blob();
+                const baseName = displayTemplateName || 'mau_goc';
+                const fileName = `${baseName.replace(/\s/g, '_')}.docx`;
+                saveAs(blob, fileName);
+                setSnackbar({
+                    open: true,
+                    message: 'Đã tải xuống mẫu gốc thành công!',
+                    severity: 'success'
+                });
+                return;
+            }
+
+            // No document available
+            setSnackbar({
+                open: true,
+                message: 'Không có tài liệu nào để tải xuống',
+                severity: 'warning'
+            });
+        } catch (error) {
+            console.error('Error downloading document:', error);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi tải xuống tài liệu',
+                severity: 'error'
+            });
+        }
+    }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode]);
+
     return (
         <Box sx={{ width: '100%' }}>
             <Box
@@ -4169,19 +4259,14 @@ function ProceduresComponent() {
                             >
                                 Tải mẫu gốc
                             </Button>
-                            {/* <Button component="label" variant="outlined" startIcon={<UploadIcon />}>
-                            Tải mẫu đã chỉnh
-                            <input
-                                type="file"
-                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                hidden
-                                onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleUploadCustomTemplate(file);
-                                    e.currentTarget.value = '';
-                                }}
-                            />
-                        </Button> */}
+                            <Button 
+                                variant="outlined" 
+                                startIcon={<DownloadIcon />}
+                                onClick={handleDownloadWorkingDocument}
+                                disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) || (previewMode === 'html' && htmlIframeRef.current?.contentDocument))}
+                            >
+                                Tải mẫu đã chỉnh
+                            </Button>
                             {/* <Button
                             variant="contained"
                             color="success"
@@ -4548,18 +4633,13 @@ function ProceduresComponent() {
                         >
                             Tải mẫu gốc
                         </Button>
-                        <Button size="small" component="label" startIcon={<EditIcon />}>
+                        <Button 
+                            size="small" 
+                            startIcon={<DownloadIcon />}
+                            onClick={handleDownloadWorkingDocument}
+                            disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) || (previewMode === 'html' && htmlIframeRef.current?.contentDocument))}
+                        >
                             Tải mẫu đã chỉnh
-                            <input
-                                type="file"
-                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                hidden
-                                onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleUploadCustomTemplate(file);
-                                    e.currentTarget.value = '';
-                                }}
-                            />
                         </Button>
                     </Box>
 
