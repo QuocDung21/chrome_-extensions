@@ -27,6 +27,7 @@
         "@types/fabric": "^5.3.10",
         "axios": "^1.10.0",
         "dayjs": "^1.11.13",
+        "dexie": "^4.2.0",
         "docx-preview": "^0.3.5",
         "docx-templates": "^4.14.1",
         "docxtemplater": "^3.65.2",

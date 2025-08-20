@@ -75,6 +75,7 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
+import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
 import { formatDDMMYYYY } from '@/admin/utils/formatDate';
 
@@ -555,46 +556,39 @@ function LinhVucListComponent() {
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-
-    // State mới để lưu mã lĩnh vực được chọn
     const [selectedLinhVuc, setSelectedLinhVuc] = useState('');
 
     useEffect(() => {
-        const fetchLinhVuc = async () => {
+        const loadLinhVuc = async () => {
             setLoading(true);
             setError(null);
-            const response = await linhVucApiService.getAllLinhVuc(3, 100);
-
-            if (response.success && response.data) {
-                setLinhVucList(response.data.items);
-            } else {
-                setError(response.error?.message || 'Không thể tải dữ liệu.');
+            try {
+                const data = await linhVucRepository.getLinhVucList();
+                setLinhVucList(data);
+            } catch (err: any) {
+                setError(err.message || 'Đã có lỗi xảy ra.');
+            } finally {
+                setLoading(false);
             }
-            setLoading(false);
         };
-        fetchLinhVuc();
+
+        loadLinhVuc();
     }, []);
 
     const handleChange = (event: SelectChangeEvent<string>) => {
         setSelectedLinhVuc(event.target.value);
     };
 
-    if (loading) return <div>Đang tải danh sách lĩnh vực...</div>;
+    if (loading) return <CircularProgress />;
     if (error) return <div>Lỗi: {error}</div>;
 
     return (
         <FormControl fullWidth>
-            <InputLabel id="linh-vuc-select-label">🏢 Lĩnh vực</InputLabel>
-            <Select
-                labelId="linh-vuc-select-label"
-                value={selectedLinhVuc}
-                label="🏢 Lĩnh vực"
-                onChange={handleChange}
-            >
+            <InputLabel>Lĩnh vực</InputLabel>
+            <Select value={selectedLinhVuc} label="Lĩnh vực" onChange={handleChange}>
                 <MenuItem value="">
                     <em>Tất cả lĩnh vực</em>
                 </MenuItem>
-                {/* 3. Map qua danh sách và gán đúng giá trị */}
                 {linhVucList.map(item => (
                     <MenuItem key={item.maLinhVuc} value={item.maLinhVuc}>
                         {item.tenLinhVuc}
