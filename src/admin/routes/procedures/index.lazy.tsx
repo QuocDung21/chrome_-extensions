@@ -95,6 +95,7 @@ import {
 } from '../../components/word-mapper/TemplateSelectorModal';
 
 import { db } from '../../db/db';
+import type { WorkingDocument } from '../../db/db';
 import { thuTucHCRepository } from '../../repository/ThuTucHCRepository';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
@@ -1097,6 +1098,7 @@ function ProceduresComponent() {
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [showProcessingModal, setShowProcessingModal] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<LocalEnhancedTTHCRecord | null>(null);
+    const [workingDocsByCode, setWorkingDocsByCode] = useState<Record<string, WorkingDocument | undefined>>({});
     const [csvLoading, setCsvLoading] = useState(false);
     const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
 
@@ -1579,6 +1581,18 @@ function ProceduresComponent() {
                 setAvailableTemplates([]);
                 setFilterOptions(createFilterOptions(rawRecords));
                 setFilteredRecords(enhancedRecords);
+
+                // Load existing working docs from IndexedDB and index by maTTHC
+                try {
+                    const allWorking = await db.workingDocuments.toArray();
+                    const byCode: { [code: string]: WorkingDocument } = {};
+                    allWorking.forEach(doc => {
+                        if (doc.maTTHC) byCode[doc.maTTHC] = doc;
+                    });
+                    setWorkingDocsByCode(byCode);
+                } catch (e) {
+                    console.warn('Không thể đọc Working Documents từ IndexedDB', e);
+                }
 
                 const availableCount = enhancedRecords.filter(r => r.isTemplateAvailable).length;
                 const totalCount = enhancedRecords.length;
@@ -3180,6 +3194,21 @@ function ProceduresComponent() {
                                                     >
                                                         Chọn mẫu này
                                                     </Button>
+                                                    {(() => {
+                                                        const savedDoc = workingDocsByCode[record.maTTHC];
+                                                        return savedDoc ? (
+                                                            <Button
+                                                                variant="text"
+                                                                color="secondary"
+                                                                size="small"
+                                                                onClick={() =>
+                                                                    handleLoadWorkingFromDb(record.maTTHC, record)
+                                                                }
+                                                            >
+                                                                {savedDoc.fileName}
+                                                            </Button>
+                                                        ) : null;
+                                                    })()}
                                                 </>
                                             ) : (
                                                 <>
@@ -4075,13 +4104,15 @@ function ProceduresComponent() {
         async (maTTHC: string, blob: Blob, fileName: string, mimeType: string) => {
             try {
                 if (!maTTHC) return;
-                await db.workingDocuments.put({
+                const record: WorkingDocument = {
                     maTTHC,
                     fileName,
                     mimeType,
                     blob,
                     updatedAt: Date.now()
-                });
+                };
+                await db.workingDocuments.put(record);
+                setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: record }));
             } catch (e) {
                 console.error('Failed to save working document to IndexedDB', e);
             }
@@ -4205,6 +4236,68 @@ function ProceduresComponent() {
             });
         }
     }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode, selectedRecord, saveWorkingDocToDb]);
+
+    const handleLoadWorkingFromDb = useCallback(
+        async (maTTHC: string, record: LocalEnhancedTTHCRecord) => {
+            try {
+                let doc: WorkingDocument | undefined = workingDocsByCode[maTTHC];
+                if (!doc) {
+                    doc = await db.workingDocuments.get(maTTHC);
+                }
+                if (!doc) {
+                    setSnackbar({
+                        open: true,
+                        message: 'Không tìm thấy tài liệu đã lưu cho thủ tục này',
+                        severity: 'warning'
+                    });
+                    return;
+                }
+
+                setSelectedRecord(record);
+
+                // If HTML, create an object URL and open in HTML preview
+                if (doc.mimeType === 'text/html') {
+                    const htmlUrl = URL.createObjectURL(doc.blob);
+                    setState(prev => ({
+                        ...prev,
+                        selectedTemplatePath: prev.selectedTemplatePath || `working://${maTTHC}`,
+                        selectedHtmlUrl: htmlUrl,
+                        generatedBlob: null,
+                        error: null
+                    }));
+                } else {
+                    // Treat as DOCX or other binary; load into Syncfusion if active, and set as generatedBlob for docx preview
+                    setState(prev => ({
+                        ...prev,
+                        selectedTemplatePath: prev.selectedTemplatePath || `working://${maTTHC}`,
+                        selectedHtmlUrl: null,
+                        generatedBlob: doc.blob,
+                        error: null
+                    }));
+                    if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
+                        sfContainerRef.current.documentEditor.open(doc.blob);
+                    }
+                }
+
+                resetProcessing();
+                setShowFilters(false);
+                setShowTemplateModal(false);
+                setSnackbar({
+                    open: true,
+                    message: `Đã mở tài liệu đã lưu: ${doc.fileName}`,
+                    severity: 'success'
+                });
+            } catch (error) {
+                console.error('Lỗi khi mở tài liệu đã lưu từ IndexedDB:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Lỗi khi mở tài liệu đã lưu',
+                    severity: 'error'
+                });
+            }
+        },
+        [workingDocsByCode, previewMode, resetProcessing]
+    );
 
     return (
         <Box sx={{ width: '100%' }}>
