@@ -92,7 +92,7 @@ import {
     type FilterOptions,
     type FilterState,
     TemplateSelectorModal
-} from '../../components/word-mapper/TemplateSelectorModal';
+} from '../procedures/TemplateSelectorModal';
 
 import { db } from '../../db/db';
 import type { WorkingDocument } from '../../db/db';
@@ -1111,7 +1111,7 @@ function ProceduresComponent() {
     const previewContainerRef = useRef<HTMLDivElement>(null);
     const htmlIframeRef = useRef<HTMLIFrameElement>(null);
     const [htmlRaw, setHtmlRaw] = useState<string>('');
-    const [previewMode, setPreviewMode] = useState<'syncfusion' | 'html' | 'docx'>('syncfusion');
+    const [previewMode] = useState<'syncfusion'>('syncfusion');
     const templatePathRef = useRef<string>('');
     const [showFieldGuide, setShowFieldGuide] = useState(false);
     const [syncfusionDocumentReady, setSyncfusionDocumentReady] = useState(false);
@@ -1590,6 +1590,7 @@ function ProceduresComponent() {
                         if (doc.maTTHC) byCode[doc.maTTHC] = doc;
                     });
                     setWorkingDocsByCode(byCode);
+                    console.log(`✅ Loaded ${Object.keys(byCode).length} working documents from IndexedDB`);
                 } catch (e) {
                     console.warn('Không thể đọc Working Documents từ IndexedDB', e);
                 }
@@ -1617,6 +1618,115 @@ function ProceduresComponent() {
         loadData();
     }, []);
 
+    // Function to refresh working documents from IndexedDB
+    const refreshWorkingDocuments = useCallback(async () => {
+        try {
+            const allWorking = await db.workingDocuments.toArray();
+            const byCode: { [code: string]: WorkingDocument } = {};
+            allWorking.forEach(doc => {
+                if (doc.maTTHC) byCode[doc.maTTHC] = doc;
+            });
+            setWorkingDocsByCode(byCode);
+            console.log(`✅ Refreshed working documents: ${Object.keys(byCode).length} documents`);
+        } catch (e) {
+            console.error('❌ Failed to refresh working documents:', e);
+        }
+    }, []);
+
+    // Function to delete working document from IndexedDB
+    const deleteWorkingDocument = useCallback(async (maTTHC: string) => {
+        try {
+            await db.workingDocuments.delete(maTTHC);
+            setWorkingDocsByCode(prev => {
+                const newState = { ...prev };
+                delete newState[maTTHC];
+                return newState;
+            });
+            console.log(`✅ Deleted working document for maTTHC: ${maTTHC}`);
+            setSnackbar({
+                open: true,
+                message: 'Đã xóa tài liệu đã lưu',
+                severity: 'success'
+            });
+        } catch (e) {
+            console.error('❌ Failed to delete working document:', e);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi xóa tài liệu đã lưu',
+                severity: 'error'
+            });
+        }
+    }, [setSnackbar]);
+
+    // Function to get working document info for display
+    const getWorkingDocumentInfo = useCallback((maTTHC: string) => {
+        return workingDocsByCode[maTTHC];
+    }, [workingDocsByCode]);
+
+    // Function to check if working document exists for a specific maTTHC
+    const hasWorkingDocument = useCallback((maTTHC: string) => {
+        return !!workingDocsByCode[maTTHC];
+    }, [workingDocsByCode]);
+
+    // Function to get all working documents for display
+    const getAllWorkingDocuments = useCallback(() => {
+        return Object.values(workingDocsByCode);
+    }, [workingDocsByCode]);
+
+    // Function to get working document count
+    const getWorkingDocumentCount = useCallback(() => {
+        return Object.keys(workingDocsByCode).length;
+    }, [workingDocsByCode]);
+
+    // Function to get working document by filename for search
+    const getWorkingDocumentByFilename = useCallback((filename: string) => {
+        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).find(doc => doc.fileName === filename);
+    }, [workingDocsByCode]);
+
+    // Function to get working document by maTTHC for quick access
+    const getWorkingDocumentByMaTTHC = useCallback((maTTHC: string) => {
+        return workingDocsByCode[maTTHC];
+    }, [workingDocsByCode]);
+
+        // Function to get working documents by date range for filtering
+    const getWorkingDocumentsByDateRange = useCallback((startDate: Date, endDate: Date) => {
+        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
+            const docDate = new Date(doc.updatedAt);
+            return docDate >= startDate && docDate <= endDate;
+        });
+    }, [workingDocsByCode]);
+
+    // Function to get working documents by mime type for filtering
+    const getWorkingDocumentsByMimeType = useCallback((mimeType: string) => {
+        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
+            return doc.mimeType === mimeType;
+        });
+    }, [workingDocsByCode]);
+
+    // Function to get working documents by size range for filtering
+    const getWorkingDocumentsBySizeRange = useCallback((minSize: number, maxSize: number) => {
+        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
+            const docSize = doc.blob.size;
+            return docSize >= minSize && docSize <= maxSize;
+        });
+    }, [workingDocsByCode]);
+
+    // Function to get working documents by filename pattern for search
+    const getWorkingDocumentsByFilenamePattern = useCallback((pattern: string) => {
+        const regex = new RegExp(pattern, 'i');
+        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
+            return regex.test(doc.fileName);
+        });
+    }, [workingDocsByCode]);
+
+    // Function to get working documents by maTTHC pattern for search
+    const getWorkingDocumentsByMaTTHCPattern = useCallback((pattern: string) => {
+        const regex = new RegExp(pattern, 'i');
+        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
+            return regex.test(doc.maTTHC);
+        });
+    }, [workingDocsByCode]);
+
     // Filter records when filters change
     useEffect(() => {
         const filtered = filterRecords(csvRecords, filters);
@@ -1641,133 +1751,187 @@ function ProceduresComponent() {
             }
 
             try {
-                // ----- Chế độ xem DOCX Preview -----
-                if (previewMode === 'docx') {
-                    if (!previewContainerRef.current) return;
-
-                    // Luôn dọn dẹp khu vực preview trước
-                    previewContainerRef.current.innerHTML = '';
-
-                    // Ưu tiên hiển thị file đã điền (generatedBlob) nếu có
-                    if (state.generatedBlob) {
-                        await renderAsync(
-                            state.generatedBlob,
-                            previewContainerRef.current,
-                            undefined,
-                            {
-                                className: 'docx-preview-container'
-                            }
-                        );
-                    } else {
-                        // Nếu không, hiển thị mẫu gốc
-                        const response = await fetch(templateUrl);
-                        if (!response.ok) throw new Error('Không thể tải file mẫu để xem trước');
-                        const templateBlob = await response.blob();
-                        await renderAsync(templateBlob, previewContainerRef.current, undefined, {
-                            className: 'docx-preview-container'
-                        });
-                    }
-                }
+                // Since we only use syncfusion mode, this section is not needed
+                // All document viewing is handled by Syncfusion editor
+                
                 // ----- Chế độ xem Syncfusion -----
-                else if (previewMode === 'syncfusion') {
+                if (previewMode === 'syncfusion') {
                     // Điều kiện kiểm tra ref cho Syncfusion
                     if (!sfContainerRef.current?.documentEditor) return;
 
-                    // Khi chuyển sang Syncfusion, chúng ta LUÔN NẠP LẠI MẪU GỐC.
-                    // Điều này đảm bảo trình soạn thảo luôn có nội dung gốc để làm việc.
-                    try {
-                        console.log('🔄 Loading template into Syncfusion...');
+                    // Kiểm tra xem có phải là working document từ IndexedDB không
+                    const isWorkingDocument = templateUrl.startsWith('working://');
+                    
+                    if (isWorkingDocument && state.generatedBlob) {
+                        // Nếu là working document và có blob, mở trực tiếp vào Syncfusion
+                        console.log('🔄 Loading working document from IndexedDB into Syncfusion...');
                         setSyncfusionLoading(true);
                         setSyncfusionDocumentReady(false);
 
-                        const res = await fetch(templateUrl);
-                        if (!res.ok) throw new Error('Không thể tải file mẫu cho Syncfusion');
-
-                        const blob = await res.blob();
-                        const form = new FormData();
-                        form.append('files', blob, state.uploadedTemplateName || 'template.docx');
-
-                        console.log('🔄 Converting DOCX to SFDT...');
-                        // Gọi service của Syncfusion để chuyển đổi docx -> sfdt
-                        const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
-                            method: 'POST',
-                            body: form
-                        });
-
-                        if (!importRes.ok) {
-                            throw new Error(`Lỗi khi import file: ${importRes.statusText}`);
-                        }
-
-                        const sfdtText = await importRes.text();
-                        console.log('✅ SFDT conversion completed');
-
-                        // Mở chuỗi SFDT nhận được từ service
-                        console.log('🔄 Opening document in Syncfusion editor...');
-                        sfContainerRef.current.documentEditor.open(sfdtText);
-
-                        // Wait a bit for the document to be fully loaded
-                        setTimeout(() => {
-                            // Verify document is actually loaded by checking its content
-                            try {
-                                const testSfdt =
-                                    sfContainerRef.current?.documentEditor?.serialize();
-                                if (testSfdt) {
-                                    const testJson =
-                                        typeof testSfdt === 'string'
-                                            ? JSON.parse(testSfdt)
-                                            : testSfdt;
-                                    const testSections = testJson?.sections || testJson?.sec;
-                                    if (testJson && testSections && Array.isArray(testSections)) {
-                                        setSyncfusionDocumentReady(true);
-                                        setSyncfusionLoading(false);
-                                        console.log(
-                                            '✅ Syncfusion document ready for data insertion'
-                                        );
-                                        console.log(
-                                            '📄 Document has',
-                                            testSections.length,
-                                            'sections'
-                                        );
+                        try {
+                            // Mở trực tiếp blob vào Syncfusion editor
+                            sfContainerRef.current.documentEditor.open(state.generatedBlob);
+                            
+                            // Wait a bit for the document to be fully loaded
+                            setTimeout(() => {
+                                // Verify document is actually loaded by checking its content
+                                try {
+                                    const testSfdt =
+                                        sfContainerRef.current?.documentEditor?.serialize();
+                                    if (testSfdt) {
+                                        const testJson =
+                                            typeof testSfdt === 'string'
+                                                ? JSON.parse(testSfdt)
+                                                : testSfdt;
+                                        const testSections = testJson?.sections || testJson?.sec;
+                                        if (testJson && testSections && Array.isArray(testSections)) {
+                                            setSyncfusionDocumentReady(true);
+                                            setSyncfusionLoading(false);
+                                            console.log(
+                                                '✅ Syncfusion document ready for data insertion'
+                                            );
+                                            console.log(
+                                                '📄 Document has',
+                                                testSections.length,
+                                                'sections'
+                                            );
+                                        } else {
+                                            console.warn(
+                                                '⚠️ Document structure not ready yet, waiting longer...'
+                                            );
+                                            console.log(
+                                                'Available properties:',
+                                                Object.keys(testJson || {})
+                                            );
+                                            // Wait a bit more
+                                            setTimeout(() => {
+                                                setSyncfusionDocumentReady(true);
+                                                setSyncfusionLoading(false);
+                                            }, 1000);
+                                        }
                                     } else {
                                         console.warn(
-                                            '⚠️ Document structure not ready yet, waiting longer...'
+                                            '⚠️ Cannot serialize document yet, waiting longer...'
                                         );
-                                        console.log(
-                                            'Available properties:',
-                                            Object.keys(testJson || {})
-                                        );
-                                        // Wait a bit more
                                         setTimeout(() => {
                                             setSyncfusionDocumentReady(true);
                                             setSyncfusionLoading(false);
                                         }, 1000);
                                     }
-                                } else {
-                                    console.warn(
-                                        '⚠️ Cannot serialize document yet, waiting longer...'
-                                    );
-                                    setTimeout(() => {
-                                        setSyncfusionDocumentReady(true);
-                                        setSyncfusionLoading(false);
-                                    }, 1000);
+                                } catch (error) {
+                                    console.warn('⚠️ Error checking document readiness:', error);
+                                    setSyncfusionDocumentReady(true);
+                                    setSyncfusionLoading(false);
                                 }
-                            } catch (error) {
-                                console.warn('⚠️ Error checking document readiness:', error);
-                                setSyncfusionDocumentReady(true);
-                                setSyncfusionLoading(false);
+                            }, 1000);
+                        } catch (e: any) {
+                            console.error('❌ Error loading working document into Syncfusion:', e);
+                            setSyncfusionLoading(false);
+                            setSyncfusionDocumentReady(false);
+                            setSnackbar({
+                                open: true,
+                                message: e?.message || 'Không thể mở tài liệu đã lưu trong Syncfusion',
+                                severity: 'error'
+                            });
+                            // Nếu lỗi, giữ nguyên chế độ syncfusion
+                            console.warn('Error loading working document, keeping syncfusion mode');
+                        }
+                    } else {
+                        // Nếu không phải working document, sử dụng logic cũ để tải từ URL
+                        try {
+                            console.log('🔄 Loading template into Syncfusion...');
+                            setSyncfusionLoading(true);
+                            setSyncfusionDocumentReady(false);
+
+                            const res = await fetch(templateUrl);
+                            if (!res.ok) throw new Error('Không thể tải file mẫu cho Syncfusion');
+
+                            const blob = await res.blob();
+                            const form = new FormData();
+                            form.append('files', blob, state.uploadedTemplateName || 'template.docx');
+
+                            console.log('🔄 Converting DOCX to SFDT...');
+                            // Gọi service của Syncfusion để chuyển đổi docx -> sfdt
+                            const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
+                                method: 'POST',
+                                body: form
+                            });
+
+                            if (!importRes.ok) {
+                                throw new Error(`Lỗi khi import file: ${importRes.statusText}`);
                             }
-                        }, 1000);
-                    } catch (e: any) {
-                        console.error('❌ Error loading Syncfusion document:', e);
-                        setSyncfusionLoading(false);
-                        setSyncfusionDocumentReady(false);
-                        setSnackbar({
-                            open: true,
-                            message: e?.message || 'Không thể mở tài liệu trong Syncfusion',
-                            severity: 'error'
-                        });
-                        // Nếu lỗi, tự động chuyển về chế độ xem docx an toàn hơn
-                        setPreviewMode('docx');
+
+                            const sfdtText = await importRes.text();
+                            console.log('✅ SFDT conversion completed');
+
+                            // Mở chuỗi SFDT nhận được từ service
+                            console.log('🔄 Opening document in Syncfusion editor...');
+                            sfContainerRef.current.documentEditor.open(sfdtText);
+
+                            // Wait a bit for the document to be fully loaded
+                            setTimeout(() => {
+                                // Verify document is actually loaded by checking its content
+                                try {
+                                    const testSfdt =
+                                        sfContainerRef.current?.documentEditor?.serialize();
+                                    if (testSfdt) {
+                                        const testJson =
+                                            typeof testSfdt === 'string'
+                                                ? JSON.parse(testSfdt)
+                                                : testSfdt;
+                                        const testSections = testJson?.sections || testJson?.sec;
+                                        if (testJson && testSections && Array.isArray(testSections)) {
+                                            setSyncfusionDocumentReady(true);
+                                            setSyncfusionLoading(false);
+                                            console.log(
+                                                '✅ Syncfusion document ready for data insertion'
+                                            );
+                                            console.log(
+                                                '📄 Document has',
+                                                testSections.length,
+                                                'sections'
+                                            );
+                                        } else {
+                                            console.warn(
+                                                '⚠️ Document structure not ready yet, waiting longer...'
+                                            );
+                                            console.log(
+                                                'Available properties:',
+                                                Object.keys(testJson || {})
+                                            );
+                                            // Wait a bit more
+                                            setTimeout(() => {
+                                                setSyncfusionDocumentReady(true);
+                                                setSyncfusionLoading(false);
+                                            }, 1000);
+                                        }
+                                    } else {
+                                        console.warn(
+                                            '⚠️ Cannot serialize document yet, waiting longer...'
+                                        );
+                                        setTimeout(() => {
+                                            setSyncfusionDocumentReady(true);
+                                            setSyncfusionLoading(false);
+                                        }, 1000);
+                                    }
+                                } catch (error) {
+                                    console.warn('⚠️ Error checking document readiness:', error);
+                                    setSyncfusionDocumentReady(true);
+                                    setSyncfusionLoading(false);
+                                }
+                            }, 1000);
+                        } catch (e: any) {
+                            console.error('❌ Error loading Syncfusion document:', e);
+                            setSyncfusionLoading(false);
+                            setSyncfusionDocumentReady(false);
+                            setSnackbar({
+                                open: true,
+                                message: e?.message || 'Không thể mở tài liệu trong Syncfusion',
+                                severity: 'error'
+                            });
+                            // Nếu lỗi, giữ nguyên chế độ syncfusion
+                            console.warn('Error loading Syncfusion document, keeping syncfusion mode');
+                        }
                     }
                 }
                 // ----- Chế độ xem HTML -----
@@ -1780,9 +1944,9 @@ function ProceduresComponent() {
         };
 
         renderSelectedTemplate();
-        // Loại bỏ state.generatedBlob khỏi dependency array để tránh re-render không cần thiết
-        // khi chuyển mode. Việc xử lý blob đã được đưa vào bên trong logic của từng mode.
-    }, [state.selectedTemplatePath, state.uploadedTemplateUrl, previewMode, state.selectedHtmlUrl]);
+        // Cần thêm state.generatedBlob vào dependency array vì chúng ta sử dụng nó để kiểm tra
+        // xem có phải là working document từ IndexedDB không
+    }, [state.selectedTemplatePath, state.uploadedTemplateUrl, previewMode, state.selectedHtmlUrl, state.generatedBlob]);
     useEffect(() => {
         const loadHtml = async () => {
             const url = state.selectedHtmlUrl;
@@ -1795,11 +1959,10 @@ function ProceduresComponent() {
                     console.debug('[HTML] Loaded from URL:', url, 'length:', text.length);
                 } catch {}
                 setHtmlRaw(text);
-                setPreviewMode('html');
+                // Keep syncfusion mode for consistency
             } catch (e) {
-                console.warn('Không thể tải HTML preview, fallback DOCX');
+                console.warn('Không thể tải HTML preview, keeping syncfusion mode');
                 setHtmlRaw('');
-                setPreviewMode('docx');
             }
         };
         loadHtml();
@@ -2141,61 +2304,6 @@ function ProceduresComponent() {
                                 severity: 'error'
                             });
                         }
-                    } else if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
-                        console.log('🔄 Inserting socket data into HTML form...');
-
-                        // Chèn dữ liệu vào HTML form
-                        try {
-                            // Inline ensureHtmlInputKeys
-                            const iframe = htmlIframeRef.current;
-                            const doc = iframe?.contentDocument;
-                            if (doc) {
-                                const elements = Array.from(
-                                    doc.querySelectorAll('input, textarea, select')
-                                ) as Array<
-                                    HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
-                                >;
-                                elements.forEach((el, idx) => {
-                                    const id = el.getAttribute('id') || '';
-                                    const name = (el as HTMLInputElement).name || '';
-                                    if (!id && !name) {
-                                        const existing = el.getAttribute('data-auto-id');
-                                        const autoId = existing || `auto_input_${idx + 1}`;
-                                        el.setAttribute('data-auto-id', autoId);
-                                    }
-                                });
-                            }
-
-                            // Inline fillHtmlFormFieldsFromData
-                            let ok = false;
-                            if (doc) {
-                                let filledCount = 0;
-                                for (const [key, value] of Object.entries(processingData)) {
-                                    const el =
-                                        doc.querySelector(`#${key}`) ||
-                                        doc.querySelector(`[name="${key}"]`) ||
-                                        doc.querySelector(`[data-auto-id="${key}"]`);
-                                    if (el && (el as HTMLInputElement).type !== 'file') {
-                                        (el as HTMLInputElement).value = String(value || '');
-                                        filledCount++;
-                                    }
-                                }
-                                ok = filledCount > 0;
-                            }
-                            setSnackbar({
-                                open: true,
-                                message: ok
-                                    ? 'Đã chèn dữ liệu từ Mobile App vào biểu mẫu HTML!'
-                                    : 'Không tìm thấy trường để chèn trong HTML',
-                                severity: ok ? 'success' : 'info'
-                            });
-                        } catch (e) {
-                            setSnackbar({
-                                open: true,
-                                message: 'Không thể chèn dữ liệu vào biểu mẫu HTML',
-                                severity: 'error'
-                            });
-                        }
                     } else {
                         console.log('🔄 Creating new document with socket data...');
 
@@ -2305,6 +2413,41 @@ function ProceduresComponent() {
         [resetProcessing]
     );
 
+    const handleTemplateSelect = useCallback(
+        (record: LocalEnhancedTTHCRecord) => {
+            if (!record.isTemplateAvailable) {
+                setSnackbar({
+                    open: true,
+                    message: `Mẫu đơn "${record.tenFile || extractTemplateName(record.mauDon)}" chưa có sẵn trong hệ thống`,
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // Build path from templates_by_code
+            const templatePath = buildDocxUrlForRecord(record);
+            const htmlUrl = buildHtmlUrlForRecord(record);
+
+            setState(prev => ({
+                ...prev,
+                selectedTemplatePath: templatePath,
+                selectedHtmlUrl: htmlUrl,
+                generatedBlob: null,
+                error: null
+            }));
+            resetProcessing();
+            setShowFilters(false);
+            setShowTemplateModal(false);
+
+            setSnackbar({
+                open: true,
+                message: `Đã chọn mẫu: ${record.tenTTHC}`,
+                severity: 'info'
+            });
+        },
+        [resetProcessing]
+    );
+
     const handleOpenProcessingModal = useCallback((record: LocalEnhancedTTHCRecord) => {
         if (!record.isTemplateAvailable) {
             setSnackbar({
@@ -2334,28 +2477,8 @@ function ProceduresComponent() {
     }, [state.generatedBlob, displayTemplateName]);
 
     const handlePrintPreview = useCallback(() => {
-        if (previewMode === 'docx') {
-            // For DOCX, printing preview is misleading; prefer opening Word to print
-            handleOpenDocxForPrint();
-            return;
-        }
-        if (previewMode === 'html') {
-            const iframe = htmlIframeRef.current;
-            const doc = iframe?.contentDocument;
-            if (!doc) return;
-            const html = doc.documentElement.outerHTML;
-            const printWindow = window.open('', '_blank');
-            if (printWindow) {
-                printWindow.document.open();
-                printWindow.document.write(html);
-                printWindow.document.close();
-                printWindow.focus();
-                setTimeout(() => {
-                    printWindow.print();
-                    printWindow.close();
-                }, 250);
-            }
-        } else if (previewMode === 'syncfusion') {
+       
+         if (previewMode === 'syncfusion') {
             try {
                 sfContainerRef.current?.documentEditor?.print();
             } catch {}
@@ -2660,12 +2783,12 @@ function ProceduresComponent() {
         try {
             // Xác định phần tử nguồn để xuất PDF
             let sourceElement: HTMLElement | null = null;
-            if (previewMode === 'docx') {
-                sourceElement = previewContainerRef.current;
-            } else {
-                const doc = htmlIframeRef.current?.contentDocument;
-                sourceElement = (doc?.body || null) as unknown as HTMLElement | null;
-            }
+            // if (previewMode === 'docx') {
+            //     sourceElement = previewContainerRef.current;
+            // } else {
+            //     const doc = htmlIframeRef.current?.contentDocument;
+            //     sourceElement = (doc?.body || null) as unknown as HTMLElement | null;
+            // }
             if (!sourceElement) {
                 setSnackbar({
                     open: true,
@@ -2904,54 +3027,7 @@ function ProceduresComponent() {
 
     const handlePrint = useCallback(async () => {
         try {
-            if (previewMode === 'docx') {
-                let blobToPrint: Blob | null = null;
-                if (state.generatedBlob) {
-                    blobToPrint = state.generatedBlob;
-                } else if (state.selectedTemplatePath) {
-                    try {
-                        const res = await fetch(state.selectedTemplatePath);
-                        if (res.ok) blobToPrint = await res.blob();
-                    } catch {}
-                }
-
-                if (!blobToPrint) {
-                    setSnackbar({
-                        open: true,
-                        message: 'Không có tài liệu DOCX để in',
-                        severity: 'warning'
-                    });
-                    return;
-                }
-
-                const printWindow = window.open('', '_blank');
-                if (!printWindow) return;
-
-                printWindow.document.open();
-                printWindow.document.write(
-                    '<!DOCTYPE html><html><head><meta charset="utf-8"/><title>In tài liệu</title><style>html,body{height:100%}body{margin:0;padding:0;background:#fff}</style></head><body><div id="docx-print-root" class="docx-preview-container"></div></body></html>'
-                );
-                printWindow.document.close();
-
-                const container = printWindow.document.getElementById(
-                    'docx-print-root'
-                ) as HTMLDivElement | null;
-                if (!container) return;
-
-                await renderAsync(blobToPrint, container, undefined, {
-                    className: 'docx-preview-container'
-                });
-
-                setTimeout(() => {
-                    try {
-                        printWindow.focus();
-                        printWindow.print();
-                        printWindow.close();
-                    } catch {}
-                }, 100);
-
-                return;
-            }
+            
 
             // HTML mode: reuse existing preview printing
             const iframe = htmlIframeRef.current;
@@ -3189,7 +3265,7 @@ function ProceduresComponent() {
                                                         color="primary"
                                                         size="small"
                                                         onClick={() =>
-                                                            handleOpenProcessingModal(record)
+                                                            handleTemplateSelect(record)
                                                         }
                                                     >
                                                         Chọn mẫu này
@@ -4010,6 +4086,22 @@ function ProceduresComponent() {
     // Download the currently selected template for user to customize
     const handleDownloadOriginalTemplate = useCallback(async () => {
         if (!state.selectedTemplatePath) return;
+        
+        // Check if it's a working document from IndexedDB
+        if (state.selectedTemplatePath.startsWith('working://')) {
+            if (state.generatedBlob) {
+                // Use the blob directly for working documents
+                const baseName = (state.uploadedTemplateName || selectedTemplateNameFromPath || 'mau')
+                    .replace(/\s/g, '_')
+                    .replace(/\.(docx?|DOCX?)$/, '');
+                saveAs(state.generatedBlob, `${baseName}.docx`);
+                setSnackbar({ open: true, message: 'Đã tải xuống tài liệu đã lưu', severity: 'success' });
+            } else {
+                setSnackbar({ open: true, message: 'Không thể tải xuống tài liệu đã lưu', severity: 'error' });
+            }
+            return;
+        }
+        
         try {
             const res = await fetch(state.selectedTemplatePath);
             if (!res.ok) throw new Error('Không thể tải file mẫu');
@@ -4021,7 +4113,7 @@ function ProceduresComponent() {
         } catch (e) {
             setSnackbar({ open: true, message: 'Không thể tải mẫu gốc', severity: 'error' });
         }
-    }, [state.selectedTemplatePath, state.uploadedTemplateName, selectedTemplateNameFromPath]);
+    }, [state.selectedTemplatePath, state.uploadedTemplateName, selectedTemplateNameFromPath, state.generatedBlob]);
 
     // Upload a customized template and use it immediately
     const handleUploadCustomTemplate = useCallback(
@@ -4103,7 +4195,11 @@ function ProceduresComponent() {
     const saveWorkingDocToDb = useCallback(
         async (maTTHC: string, blob: Blob, fileName: string, mimeType: string) => {
             try {
-                if (!maTTHC) return;
+                if (!maTTHC) {
+                    console.error('❌ maTTHC is required to save working document');
+                    return;
+                }
+                
                 const record: WorkingDocument = {
                     maTTHC,
                     fileName,
@@ -4111,10 +4207,23 @@ function ProceduresComponent() {
                     blob,
                     updatedAt: Date.now()
                 };
+                
+                // Save to IndexedDB
                 await db.workingDocuments.put(record);
+                
+                // Update local state
                 setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: record }));
+                
+                console.log(`✅ Successfully saved working document to IndexedDB:`, {
+                    maTTHC,
+                    fileName,
+                    mimeType,
+                    blobSize: blob.size,
+                    updatedAt: new Date(record.updatedAt).toISOString()
+                });
             } catch (e) {
-                console.error('Failed to save working document to IndexedDB', e);
+                console.error('❌ Failed to save working document to IndexedDB:', e);
+                throw e; // Re-throw to let caller handle the error
             }
         },
         []
@@ -4123,99 +4232,149 @@ function ProceduresComponent() {
     // Download the current working document (filled document, custom template, or original template)
     const handleDownloadWorkingDocument = useCallback(async () => {
         try {
-            const maTTHC = selectedRecord?.maTTHC || '';
-            // Priority 1: If Syncfusion editor is active and ready, download the current edited content
+            // Get the current maTTHC from the selected template path or URL
+            const currentCode = extractCurrentCode();
+            if (!currentCode) {
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể xác định mã thủ tục hành chính',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            let blob: Blob;
+            let fileName: string;
+            let mimeType: string;
+
+            // Priority 1: If Syncfusion editor is active and ready, save the current edited content
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
                 const baseName = displayTemplateName || 'file';
-                const fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.docx`;
-                const blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
-                await saveWorkingDocToDb(
-                    maTTHC,
-                    blob,
-                    fileName,
-                    blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                );
+                fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.docx`;
+                blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
+                mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                
+                // Save to IndexedDB
+                await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
+                
+                // Refresh working documents from IndexedDB
+                await refreshWorkingDocuments();
+                
+                // Download the file
                 saveAs(blob, fileName);
+                
                 setSnackbar({
                     open: true,
-                    message: 'Đã tải xuống tài liệu đã chỉnh sửa thành công!',
+                    message: `Đã lưu và tải xuống tài liệu đã chỉnh sửa: ${fileName}`,
                     severity: 'success'
                 });
                 return;
             }
 
-            // Priority 2: If HTML preview is active, download the current HTML content
-            if (previewMode === 'html' && htmlIframeRef.current?.contentDocument) {
-                const doc = htmlIframeRef.current.contentDocument;
-                const htmlContent = doc.documentElement.outerHTML;
-                const baseName = displayTemplateName || 'file';
-                const fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.html`;
-                const blob = new Blob([htmlContent], { type: 'text/html' });
-                await saveWorkingDocToDb(maTTHC, blob, fileName, 'text/html');
-                saveAs(blob, fileName);
-                setSnackbar({
-                    open: true,
-                    message: 'Đã tải xuống tài liệu HTML đã chỉnh sửa thành công!',
-                    severity: 'success'
-                });
-                return;
-            }
 
-            // Priority 3: Download the filled document if available
+            // Priority 3: Save the filled document if available
             if (state.generatedBlob) {
                 const baseName = displayTemplateName || 'file';
-                const newName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
-                await saveWorkingDocToDb(
-                    maTTHC,
-                    state.generatedBlob,
-                    newName,
-                    state.generatedBlob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                );
-                saveAs(state.generatedBlob, newName);
+                fileName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
+                blob = state.generatedBlob;
+                mimeType = state.generatedBlob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                
+                // Save to IndexedDB
+                await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
+                
+                // Refresh working documents from IndexedDB
+                await refreshWorkingDocuments();
+                
+                // Download the file
+                saveAs(blob, fileName);
+                
                 setSnackbar({
                     open: true,
-                    message: 'Đã tải xuống tài liệu đã điền thành công!',
+                    message: `Đã lưu và tải xuống tài liệu đã điền: ${fileName}`,
                     severity: 'success'
                 });
                 return;
             }
 
-            // Priority 4: Download the custom uploaded template if available
+            // Priority 4: Save the custom uploaded template if available
             if (state.uploadedTemplateUrl) {
                 const response = await fetch(state.uploadedTemplateUrl);
-                const blob = await response.blob();
-                const fileName = state.uploadedTemplateName || 'mau_da_chinh.docx';
-                await saveWorkingDocToDb(
-                    maTTHC,
-                    blob,
-                    fileName,
-                    blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                );
+                blob = await response.blob();
+                fileName = state.uploadedTemplateName || 'mau_da_chinh.docx';
+                mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                
+                // Save to IndexedDB
+                await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
+                
+                // Refresh working documents from IndexedDB
+                await refreshWorkingDocuments();
+                
+                // Download the file
                 saveAs(blob, fileName);
+                
                 setSnackbar({
                     open: true,
-                    message: 'Đã tải xuống mẫu đã chỉnh thành công!',
+                    message: `Đã lưu và tải xuống mẫu đã chỉnh: ${fileName}`,
                     severity: 'success'
                 });
                 return;
             }
 
-            // Priority 5: Download the original template if available
+            // Priority 5: Save the original template if available
             if (state.selectedTemplatePath) {
+                // Check if it's a working document from IndexedDB
+                if (state.selectedTemplatePath.startsWith('working://')) {
+                    if (state.generatedBlob) {
+                        // Use the blob directly for working documents
+                        blob = state.generatedBlob;
+                        const baseName = displayTemplateName || 'mau_goc';
+                        fileName = `${baseName.replace(/\s/g, '_')}.docx`;
+                        mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                        
+                        // Save to IndexedDB
+                        await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
+                        
+                        // Refresh working documents from IndexedDB
+                        await refreshWorkingDocuments();
+                        
+                        // Download the file
+                        saveAs(blob, fileName);
+                        
+                        setSnackbar({
+                            open: true,
+                            message: `Đã lưu và tải xuống tài liệu đã lưu: ${fileName}`,
+                            severity: 'success'
+                        });
+                        return;
+                    } else {
+                        setSnackbar({
+                            open: true,
+                            message: 'Không thể lưu tài liệu đã lưu',
+                            severity: 'error'
+                        });
+                        return;
+                    }
+                }
+                
+                // For regular templates, fetch from URL
                 const response = await fetch(state.selectedTemplatePath);
-                const blob = await response.blob();
+                blob = await response.blob();
                 const baseName = displayTemplateName || 'mau_goc';
-                const fileName = `${baseName.replace(/\s/g, '_')}.docx`;
-                await saveWorkingDocToDb(
-                    maTTHC,
-                    blob,
-                    fileName,
-                    blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-                );
+                fileName = `${baseName.replace(/\s/g, '_')}.docx`;
+                mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+                
+                // Save to IndexedDB
+                await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
+                
+                // Refresh working documents from IndexedDB
+                await refreshWorkingDocuments();
+                
+                // Download the file
                 saveAs(blob, fileName);
+                
                 setSnackbar({
                     open: true,
-                    message: 'Đã tải xuống mẫu gốc thành công!',
+                    message: `Đã lưu và tải xuống mẫu gốc: ${fileName}`,
                     severity: 'success'
                 });
                 return;
@@ -4224,26 +4383,28 @@ function ProceduresComponent() {
             // No document available
             setSnackbar({
                 open: true,
-                message: 'Không có tài liệu nào để tải xuống',
+                message: 'Không có tài liệu nào để lưu và tải xuống',
                 severity: 'warning'
             });
         } catch (error) {
-            console.error('Error downloading document:', error);
+            console.error('Error saving and downloading document:', error);
             setSnackbar({
                 open: true,
-                message: 'Lỗi khi tải xuống tài liệu',
+                message: 'Lỗi khi lưu và tải xuống tài liệu',
                 severity: 'error'
             });
         }
-    }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode, selectedRecord, saveWorkingDocToDb]);
+    }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode, extractCurrentCode, saveWorkingDocToDb, refreshWorkingDocuments]);
 
     const handleLoadWorkingFromDb = useCallback(
         async (maTTHC: string, record: LocalEnhancedTTHCRecord) => {
             try {
+                // First try to get from local state, then from IndexedDB
                 let doc: WorkingDocument | undefined = workingDocsByCode[maTTHC];
                 if (!doc) {
                     doc = await db.workingDocuments.get(maTTHC);
                 }
+                
                 if (!doc) {
                     setSnackbar({
                         open: true,
@@ -4253,40 +4414,51 @@ function ProceduresComponent() {
                     return;
                 }
 
+                // Set the selected record for context
                 setSelectedRecord(record);
 
-                // If HTML, create an object URL and open in HTML preview
-                if (doc.mimeType === 'text/html') {
-                    const htmlUrl = URL.createObjectURL(doc.blob);
-                    setState(prev => ({
-                        ...prev,
-                        selectedTemplatePath: prev.selectedTemplatePath || `working://${maTTHC}`,
-                        selectedHtmlUrl: htmlUrl,
-                        generatedBlob: null,
-                        error: null
-                    }));
-                } else {
-                    // Treat as DOCX or other binary; load into Syncfusion if active, and set as generatedBlob for docx preview
-                    setState(prev => ({
-                        ...prev,
-                        selectedTemplatePath: prev.selectedTemplatePath || `working://${maTTHC}`,
-                        selectedHtmlUrl: null,
-                        generatedBlob: doc.blob,
-                        error: null
-                    }));
-                    if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
-                        sfContainerRef.current.documentEditor.open(doc.blob);
-                    }
-                }
+                // Create object URL for the blob
+                const objectUrl = URL.createObjectURL(doc.blob);
 
+                                    if (doc.mimeType === 'text/html') {
+                        // For HTML files, set as HTML URL but keep syncfusion mode
+                        setState(prev => ({
+                            ...prev,
+                            selectedTemplatePath: `working://${maTTHC}`,
+                            selectedHtmlUrl: objectUrl,
+                            generatedBlob: null,
+                            error: null
+                        }));
+                        
+                        // Keep syncfusion mode for consistency
+                    } else {
+                        // For DOCX and other binary files
+                        setState(prev => ({
+                            ...prev,
+                            selectedTemplatePath: `working://${maTTHC}`,
+                            selectedHtmlUrl: null,
+                            generatedBlob: doc.blob,
+                            error: null
+                        }));
+                        
+                        // Load directly into Syncfusion editor
+                        if (sfContainerRef.current?.documentEditor) {
+                            sfContainerRef.current.documentEditor.open(doc.blob);
+                        }
+                    }
+
+                // Reset processing state and close modals
                 resetProcessing();
                 setShowFilters(false);
                 setShowTemplateModal(false);
+
                 setSnackbar({
                     open: true,
                     message: `Đã mở tài liệu đã lưu: ${doc.fileName}`,
                     severity: 'success'
                 });
+
+                console.log(`✅ Loaded working document from IndexedDB: ${doc.fileName} for maTTHC: ${maTTHC}`);
             } catch (error) {
                 console.error('Lỗi khi mở tài liệu đã lưu từ IndexedDB:', error);
                 setSnackbar({
@@ -4301,7 +4473,7 @@ function ProceduresComponent() {
 
     return (
         <Box sx={{ width: '100%' }}>
-            <Box
+            {/* <Box
                 sx={{
                     display: 'flex',
                     justifyContent: 'space-between',
@@ -4324,12 +4496,12 @@ function ProceduresComponent() {
                         </Button>
                     </Box>
                 )}
-            </Box>
+            </Box> */}
 
             {/* Data Source is configured in Info > Settings; read from localStorage */}
 
             {/* Data Input Section */}
-            {state.selectedTemplatePath && renderDataInputSection()}
+            {/* {state.selectedTemplatePath && renderDataInputSection()} */}
 
             {/* Filter Controls */}
             {/* {!state.selectedTemplatePath && renderFilterControls()} */}
@@ -4349,101 +4521,6 @@ function ProceduresComponent() {
                         {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
                     </Typography> */}
                         <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <ToggleButtonGroup
-                                size="small"
-                                value={previewMode}
-                                exclusive
-                                onChange={(_, v) => {
-                                    if (v) {
-                                        // Reset Syncfusion state when changing modes
-                                        if (v !== 'syncfusion') {
-                                            setSyncfusionDocumentReady(false);
-                                            setSyncfusionLoading(false);
-                                        }
-                                        setPreviewMode(v);
-                                    }
-                                }}
-                            >
-                                <ToggleButton value="docx">DOCX</ToggleButton>
-                                <ToggleButton value="html" disabled={!htmlRaw}>
-                                    HTML
-                                </ToggleButton>
-                                <ToggleButton value="syncfusion">Tài liệu</ToggleButton>
-                            </ToggleButtonGroup>
-                            {previewMode === 'html' && (
-                                <ToggleButtonGroup
-                                    size="small"
-                                    value={isPreviewEditMode ? 'edit' : 'view'}
-                                    exclusive
-                                    onChange={(_, v) => {
-                                        if (!v) return;
-                                        setIsPreviewEditMode(v === 'edit');
-                                    }}
-                                >
-                                    <ToggleButton value="view">Xem</ToggleButton>
-                                    <ToggleButton value="edit">Sửa trực tiếp</ToggleButton>
-                                </ToggleButtonGroup>
-                            )}
-                            {/* Removed Sửa HTML button */}
-                            {previewMode === 'docx' ? (
-                                <Button
-                                    variant="outlined"
-                                    startIcon={<PrintIcon />}
-                                    onClick={handleOpenDocxForPrint}
-                                >
-                                    Mở/In Word
-                                </Button>
-                            ) : previewMode === 'html' ? (
-                                <>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<PrintIcon />}
-                                        onClick={handleGenerateDocxFromHtmlAndPrint}
-                                    >
-                                        Điền Word & In
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<PrintIcon />}
-                                        onClick={() => void handleReplaySavedToWordAndPrint()}
-                                    >
-                                        Replay & In Word (từ dữ liệu đã lưu)
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<PrintIcon />}
-                                        onClick={handleExportPdfFromPreview}
-                                    >
-                                        Xuất PDF & In
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => void saveHtmlFormValues()}
-                                    >
-                                        Lưu dữ liệu biểu mẫu
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => void loadHtmlFormValues()}
-                                    >
-                                        Nạp dữ liệu biểu mẫu
-                                    </Button>
-                                </>
-                            ) : (
-                                <>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<PrintIcon />}
-                                        onClick={() => {
-                                            try {
-                                                sfContainerRef.current?.documentEditor?.print();
-                                            } catch {}
-                                        }}
-                                    >
-                                        In
-                                    </Button>
-                                </>
-                            )}
                             <Button
                                 variant="outlined"
                                 color="info"
@@ -4463,16 +4540,16 @@ function ProceduresComponent() {
                                 variant="outlined" 
                                 startIcon={<DownloadIcon />}
                                 onClick={handleDownloadWorkingDocument}
-                                disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) || (previewMode === 'html' && htmlIframeRef.current?.contentDocument))}
+                                disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
                             >
-                                Tải mẫu đã chỉnh
+                                Lưu mẫu đã tùy chỉnh
                             </Button>
                             <Button
                                 component="label"
                                 variant="outlined"
                                 startIcon={<UploadIcon />}
                             >
-                                Thay thế tài liệu
+                                Tải mẫu mới
                                 <input
                                     type="file"
                                     accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
@@ -4485,32 +4562,6 @@ function ProceduresComponent() {
                                     }}
                                 />
                             </Button>
-                            {/* <Button
-                            variant="contained"
-                            color="success"
-                            startIcon={<SaveIcon />}
-                            onClick={() => void handleSaveCustomTemplate()}
-                        >
-                            Lưu mẫu (custom)
-                        </Button> */}
-                            {state.generatedBlob && (
-                                <>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<PrintIcon />}
-                                        onClick={handlePrint}
-                                    >
-                                        In tài liệu
-                                    </Button>
-                                    <Button
-                                        variant="outlined"
-                                        startIcon={<DownloadIcon />}
-                                        onClick={handleDownload}
-                                    >
-                                        Tải file đã điền
-                                    </Button>
-                                </>
-                            )}
                         </Box>
                     </Box>
                     <Divider sx={{ mb: 2 }} />
@@ -5213,6 +5264,12 @@ function ProceduresComponent() {
                 filterOptions={filterOptions}
                 onFilterChange={handleFilterChange}
                 onClearFilters={handleClearFilters}
+                savedDocsByCode={Object.fromEntries(
+                    Object.entries(workingDocsByCode)
+                        .filter(([, v]) => !!v)
+                        .map(([k, v]) => [k, (v as WorkingDocument).fileName])
+                )}
+                onLoadSaved={rec => handleLoadWorkingFromDb(rec.maTTHC, rec as LocalEnhancedTTHCRecord)}
             />
 
             {/* Processing Modal */}
