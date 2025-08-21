@@ -2462,19 +2462,21 @@ function ProceduresComponent() {
         setShowProcessingModal(true);
     }, []);
 
-    const handleDownload = useCallback(() => {
-        if (state.generatedBlob) {
-            const baseName = displayTemplateName || 'file';
-            const newName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
-            saveAs(state.generatedBlob, newName);
+    // const handleDownload = useCallback(() => {
+    //     if (state.generatedBlob) {
+    //         const baseName = displayTemplateName || 'file';
+    //         const timestamp = Date.now();
+    //         const currentCode = extractCurrentCode();
+    //         const newName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
+    //         saveAs(state.generatedBlob, newName);
 
-            setSnackbar({
-                open: true,
-                message: 'File đã được tải xuống thành công!',
-                severity: 'success'
-            });
-        }
-    }, [state.generatedBlob, displayTemplateName]);
+    //         setSnackbar({
+    //             open: true,
+    //             message: 'File đã được tải xuống thành công!',
+    //             severity: 'success'
+    //         });
+    //     }
+    // }, [state.generatedBlob, displayTemplateName, extractCurrentCode]);
 
     const handlePrintPreview = useCallback(() => {
        
@@ -4057,7 +4059,7 @@ function ProceduresComponent() {
                 In tài liệu
             </Button>
 
-            <Button
+            {/* <Button
                 variant="outlined"
                 startIcon={<DownloadIcon />}
                 onClick={handleDownload}
@@ -4069,7 +4071,7 @@ function ProceduresComponent() {
                         ({formatFileSize(state.generatedBlob.size)})
                     </Typography>
                 )}
-            </Button>
+            </Button> */}
             {/* Lưu mẫu đã chỉnh vào templates_by_code/<code>/custom */}
             <Button
                 variant="contained"
@@ -4200,27 +4202,54 @@ function ProceduresComponent() {
                     return;
                 }
                 
-                const record: WorkingDocument = {
-                    maTTHC,
-                    fileName,
-                    mimeType,
-                    blob,
-                    updatedAt: Date.now()
-                };
+                // Check if document already exists for this maTTHC
+                const existingDoc = await db.workingDocuments.get(maTTHC);
                 
-                // Save to IndexedDB
-                await db.workingDocuments.put(record);
-                
-                // Update local state
-                setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: record }));
-                
-                console.log(`✅ Successfully saved working document to IndexedDB:`, {
-                    maTTHC,
-                    fileName,
-                    mimeType,
-                    blobSize: blob.size,
-                    updatedAt: new Date(record.updatedAt).toISOString()
-                });
+                if (existingDoc) {
+                    // Update existing document
+                    const updatedRecord: WorkingDocument = {
+                        ...existingDoc,
+                        fileName,
+                        mimeType,
+                        blob,
+                        updatedAt: Date.now()
+                    };
+                    
+                    await db.workingDocuments.put(updatedRecord);
+                    
+                    // Update local state
+                    setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: updatedRecord }));
+                    
+                    console.log(`✅ Successfully updated existing working document in IndexedDB:`, {
+                        maTTHC,
+                        fileName,
+                        mimeType,
+                        blobSize: blob.size,
+                        updatedAt: new Date(updatedRecord.updatedAt).toISOString()
+                    });
+                } else {
+                    // Create new document
+                    const newRecord: WorkingDocument = {
+                        maTTHC,
+                        fileName,
+                        mimeType,
+                        blob,
+                        updatedAt: Date.now()
+                    };
+                    
+                    await db.workingDocuments.put(newRecord);
+                    
+                    // Update local state
+                    setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: newRecord }));
+                    
+                    console.log(`✅ Successfully created new working document in IndexedDB:`, {
+                        maTTHC,
+                        fileName,
+                        mimeType,
+                        blobSize: blob.size,
+                        updatedAt: new Date(newRecord.updatedAt).toISOString()
+                    });
+                }
             } catch (e) {
                 console.error('❌ Failed to save working document to IndexedDB:', e);
                 throw e; // Re-throw to let caller handle the error
@@ -4250,7 +4279,8 @@ function ProceduresComponent() {
             // Priority 1: If Syncfusion editor is active and ready, save the current edited content
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
                 const baseName = displayTemplateName || 'file';
-                fileName = `${baseName.replace(/\s/g, '_')}_da_chinh.docx`;
+                const timestamp = Date.now();
+                fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
                 mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                 
@@ -4275,7 +4305,8 @@ function ProceduresComponent() {
             // Priority 3: Save the filled document if available
             if (state.generatedBlob) {
                 const baseName = displayTemplateName || 'file';
-                fileName = `${baseName.replace(/\s/g, '_')}_da_dien.docx`;
+                const timestamp = Date.now();
+                fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 blob = state.generatedBlob;
                 mimeType = state.generatedBlob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                 
@@ -4300,7 +4331,9 @@ function ProceduresComponent() {
             if (state.uploadedTemplateUrl) {
                 const response = await fetch(state.uploadedTemplateUrl);
                 blob = await response.blob();
-                fileName = state.uploadedTemplateName || 'mau_da_chinh.docx';
+                const baseName = state.uploadedTemplateName || 'mau_da_chinh';
+                const timestamp = Date.now();
+                fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                 
                 // Save to IndexedDB
@@ -4328,7 +4361,8 @@ function ProceduresComponent() {
                         // Use the blob directly for working documents
                         blob = state.generatedBlob;
                         const baseName = displayTemplateName || 'mau_goc';
-                        fileName = `${baseName.replace(/\s/g, '_')}.docx`;
+                        const timestamp = Date.now();
+                        fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                         mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                         
                         // Save to IndexedDB
@@ -4360,7 +4394,8 @@ function ProceduresComponent() {
                 const response = await fetch(state.selectedTemplatePath);
                 blob = await response.blob();
                 const baseName = displayTemplateName || 'mau_goc';
-                fileName = `${baseName.replace(/\s/g, '_')}.docx`;
+                const timestamp = Date.now();
+                fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
                 
                 // Save to IndexedDB
@@ -4520,22 +4555,43 @@ function ProceduresComponent() {
                         {/* <Typography variant="h6" gutterBottom>
                         {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
                     </Typography> */}
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                            <Button
-                                variant="outlined"
-                                color="info"
-                                startIcon={<InfoIcon />}
-                                onClick={() => setShowFieldGuide(true)}
-                            >
-                                Hướng dẫn chèn {`{field}`}
-                            </Button>
-                            <Button
-                                variant="outlined"
-                                startIcon={<DownloadIcon />}
-                                onClick={handleDownloadOriginalTemplate}
-                            >
-                                Tải mẫu gốc
-                            </Button>
+                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'space-between', width: '100%' }}>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                                <Button
+                                    variant="outlined"
+                                    color="info"
+                                    startIcon={<InfoIcon />}
+                                    onClick={() => setShowFieldGuide(true)}
+                                >
+                                    Hướng dẫn chèn {`{field}`}
+                                </Button>
+                                <Button
+                                    variant="outlined"
+                                    startIcon={<DownloadIcon />}
+                                    onClick={handleDownloadOriginalTemplate}
+                                >
+                                    Tải File gốc
+                                </Button>
+                                <Button
+                                    component="label"
+                                    variant="outlined"
+                                    startIcon={<UploadIcon />}
+                                >
+                                    Tải mẫu mới
+                                    <input
+                                        type="file"
+                                        accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                        hidden
+                                        onChange={e => {
+                                            const file = e.target.files?.[0];
+                                            if (file) handleUploadReplaceDocument(file);
+                                            // Reset input value to allow selecting the same file again
+                                            e.target.value = '';
+                                        }}
+                                    />
+                                </Button>
+                            </Box>
+                            
                             <Button 
                                 variant="outlined" 
                                 startIcon={<DownloadIcon />}
@@ -4543,24 +4599,6 @@ function ProceduresComponent() {
                                 disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
                             >
                                 Lưu mẫu đã tùy chỉnh
-                            </Button>
-                            <Button
-                                component="label"
-                                variant="outlined"
-                                startIcon={<UploadIcon />}
-                            >
-                                Tải mẫu mới
-                                <input
-                                    type="file"
-                                    accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                    hidden
-                                    onChange={e => {
-                                        const file = e.target.files?.[0];
-                                        if (file) handleUploadReplaceDocument(file);
-                                        // Reset input value to allow selecting the same file again
-                                        e.target.value = '';
-                                    }}
-                                />
                             </Button>
                         </Box>
                     </Box>
