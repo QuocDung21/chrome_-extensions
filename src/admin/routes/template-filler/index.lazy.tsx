@@ -23,6 +23,7 @@ import {
     Info as InfoIcon,
     Person as PersonIcon,
     Print as PrintIcon,
+    RestartAlt as RestartAltIcon,
     Star,
     Wc as WcIcon,
     Wifi as WifiIcon
@@ -627,9 +628,70 @@ const TemplateCard = React.memo<{
 TemplateCard.displayName = 'TemplateCard';
 // Apply data to Syncfusion editor
 
+// Function to scan document for available suffixes
+const scanDocumentForSuffixes = (editor: DocumentEditorContainerComponent | null): string[] => {
+    try {
+        if (!editor?.documentEditor) {
+            console.log('❌ DocumentEditor is null, cannot scan');
+            return [];
+        }
+
+        const currentSfdt = editor.documentEditor.serialize();
+        if (!currentSfdt) {
+            console.log('❌ Failed to serialize document for scanning');
+            return [];
+        }
+
+        // Regex to find patterns like {ho_ten_1}, {so_cccd_2}, etc.
+        const suffixPattern = /\{[^}]+_(\d+)\}/g;
+        const suffixes = new Set<string>();
+
+        let match;
+        while ((match = suffixPattern.exec(currentSfdt)) !== null) {
+            suffixes.add(match[1]); // Extract the number part
+        }
+
+        const sortedSuffixes = Array.from(suffixes).sort((a, b) => parseInt(a) - parseInt(b));
+        console.log('🔍 Found suffixes in document:', sortedSuffixes);
+
+        return sortedSuffixes;
+    } catch (error) {
+        console.error('❌ Error scanning document for suffixes:', error);
+        return [];
+    }
+};
+
+// Function to reset document to original state
+const resetDocumentToOriginal = async (
+    editor: DocumentEditorContainerComponent | null,
+    originalSfdt: string | null
+): Promise<boolean> => {
+    try {
+        if (!editor?.documentEditor) {
+            console.error('❌ DocumentEditor is null, cannot reset');
+            return false;
+        }
+
+        if (!originalSfdt) {
+            console.error('❌ No original SFDT stored, cannot reset');
+            return false;
+        }
+
+        console.log('🔄 Resetting document to original state...');
+        editor.documentEditor.open(originalSfdt);
+        console.log('✅ Document reset to original state');
+
+        return true;
+    } catch (error) {
+        console.error('❌ Error resetting document:', error);
+        return false;
+    }
+};
+
 const applyDataToSyncfusion = async (
     editor: DocumentEditorContainerComponent | null,
-    data: ProcessingData
+    data: ProcessingData,
+    targetSuffix: string = ''
 ): Promise<boolean> => {
     try {
         console.log('🔄 Starting Syncfusion data insertion...', data.diaChi);
@@ -644,19 +706,20 @@ const applyDataToSyncfusion = async (
         }
         const { day: dayCurrent, month: monthCurent, year: yearCurrent } = getCurrentDateParts();
 
-        // Create replace map for exact placeholder matching
+        // Create replace map for exact placeholder matching with optional target suffix
+        const suffix = targetSuffix ? `_${targetSuffix}` : '';
         const replaceMap: Record<string, string> = {
-            '{ho_ten}': data.hoTen || data.ho_ten || '',
-            '{so_cccd}': data.so_cccd || data.cccd || '',
-            '{so_cmnd}': data.so_cmnd || data.cmnd || '',
-            '{ngay_sinh}': data.ngaySinh || data.ngay_sinh || '',
-            '{gioi_tinh}': data.gioiTinh || data.gioi_tinh || '',
-            '{noi_cu_tru}': data.diaChi || data.noiCuTru || data.noi_cu_tru || '',
-            '{ngay_cap}': data.ngayCap || data.ngay_cap || '',
+            [`{ho_ten${suffix}}`]: data.hoTen || data.ho_ten || '',
+            [`{so_cccd${suffix}}`]: data.so_cccd || data.cccd || '',
+            [`{so_cmnd${suffix}}`]: data.so_cmnd || data.cmnd || '',
+            [`{ngay_sinh${suffix}}`]: data.ngaySinh || data.ngay_sinh || '',
+            [`{gioi_tinh${suffix}}`]: data.gioiTinh || data.gioi_tinh || '',
+            [`{noi_cu_tru${suffix}}`]: data.diaChi || data.noiCuTru || data.noi_cu_tru || '',
+            [`{ngay_cap${suffix}}`]: data.ngayCap || data.ngay_cap || '',
             // Current date time
-            '{n_ht}': dayCurrent.toString() || '',
-            '{t_ht}': monthCurent.toString() || '',
-            '{h_ht}': yearCurrent.toString() || ''
+            '{ngay_hientai}': dayCurrent.toString() || '',
+            '{thang_hientai}': monthCurent.toString() || '',
+            '{nam_hientai': yearCurrent.toString() || ''
         };
         console.log('📝 Replace map:', replaceMap);
         let totalReplacements = 0;
@@ -749,6 +812,14 @@ function TemplateFillerComponent() {
         inputText: '',
         extractedData: null as ProcessingData | null,
         isProcessing: false
+    });
+
+    // State cho multiple target management
+    const [targetState, setTargetState] = useState({
+        availableTargets: [] as string[], // Danh sách targets có thể sử dụng (dynamic từ document)
+        selectedTarget: '', // Target được chọn hiện tại
+        usedTargets: [] as string[], // Danh sách targets đã sử dụng
+        originalSfdt: null as string | null // Lưu trữ document gốc để reset
     });
     // Snackbar state
     const [snackbar, setSnackbar] = useState<{
@@ -955,15 +1026,36 @@ function TemplateFillerComponent() {
                 try {
                     const testSfdt = sfContainerRef.current?.documentEditor?.serialize();
                     if (testSfdt && testSfdt.length > 100) {
+                        // Scan document for available suffixes
+                        const availableSuffixes = scanDocumentForSuffixes(sfContainerRef.current);
+                        console.log(
+                            '📋 Document loaded with available targets:',
+                            availableSuffixes
+                        );
+
+                        // Update target state with scanned suffixes and save original document
+                        setTargetState(prev => ({
+                            ...prev,
+                            availableTargets: availableSuffixes,
+                            selectedTarget: '',
+                            usedTargets: [],
+                            originalSfdt: testSfdt // Save original document for reset
+                        }));
+
                         setEditorState(prev => ({
                             ...prev,
                             syncfusionDocumentReady: true,
                             syncfusionLoading: false
                         }));
                         console.log('✅ Syncfusion document ready for data insertion');
+                        const suffixMessage =
+                            availableSuffixes.length > 0
+                                ? ` (Tìm thấy ${availableSuffixes.length} đối tượng: ${availableSuffixes.map(s => `_${s}`).join(', ')})`
+                                : ' (Không tìm thấy suffix đặc biệt)';
+
                         setSnackbar({
                             open: true,
-                            message: `Đã tải thành công: ${record.tenTTHC}`,
+                            message: `Đã tải thành công: ${record.tenTTHC}${suffixMessage}`,
                             severity: 'success'
                         });
                     } else {
@@ -1065,23 +1157,46 @@ function TemplateFillerComponent() {
             if (data) {
                 try {
                     console.log('🔌 Received data from mobile app via socket:', data);
+                    console.log('🎯 Current selected target:', targetState.selectedTarget);
                     const processingData = convertScannedInfoToProcessingData(data);
                     console.log('🔄 Converted mobile data to ProcessingData:', processingData);
                     const success = await applyDataToSyncfusion(
                         sfContainerRef.current,
-                        processingData
+                        processingData,
+                        targetState.selectedTarget
                     );
+
                     // Update extracted data in scan state
                     setScanState(prev => ({
                         ...prev,
                         extractedData: processingData
                     }));
+
                     if (success) {
-                        setSnackbar({
-                            open: true,
-                            message: 'Đã chèn dữ liệu từ NTS DocumentAI',
-                            severity: 'success'
-                        });
+                        // Remove target from available list if it was used
+                        const usedTarget = targetState.selectedTarget;
+                        if (usedTarget) {
+                            setTargetState(prev => ({
+                                ...prev,
+                                availableTargets: prev.availableTargets.filter(
+                                    t => t !== usedTarget
+                                ),
+                                usedTargets: [...prev.usedTargets, usedTarget],
+                                selectedTarget: ''
+                            }));
+
+                            setSnackbar({
+                                open: true,
+                                message: `Đã chèn dữ liệu cho đối tượng _${usedTarget} từ NTS DocumentAI`,
+                                severity: 'success'
+                            });
+                        } else {
+                            setSnackbar({
+                                open: true,
+                                message: 'Đã chèn dữ liệu (mặc định) từ NTS DocumentAI',
+                                severity: 'success'
+                            });
+                        }
                     } else {
                         setSnackbar({
                             open: true,
@@ -1105,7 +1220,13 @@ function TemplateFillerComponent() {
         return () => {
             off('data_received', handleDataReceived);
         };
-    }, [on, off, editorState.selectedRecord, editorState.syncfusionDocumentReady]);
+    }, [
+        on,
+        off,
+        editorState.selectedRecord,
+        editorState.syncfusionDocumentReady,
+        targetState.selectedTarget
+    ]);
     const handleSnackbarClose = useCallback(() => {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
@@ -1156,13 +1277,34 @@ function TemplateFillerComponent() {
                 isProcessing: false
             }));
             // Apply data to Syncfusion editor
-            const success = await applyDataToSyncfusion(sfContainerRef.current, processingData);
+            const success = await applyDataToSyncfusion(
+                sfContainerRef.current,
+                processingData,
+                targetState.selectedTarget
+            );
             if (success) {
-                setSnackbar({
-                    open: true,
-                    message: 'Đã phân tích và điền dữ liệu thành công!',
-                    severity: 'success'
-                });
+                // Remove target from available list if it was used
+                const usedTarget = targetState.selectedTarget;
+                if (usedTarget) {
+                    setTargetState(prev => ({
+                        ...prev,
+                        availableTargets: prev.availableTargets.filter(t => t !== usedTarget),
+                        usedTargets: [...prev.usedTargets, usedTarget],
+                        selectedTarget: ''
+                    }));
+
+                    setSnackbar({
+                        open: true,
+                        message: `Đã phân tích và điền dữ liệu cho đối tượng _${usedTarget} thành công!`,
+                        severity: 'success'
+                    });
+                } else {
+                    setSnackbar({
+                        open: true,
+                        message: 'Đã phân tích và điền dữ liệu (mặc định) thành công!',
+                        severity: 'success'
+                    });
+                }
             } else {
                 setSnackbar({
                     open: true,
@@ -1273,7 +1415,7 @@ function TemplateFillerComponent() {
                         placeholder="Tìm kiếm thủ tục, mã, lĩnh vực..."
                         variant="outlined"
                         sx={{
-                            minWidth: 220, // 👈 nhỏ gọn
+                            minWidth: 220,
                             flex: 1,
                             '& .MuiOutlinedInput-root': {
                                 borderRadius: 1,
@@ -1287,8 +1429,7 @@ function TemplateFillerComponent() {
                             }
                         }}
                     />
-
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Lĩnh vực</InputLabel>
                         <Select
                             value={filters.linhVuc}
@@ -1304,8 +1445,7 @@ function TemplateFillerComponent() {
                             ))}
                         </Select>
                     </FormControl>
-
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Đối tượng</InputLabel>
                         <Select
                             value={filters.doiTuong}
@@ -1321,8 +1461,7 @@ function TemplateFillerComponent() {
                             ))}
                         </Select>
                     </FormControl>
-
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Cấp thực hiện</InputLabel>
                         <Select
                             value={filters.capThucHien}
@@ -1338,8 +1477,7 @@ function TemplateFillerComponent() {
                             ))}
                         </Select>
                     </FormControl>
-
-                    <FormControl size="small" sx={{ minWidth: 150 }}>
+                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Trạng thái mẫu</InputLabel>
                         <Select
                             value={filters.availability}
@@ -1842,6 +1980,139 @@ function TemplateFillerComponent() {
                                     sx={{ p: 3, height: 'calc(100% - 60px)', overflow: 'auto' }}
                                 >
                                     <Box sx={{ mb: 4 }}>
+                                        {/* Target Selector - Chung cho cả 2 modes */}
+                                        <Box sx={{ mb: 3 }}>
+                                            <Typography
+                                                variant="body2"
+                                                color="text.secondary"
+                                                sx={{ mb: 1, fontWeight: 600 }}
+                                            >
+                                                Chọn đối tượng để điền dữ liệu:
+                                            </Typography>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    gap: 2,
+                                                    alignItems: 'center'
+                                                }}
+                                            >
+                                                <FormControl
+                                                    size="small"
+                                                    sx={{ maxWidth: 120, minWidth: 120 }}
+                                                >
+                                                    <InputLabel>Đối tượng</InputLabel>
+                                                    <Select
+                                                        size="small"
+                                                        value={targetState.selectedTarget}
+                                                        label="Đối tượng"
+                                                        onChange={e =>
+                                                            setTargetState(prev => ({
+                                                                ...prev,
+                                                                selectedTarget: e.target.value
+                                                            }))
+                                                        }
+                                                        disabled={
+                                                            targetState.availableTargets.length ===
+                                                            0
+                                                        }
+                                                    >
+                                                        <MenuItem value="">
+                                                            <em>Mặc định</em>
+                                                        </MenuItem>
+                                                        {targetState.availableTargets.map(
+                                                            target => (
+                                                                <MenuItem
+                                                                    key={target}
+                                                                    value={target}
+                                                                >
+                                                                    Đối tượng {target} (_{target})
+                                                                </MenuItem>
+                                                            )
+                                                        )}
+                                                    </Select>
+                                                </FormControl>
+                                                <Button
+                                                    variant="outlined"
+                                                    color="secondary"
+                                                    size="small"
+                                                    onClick={async () => {
+                                                        try {
+                                                            const resetSuccess =
+                                                                await resetDocumentToOriginal(
+                                                                    sfContainerRef.current,
+                                                                    targetState.originalSfdt
+                                                                );
+
+                                                            if (resetSuccess) {
+                                                                // Re-scan document for suffixes after reset
+                                                                const availableSuffixes =
+                                                                    scanDocumentForSuffixes(
+                                                                        sfContainerRef.current
+                                                                    );
+
+                                                                // Reset target state with fresh scan
+                                                                setTargetState(prev => ({
+                                                                    ...prev,
+                                                                    availableTargets:
+                                                                        availableSuffixes,
+                                                                    selectedTarget: '',
+                                                                    usedTargets: []
+                                                                }));
+
+                                                                setSnackbar({
+                                                                    open: true,
+                                                                    message:
+                                                                        'Đã reset mẫu về trạng thái ban đầu',
+                                                                    severity: 'success'
+                                                                });
+                                                            } else {
+                                                                setSnackbar({
+                                                                    open: true,
+                                                                    message: 'Lỗi khi reset mẫu',
+                                                                    severity: 'error'
+                                                                });
+                                                            }
+                                                        } catch (error) {
+                                                            console.error(
+                                                                '❌ Error in reset handler:',
+                                                                error
+                                                            );
+                                                            setSnackbar({
+                                                                open: true,
+                                                                message: 'Lỗi khi reset mẫu',
+                                                                severity: 'error'
+                                                            });
+                                                        }
+                                                    }}
+                                                    startIcon={<RestartAltIcon />}
+                                                    sx={{ textTransform: 'none' }}
+                                                >
+                                                    Khôi phục mẫu
+                                                </Button>
+                                            </Box>
+                                            {targetState.usedTargets.length > 0 && (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="text.secondary"
+                                                    sx={{ mt: 1 }}
+                                                >
+                                                    Đã sử dụng:{' '}
+                                                    {targetState.usedTargets
+                                                        .map(t => `_${t}`)
+                                                        .join(', ')}
+                                                </Typography>
+                                            )}
+                                            {targetState.availableTargets.length === 0 && (
+                                                <Typography
+                                                    variant="body2"
+                                                    color="info.main"
+                                                    sx={{ mt: 1, fontStyle: 'italic' }}
+                                                >
+                                                    💡 Mẫu này không có trường đặc biệt (_1, _2,
+                                                    _3). Sử dụng chế độ "Mặc định" để điền dữ liệu.
+                                                </Typography>
+                                            )}
+                                        </Box>
                                         <Box
                                             sx={{
                                                 display: 'flex',
