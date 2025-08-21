@@ -522,26 +522,53 @@ const TemplateCard = React.memo<{
                                 (Chưa có mẫu đơn/tờ khai trong dữ liệu)
                             </Typography>
                         ) : (
-                            <Button
-                                variant="contained"
-                                size="small"
-                                onClick={() => onSelect(record)}
-                                startIcon={<EditIcon />}
-                                sx={{
-                                    borderRadius: 1,
-                                    textTransform: 'none',
-                                    fontWeight: 600,
-                                    background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-                                    '&:hover': {
-                                        background: 'linear-gradient(45deg, #1565c0, #1976d2)',
-                                        transform: 'translateY(-2px)',
-                                        boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
-                                    },
-                                    transition: 'all 0.3s ease'
-                                }}
-                            >
-                                {record.danhSachMauDon.length === 1 ? 'Chọn mẫu' : 'Chọn mẫu'}
-                            </Button>
+                            <>
+                                <Button
+                                    variant="contained"
+                                    size="small"
+                                    onClick={() => onSelect(record)}
+                                    startIcon={<EditIcon />}
+                                    sx={{
+                                        borderRadius: 1,
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                        '&:hover': {
+                                            background: 'linear-gradient(45deg, #1565c0, #1976d2)',
+                                            transform: 'translateY(-2px)',
+                                            boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
+                                        },
+                                        transition: 'all 0.3s ease'
+                                    }}
+                                >
+                                    {record.danhSachMauDon.length === 1 ? 'Chọn mẫu' : 'Chọn mẫu'}
+                                </Button>
+
+                                {hasTemplates && (
+                                    <Button
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={e => {
+                                            e.stopPropagation();
+                                            const selected = record.danhSachMauDon[0];
+                                            const docUrl = buildDocxUrlForRecord(record, selected);
+                                            const code = record.maTTHC;
+                        
+                                            // Persist payload in localStorage for the procedures route to pick up
+                                            localStorage.setItem(
+                                                'pending_procedure_load',
+                                                JSON.stringify({ docUrl, code })
+                                            );
+                                            // Navigate to procedures route (hash-based)
+                                            window.location.href = '/src/admin/index.html#/procedures/';
+                                        }}
+                                        startIcon={<EditIcon />}
+                                        sx={{ ml: 1, textTransform: 'none' }}
+                                    >
+                                        Thiết lập mẫu
+                                    </Button>
+                                )}
+                            </>
                         )}
                     </Box>
                 </Box>

@@ -1099,6 +1099,7 @@ function ProceduresComponent() {
     const [showProcessingModal, setShowProcessingModal] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<LocalEnhancedTTHCRecord | null>(null);
     const [workingDocsByCode, setWorkingDocsByCode] = useState<Record<string, WorkingDocument | undefined>>({});
+    const [workingDocsListByCode, setWorkingDocsListByCode] = useState<Record<string, WorkingDocument[]>>({});
     const [csvLoading, setCsvLoading] = useState(false);
     const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
 
@@ -1113,6 +1114,8 @@ function ProceduresComponent() {
     const [htmlRaw, setHtmlRaw] = useState<string>('');
     const [previewMode] = useState<'syncfusion'>('syncfusion');
     const templatePathRef = useRef<string>('');
+    // Lưu lại mã thủ tục hiện tại để dùng khi đường dẫn là blob/object URL
+    const currentCodeRef = useRef<string>('');
     const [showFieldGuide, setShowFieldGuide] = useState(false);
     const [syncfusionDocumentReady, setSyncfusionDocumentReady] = useState(false);
     const [syncfusionLoading, setSyncfusionLoading] = useState(false);
@@ -1131,6 +1134,7 @@ function ProceduresComponent() {
     const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(SOCKET_URL);
     const { processingStep, progress, processDocument, resetProcessing } = useDocumentProcessor();
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
+    const currentWorkingDocIdRef = useRef<number | null>(null);
 
     // Memoized values
     const isProcessing = useMemo(
@@ -1582,15 +1586,20 @@ function ProceduresComponent() {
                 setFilterOptions(createFilterOptions(rawRecords));
                 setFilteredRecords(enhancedRecords);
 
-                // Load existing working docs from IndexedDB and index by maTTHC
+                // Load existing working docs (V2) from IndexedDB and index latest by maTTHC
                 try {
-                    const allWorking = await db.workingDocuments.toArray();
+                    const allWorking = await db.workingDocumentsV2.orderBy('updatedAt').reverse().toArray();
                     const byCode: { [code: string]: WorkingDocument } = {};
+                    const listByCode: { [code: string]: WorkingDocument[] } = {};
                     allWorking.forEach(doc => {
-                        if (doc.maTTHC) byCode[doc.maTTHC] = doc;
+                        if (!doc.maTTHC) return;
+                        if (!listByCode[doc.maTTHC]) listByCode[doc.maTTHC] = [];
+                        listByCode[doc.maTTHC].push(doc);
+                        if (!byCode[doc.maTTHC]) byCode[doc.maTTHC] = doc; // latest (since reversed)
                     });
                     setWorkingDocsByCode(byCode);
-                    console.log(`✅ Loaded ${Object.keys(byCode).length} working documents from IndexedDB`);
+                    setWorkingDocsListByCode(listByCode);
+                    console.log(`✅ Loaded ${Object.keys(byCode).length} working documents from IndexedDB (V2)`);
                 } catch (e) {
                     console.warn('Không thể đọc Working Documents từ IndexedDB', e);
                 }
@@ -1618,15 +1627,70 @@ function ProceduresComponent() {
         loadData();
     }, []);
 
+    // If navigated here with query params (?docUrl=&code=&htmlUrl=), auto-load in Syncfusion
+    useEffect(() => {
+        try {
+            const sp = new URLSearchParams(window.location.search);
+            const docUrl = sp.get('docUrl');
+            const code = sp.get('code');
+            const htmlUrl = sp.get('htmlUrl');
+            if (docUrl && code) {
+                currentCodeRef.current = code;
+                setState(prev => ({
+                    ...prev,
+                    selectedTemplatePath: docUrl,
+                    selectedHtmlUrl: htmlUrl || null,
+                    generatedBlob: null,
+                    error: null
+                }));
+                resetProcessing();
+                // Clean query params after handling
+                const newUrl = window.location.pathname;
+                window.history.replaceState({}, '', newUrl);
+            }
+        } catch {}
+    }, [resetProcessing]);
+
+    // Also support navigation via localStorage payload from other routes
+    useEffect(() => {
+        try {
+            const key = 'pending_procedure_load';
+            const raw = localStorage.getItem(key);
+            if (!raw) return;
+            const payload = JSON.parse(raw || '{}');
+            const docUrl = payload?.docUrl as string | undefined;
+            const code = payload?.code as string | undefined;
+            const htmlUrl = (payload?.htmlUrl as string | undefined) || null;
+            if (docUrl && code) {
+                currentCodeRef.current = code;
+                setState(prev => ({
+                    ...prev,
+                    selectedTemplatePath: docUrl,
+                    selectedHtmlUrl: htmlUrl,
+                    generatedBlob: null,
+                    error: null
+                }));
+                resetProcessing();
+            }
+            // Clear payload regardless to avoid re-loading on next entry
+            localStorage.removeItem(key);
+        } catch {}
+    }, [resetProcessing]);
+
     // Function to refresh working documents from IndexedDB
     const refreshWorkingDocuments = useCallback(async () => {
         try {
-            const allWorking = await db.workingDocuments.toArray();
+            const allWorking = await db.workingDocumentsV2.orderBy('updatedAt').reverse().toArray();
             const byCode: { [code: string]: WorkingDocument } = {};
+            const listByCode: { [code: string]: WorkingDocument[] } = {};
             allWorking.forEach(doc => {
-                if (doc.maTTHC) byCode[doc.maTTHC] = doc;
+                if (!doc.maTTHC) return;
+                if (!listByCode[doc.maTTHC]) listByCode[doc.maTTHC] = [];
+                listByCode[doc.maTTHC].push(doc);
+                if (!byCode[doc.maTTHC]) byCode[doc.maTTHC] = doc;
             });
             setWorkingDocsByCode(byCode);
+            setWorkingDocsListByCode(listByCode);
             console.log(`✅ Refreshed working documents: ${Object.keys(byCode).length} documents`);
         } catch (e) {
             console.error('❌ Failed to refresh working documents:', e);
@@ -1636,11 +1700,16 @@ function ProceduresComponent() {
     // Function to delete working document from IndexedDB
     const deleteWorkingDocument = useCallback(async (maTTHC: string) => {
         try {
-            await db.workingDocuments.delete(maTTHC);
+            await db.workingDocumentsV2.where('maTTHC').equals(maTTHC).delete();
             setWorkingDocsByCode(prev => {
                 const newState = { ...prev };
                 delete newState[maTTHC];
                 return newState;
+            });
+            setWorkingDocsListByCode(prev => {
+                const next = { ...prev };
+                delete next[maTTHC];
+                return next;
             });
             console.log(`✅ Deleted working document for maTTHC: ${maTTHC}`);
             setSnackbar({
@@ -2393,6 +2462,9 @@ function ProceduresComponent() {
             const templatePath = buildDocxUrlForRecord(record);
             const htmlUrl = buildHtmlUrlForRecord(record);
 
+            // Ghi nhớ mã thủ tục cho các thao tác sau (khi thay mẫu bằng blob URL)
+            currentCodeRef.current = record.maTTHC || '';
+
             setState(prev => ({
                 ...prev,
                 selectedTemplatePath: templatePath,
@@ -2427,6 +2499,9 @@ function ProceduresComponent() {
             // Build path from templates_by_code
             const templatePath = buildDocxUrlForRecord(record);
             const htmlUrl = buildHtmlUrlForRecord(record);
+
+            // Ghi nhớ mã thủ tục hiện tại
+            currentCodeRef.current = record.maTTHC || '';
 
             setState(prev => ({
                 ...prev,
@@ -3065,6 +3140,8 @@ function ProceduresComponent() {
                 URL.revokeObjectURL(state.uploadedTemplateUrl);
             } catch {}
         }
+        // Xóa mã thủ tục đã ghi nhớ để tránh lưu nhầm
+        currentCodeRef.current = '';
         setState(prev => ({
             ...prev,
             selectedTemplatePath: '',
@@ -3273,19 +3350,19 @@ function ProceduresComponent() {
                                                         Chọn mẫu này
                                                     </Button>
                                                     {(() => {
-                                                        const savedDoc = workingDocsByCode[record.maTTHC];
-                                                        return savedDoc ? (
+                                                        const docs = workingDocsListByCode[record.maTTHC] || [];
+                                                        return docs.slice(0, 3).map(doc => (
                                                             <Button
+                                                                key={doc.id || doc.updatedAt}
                                                                 variant="text"
                                                                 color="secondary"
                                                                 size="small"
-                                                                onClick={() =>
-                                                                    handleLoadWorkingFromDb(record.maTTHC, record)
-                                                                }
+                                                                onClick={() => handleLoadWorkingFromDb(record.maTTHC, record, doc.id || undefined)}
+                                                                title={new Date(doc.updatedAt).toLocaleString()}
                                                             >
-                                                                {savedDoc.fileName}
+                                                                {doc.fileName}
                                                             </Button>
-                                                        ) : null;
+                                                        ));
                                                     })()}
                                                 </>
                                             ) : (
@@ -3984,6 +4061,11 @@ function ProceduresComponent() {
         const tryExtract = (url: string | null | undefined): string => {
             if (!url) return '';
             try {
+                // Handle working:// URLs from IndexedDB
+                if (url.startsWith('working://')) {
+                    return url.replace('working://', '').trim();
+                }
+                
                 const parts = url.split('/');
                 const idx = parts.indexOf('templates_by_code');
                 if (idx >= 0 && idx + 1 < parts.length) {
@@ -3996,7 +4078,9 @@ function ProceduresComponent() {
         const fromDocx = tryExtract(state.selectedTemplatePath);
         if (fromDocx) return fromDocx;
         const fromHtml = tryExtract(state.selectedHtmlUrl || undefined);
-        return fromHtml;
+        if (fromHtml) return fromHtml;
+        // Cuối cùng, dùng mã đã ghi nhớ khi người dùng tải mẫu mới (blob URL)
+        return currentCodeRef.current || '';
     }, [state.selectedTemplatePath, state.selectedHtmlUrl]);
 
     const handleSaveCustomTemplate = useCallback(async () => {
@@ -4203,7 +4287,11 @@ function ProceduresComponent() {
                 }
                 
                 // Check if document already exists for this maTTHC
-                const existingDoc = await db.workingDocuments.get(maTTHC);
+                const byUpdated = await db.workingDocumentsV2
+                    .where('maTTHC')
+                    .equals(maTTHC)
+                    .sortBy('updatedAt');
+                const existingDoc = byUpdated[byUpdated.length - 1];
                 
                 if (existingDoc) {
                     // Update existing document
@@ -4215,10 +4303,18 @@ function ProceduresComponent() {
                         updatedAt: Date.now()
                     };
                     
-                    await db.workingDocuments.put(updatedRecord);
+                    if (existingDoc.id != null) {
+                        await db.workingDocumentsV2.update(existingDoc.id, updatedRecord);
+                    } else {
+                        await db.workingDocumentsV2.add(updatedRecord);
+                    }
                     
                     // Update local state
                     setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: updatedRecord }));
+                    setWorkingDocsListByCode(prev => ({
+                        ...prev,
+                        [maTTHC]: [updatedRecord, ...(prev[maTTHC] || []).filter(d => d.id !== (existingDoc?.id))]
+                    }));
                     
                     console.log(`✅ Successfully updated existing working document in IndexedDB:`, {
                         maTTHC,
@@ -4237,10 +4333,14 @@ function ProceduresComponent() {
                         updatedAt: Date.now()
                     };
                     
-                    await db.workingDocuments.put(newRecord);
+                    await db.workingDocumentsV2.add(newRecord);
                     
                     // Update local state
                     setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: newRecord }));
+                    setWorkingDocsListByCode(prev => ({
+                        ...prev,
+                        [maTTHC]: [newRecord, ...(prev[maTTHC] || [])]
+                    }));
                     
                     console.log(`✅ Successfully created new working document in IndexedDB:`, {
                         maTTHC,
@@ -4258,11 +4358,145 @@ function ProceduresComponent() {
         []
     );
 
+    // Save or update current working document without downloading
+    const handleSaveWorkingDocument = useCallback(async () => {
+        try {
+            const currentCode = extractCurrentCode();
+            if (!currentCode) {
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể xác định mã thủ tục hành chính',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // Determine current content to save
+            let blob: Blob | null = null;
+            let mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
+            if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
+                blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
+            } else if (state.generatedBlob) {
+                blob = state.generatedBlob;
+                mimeType = state.generatedBlob.type || mimeType;
+            } else if (state.uploadedTemplateUrl) {
+                const response = await fetch(state.uploadedTemplateUrl);
+                blob = await response.blob();
+                mimeType = blob.type || mimeType;
+            } else if (state.selectedTemplatePath) {
+                const response = await fetch(state.selectedTemplatePath);
+                blob = await response.blob();
+                mimeType = blob.type || mimeType;
+            }
+
+            if (!blob) {
+                setSnackbar({
+                    open: true,
+                    message: 'Không có nội dung để lưu',
+                    severity: 'warning'
+                });
+                return;
+            }
+
+            // Determine whether to create a new entry or update the current working doc
+            const isWorkingContext = !!state.selectedTemplatePath && state.selectedTemplatePath.startsWith('working://');
+            const hasUploadedReplacement = !!state.uploadedTemplateUrl;
+            // Create new if an uploaded replacement exists; else, if we have a current working doc id, update that one; otherwise create new
+            const shouldCreateNew = hasUploadedReplacement || !isWorkingContext || currentWorkingDocIdRef.current == null;
+
+            const byUpdated = await db.workingDocumentsV2
+                .where('maTTHC')
+                .equals(currentCode)
+                .sortBy('updatedAt');
+            const existingDoc = byUpdated[byUpdated.length - 1];
+
+            let fileNameToSave: string;
+            if (shouldCreateNew) {
+                const baseName = state.uploadedTemplateName || (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
+                const safeBase = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
+                // make name unique by appending timestamp to avoid collisions
+                const ts = Date.now();
+                const nameNoExt = safeBase.replace(/\.docx$/i, '');
+                fileNameToSave = `${nameNoExt}_${ts}.docx`;
+                await db.workingDocumentsV2.add({
+                    maTTHC: currentCode,
+                    fileName: fileNameToSave,
+                    mimeType,
+                    blob,
+                    updatedAt: Date.now()
+                });
+            } else {
+                // Update currently opened working doc (latest for this code)
+                const baseName = existingDoc?.fileName || (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
+                fileNameToSave = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
+                const updatedRecord: WorkingDocument = {
+                    ...(existingDoc || { maTTHC: currentCode }),
+                    fileName: fileNameToSave,
+                    mimeType,
+                    blob,
+                    updatedAt: Date.now()
+                };
+                const targetId = currentWorkingDocIdRef.current ?? existingDoc?.id ?? null;
+                if (targetId != null) {
+                    await db.workingDocumentsV2.update(targetId, {
+                        fileName: updatedRecord.fileName,
+                        mimeType: updatedRecord.mimeType,
+                        blob: updatedRecord.blob,
+                        updatedAt: updatedRecord.updatedAt
+                    });
+                } else {
+                    const newId = await db.workingDocumentsV2.add(updatedRecord);
+                    currentWorkingDocIdRef.current = Number(newId) || null;
+                }
+            }
+
+            await refreshWorkingDocuments();
+
+            // Switch to working document context and show in editor
+            setState(prev => ({
+                ...prev,
+                selectedTemplatePath: `working://${currentCode}`,
+                selectedHtmlUrl: null,
+                generatedBlob: blob
+            }));
+            currentCodeRef.current = currentCode;
+
+            if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
+                sfContainerRef.current.documentEditor.open(blob);
+            }
+
+            // Clear uploaded replacement marker after creating a new entry
+            if (hasUploadedReplacement) {
+                setState(prev => ({ ...prev, uploadedTemplateUrl: null, uploadedTemplateName: null }));
+            }
+
+            setSnackbar({
+                open: true,
+                message: shouldCreateNew ? 'Đã lưu tài liệu mới trong IndexedDB' : 'Đã cập nhật tài liệu đang làm việc',
+                severity: 'success'
+            });
+        } catch (error) {
+            console.error('Error saving working document:', error);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi lưu tài liệu',
+                severity: 'error'
+            });
+        }
+    }, [extractCurrentCode, previewMode, state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, saveWorkingDocToDb, refreshWorkingDocuments]);
+
     // Download the current working document (filled document, custom template, or original template)
     const handleDownloadWorkingDocument = useCallback(async () => {
         try {
             // Get the current maTTHC from the selected template path or URL
             const currentCode = extractCurrentCode();
+            console.log('🔍 Debug extractCurrentCode:', {
+                selectedTemplatePath: state.selectedTemplatePath,
+                selectedHtmlUrl: state.selectedHtmlUrl,
+                extractedCode: currentCode
+            });
+            
             if (!currentCode) {
                 setSnackbar({
                     open: true,
@@ -4432,12 +4666,19 @@ function ProceduresComponent() {
     }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode, extractCurrentCode, saveWorkingDocToDb, refreshWorkingDocuments]);
 
     const handleLoadWorkingFromDb = useCallback(
-        async (maTTHC: string, record: LocalEnhancedTTHCRecord) => {
+        async (maTTHC: string, record: LocalEnhancedTTHCRecord, docId?: number) => {
             try {
                 // First try to get from local state, then from IndexedDB
-                let doc: WorkingDocument | undefined = workingDocsByCode[maTTHC];
-                if (!doc) {
-                    doc = await db.workingDocuments.get(maTTHC);
+                let doc: WorkingDocument | undefined;
+                if (docId != null) {
+                    const found = await db.workingDocumentsV2.get(docId);
+                    doc = found || undefined;
+                } else {
+                    doc = workingDocsByCode[maTTHC];
+                    if (!doc) {
+                        const list = await db.workingDocumentsV2.where('maTTHC').equals(maTTHC).sortBy('updatedAt');
+                        doc = list[list.length - 1];
+                    }
                 }
                 
                 if (!doc) {
@@ -4451,6 +4692,10 @@ function ProceduresComponent() {
 
                 // Set the selected record for context
                 setSelectedRecord(record);
+
+                // Ghi nhớ mã thủ tục để sử dụng cho các thao tác lưu tiếp theo
+                currentCodeRef.current = maTTHC || '';
+                currentWorkingDocIdRef.current = doc.id ?? null;
 
                 // Create object URL for the blob
                 const objectUrl = URL.createObjectURL(doc.blob);
@@ -4592,14 +4837,24 @@ function ProceduresComponent() {
                                 </Button>
                             </Box>
                             
-                            <Button 
-                                variant="outlined" 
-                                startIcon={<DownloadIcon />}
-                                onClick={handleDownloadWorkingDocument}
-                                disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
-                            >
-                                Lưu mẫu đã tùy chỉnh
-                            </Button>
+                            <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Button 
+                                    variant="outlined" 
+                                    startIcon={<DownloadIcon />}
+                                    onClick={handleDownloadWorkingDocument}
+                                    disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
+                                >
+                                    TẢI MẪU ĐÃ TÙY CHỈNH
+                                </Button>
+                                <Button 
+                                    variant="outlined" 
+                                    startIcon={<SaveIcon />}
+                                    onClick={handleSaveWorkingDocument}
+                                    disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
+                                >
+                                    Lưu mẫu đã tùy chỉnh
+                                </Button>
+                            </Box>
                         </Box>
                     </Box>
                     <Divider sx={{ mb: 2 }} />
@@ -4848,10 +5103,22 @@ function ProceduresComponent() {
                                                 </Button>
                                             ))}
                                         </Box>
+                                        <Typography
+                                            variant="caption"
+                                            sx={{
+                                                mt: 1.5,
+                                                display: 'block',
+                                                textAlign: 'center',
+                                                color: 'text.secondary',
+                                                fontStyle: 'italic'
+                                            }}
+                                        >
+                                            💡 Click để chèn field vào vị trí con trỏ
+                                        </Typography>
                                         {/* Quick input box (separate fields) */}
                                         <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
                                             <Typography variant="caption" color="text.secondary">
-                                                Nhập nhanh giá trị cho các trường bên trên (tùy chọn)
+                                                Nhập nhanh giá trị (tùy chọn)
                                             </Typography>
                                             <Box
                                                 sx={{
@@ -4885,18 +5152,7 @@ function ProceduresComponent() {
                                                 </Button>
                                             </Box>
                                         </Box>
-                                        <Typography
-                                            variant="caption"
-                                            sx={{
-                                                mt: 1.5,
-                                                display: 'block',
-                                                textAlign: 'center',
-                                                color: 'text.secondary',
-                                                fontStyle: 'italic'
-                                            }}
-                                        >
-                                            💡 Click để chèn field vào vị trí con trỏ
-                                        </Typography>
+                                        
                                     </Box>
                                 )}
                             </div>

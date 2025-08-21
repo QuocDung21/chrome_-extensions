@@ -11,7 +11,8 @@ export interface LinhVuc {
 
 // Định nghĩa interface cho tài liệu làm việc được lưu theo Mã TTHC
 export interface WorkingDocument {
-    maTTHC: string; // primary key
+    id?: number; // primary key (auto)
+    maTTHC: string; // code key for grouping
     fileName: string;
     mimeType: string;
     blob: Blob;
@@ -37,6 +38,7 @@ export interface ThuTucHC {
 export class AppDatabase extends Dexie {
     linhVuc!: Table<LinhVuc, string>; 
     workingDocuments!: Table<WorkingDocument, string>;
+    workingDocumentsV2!: Table<WorkingDocument, number>;
     thuTucHC!: Table<ThuTucHC, string>;
 
     constructor() {
@@ -56,6 +58,28 @@ export class AppDatabase extends Dexie {
             // Khóa chính là 'maTTHC'. Đánh chỉ mục phụ theo 'tenTTHC' và 'linhVuc' để truy vấn nhanh
             thuTucHC: 'maTTHC, tenTTHC, linhVuc'
         });
+
+        // V2: Cho phép lưu nhiều tài liệu làm việc theo cùng một Mã TTHC
+        this.version(4)
+            .stores({
+                // id tự tăng làm khóa chính, maTTHC để nhóm, updatedAt để sắp xếp mới nhất
+                workingDocumentsV2: '++id, maTTHC, updatedAt'
+            })
+            .upgrade(async tx => {
+                try {
+                    const old = await (tx.table('workingDocuments') as Table<WorkingDocument, any>).toArray();
+                    for (const d of old) {
+                        // Di chuyển mỗi bản ghi cũ sang V2 (mỗi maTTHC sẽ trở thành một entry có id)
+                        await (tx.table('workingDocumentsV2') as Table<WorkingDocument, any>).add({
+                            maTTHC: d.maTTHC,
+                            fileName: d.fileName,
+                            mimeType: d.mimeType,
+                            blob: d.blob,
+                            updatedAt: d.updatedAt
+                        });
+                    }
+                } catch {}
+            });
     }
 }
 
