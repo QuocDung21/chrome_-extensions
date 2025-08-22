@@ -3171,257 +3171,257 @@ function ProceduresComponent() {
     // Render helpers
     // Đơn giản hóa: bỏ chip trạng thái socket
 
-    const renderFilter = () => (
-        <Card>
-            <CardContent>
-                <Typography variant="h6" sx={{ mb: 2 }}>
-                    Danh sách thủ tục hành chính
-                </Typography>
+    // const renderFilter = () => (
+    //     <Card>
+    //         <CardContent>
+    //             <Typography variant="h6" sx={{ mb: 2 }}>
+    //                 Danh sách thủ tục hành chính
+    //             </Typography>
 
-                {/* Filter Controls */}
-                <Box sx={{ mb: 3 }}>
-                    <Box
-                        sx={{
-                            display: 'grid',
-                            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-                            gap: 2,
-                            mb: 2
-                        }}
-                    >
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Lĩnh vực</InputLabel>
-                            <Select
-                                value={filters.linhVuc}
-                                label="Lĩnh vực"
-                                onChange={e => handleFilterChange('linhVuc', e.target.value)}
-                            >
-                                <MenuItem value="">Tất cả</MenuItem>
-                                {filterOptions.linhVuc.map(item => (
-                                    <MenuItem key={item} value={item}>
-                                        {item}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+    //             {/* Filter Controls */}
+    //             <Box sx={{ mb: 3 }}>
+    //                 <Box
+    //                     sx={{
+    //                         display: 'grid',
+    //                         gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
+    //                         gap: 2,
+    //                         mb: 2
+    //                     }}
+    //                 >
+    //                     <FormControl fullWidth size="small">
+    //                         <InputLabel>Lĩnh vực</InputLabel>
+    //                         <Select
+    //                             value={filters.linhVuc}
+    //                             label="Lĩnh vực"
+    //                             onChange={e => handleFilterChange('linhVuc', e.target.value)}
+    //                         >
+    //                             <MenuItem value="">Tất cả</MenuItem>
+    //                             {filterOptions.linhVuc.map(item => (
+    //                                 <MenuItem key={item} value={item}>
+    //                                     {item}
+    //                                 </MenuItem>
+    //                             ))}
+    //                         </Select>
+    //                     </FormControl>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Thủ tục</InputLabel>
-                            <Select
-                                value={filters.thuTuc}
-                                label="Thủ tục"
-                                onChange={e => handleFilterChange('thuTuc', e.target.value)}
-                                disabled={!filters.linhVuc}
-                            >
-                                <MenuItem value="">Tất cả</MenuItem>
-                                {availableThuTuc.map(item => (
-                                    <MenuItem key={item} value={item}>
-                                        {item}
-                                    </MenuItem>
-                                ))}
-                            </Select>
-                        </FormControl>
+    //                     <FormControl fullWidth size="small">
+    //                         <InputLabel>Thủ tục</InputLabel>
+    //                         <Select
+    //                             value={filters.thuTuc}
+    //                             label="Thủ tục"
+    //                             onChange={e => handleFilterChange('thuTuc', e.target.value)}
+    //                             disabled={!filters.linhVuc}
+    //                         >
+    //                             <MenuItem value="">Tất cả</MenuItem>
+    //                             {availableThuTuc.map(item => (
+    //                                 <MenuItem key={item} value={item}>
+    //                                     {item}
+    //                                 </MenuItem>
+    //                             ))}
+    //                         </Select>
+    //                     </FormControl>
 
-                        <FormControl fullWidth size="small">
-                            <InputLabel>Trạng thái mẫu</InputLabel>
-                            <Select
-                                value={filters.availability}
-                                label="Trạng thái mẫu"
-                                onChange={e => handleFilterChange('availability', e.target.value)}
-                            >
-                                <MenuItem value="all">Tất cả</MenuItem>
-                                <MenuItem value="available">Có sẵn mẫu</MenuItem>
-                                <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
-                            </Select>
-                        </FormControl>
-                    </Box>
+    //                     <FormControl fullWidth size="small">
+    //                         <InputLabel>Trạng thái mẫu</InputLabel>
+    //                         <Select
+    //                             value={filters.availability}
+    //                             label="Trạng thái mẫu"
+    //                             onChange={e => handleFilterChange('availability', e.target.value)}
+    //                         >
+    //                             <MenuItem value="all">Tất cả</MenuItem>
+    //                             <MenuItem value="available">Có sẵn mẫu</MenuItem>
+    //                             <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
+    //                         </Select>
+    //                     </FormControl>
+    //                 </Box>
 
-                    <Button variant="outlined" onClick={handleClearFilters} size="small">
-                        Xóa bộ lọc
-                    </Button>
-                </Box>
+    //                 <Button variant="outlined" onClick={handleClearFilters} size="small">
+    //                     Xóa bộ lọc
+    //                 </Button>
+    //             </Box>
 
-                {/* Summary and Template List */}
-                {csvLoading ? (
-                    <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-                        <CircularProgress />
-                    </Box>
-                ) : (
-                    <Box>
-                        <Box
-                            sx={{
-                                mb: 2,
-                                display: 'flex',
-                                justifyContent: 'space-between',
-                                alignItems: 'center'
-                            }}
-                        >
-                            <Typography variant="body2" color="text.secondary">
-                                Tìm thấy {filteredRecords.length} thủ tục hành chính
-                            </Typography>
-                            <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Chip
-                                    icon={<CheckCircleIcon />}
-                                    label={`${filteredRecords.filter(r => r.isTemplateAvailable).length} có mẫu`}
-                                    color="success"
-                                    size="small"
-                                    variant="outlined"
-                                />
-                                <Chip
-                                    icon={<WarningIcon />}
-                                    label={`${filteredRecords.filter(r => !r.isTemplateAvailable).length} chưa có`}
-                                    color="warning"
-                                    size="small"
-                                    variant="outlined"
-                                />
-                            </Box>
-                        </Box>
+    //             {/* Summary and Template List */}
+    //             {csvLoading ? (
+    //                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
+    //                     <CircularProgress />
+    //                 </Box>
+    //             ) : (
+    //                 <Box>
+    //                     <Box
+    //                         sx={{
+    //                             mb: 2,
+    //                             display: 'flex',
+    //                             justifyContent: 'space-between',
+    //                             alignItems: 'center'
+    //                         }}
+    //                     >
+    //                         <Typography variant="body2" color="text.secondary">
+    //                             Tìm thấy {filteredRecords.length} thủ tục hành chính
+    //                         </Typography>
+    //                         <Box sx={{ display: 'flex', gap: 1 }}>
+    //                             <Chip
+    //                                 icon={<CheckCircleIcon />}
+    //                                 label={`${filteredRecords.filter(r => r.isTemplateAvailable).length} có mẫu`}
+    //                                 color="success"
+    //                                 size="small"
+    //                                 variant="outlined"
+    //                             />
+    //                             <Chip
+    //                                 icon={<WarningIcon />}
+    //                                 label={`${filteredRecords.filter(r => !r.isTemplateAvailable).length} chưa có`}
+    //                                 color="warning"
+    //                                 size="small"
+    //                                 variant="outlined"
+    //                             />
+    //                         </Box>
+    //                     </Box>
 
-                        <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-                            {filteredRecords.slice(0, 10).map((record, index) => (
-                                <Paper
-                                    key={index}
-                                    variant="outlined"
-                                    sx={{
-                                        p: 2,
-                                        mb: 2,
-                                        borderRadius: 2,
-                                        border: '1px solid #e0e0e0',
-                                        '&:hover': {
-                                            boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                                            borderColor: record.isTemplateAvailable
-                                                ? '#1976d2'
-                                                : '#ed6c02'
-                                        },
-                                        transition: 'all 0.2s ease-in-out',
-                                        opacity: record.isTemplateAvailable ? 1 : 0.7
-                                    }}
-                                >
-                                    <Box
-                                        sx={{
-                                            display: 'flex',
-                                            justifyContent: 'space-between',
-                                            alignItems: 'flex-start'
-                                        }}
-                                    >
-                                        <Box sx={{ flex: 1 }}>
-                                            <Typography
-                                                variant="subtitle1"
-                                                color="primary"
-                                                sx={{ fontWeight: 'bold', mb: 1 }}
-                                            >
-                                                {record.maTTHC} - {record.tenTTHC}
-                                            </Typography>
-                                            <Typography
-                                                variant="body2"
-                                                color="text.secondary"
-                                                sx={{ mb: 1 }}
-                                            >
-                                                Lĩnh vực: {record.linhVuc}
-                                            </Typography>
-                                            <Typography variant="body2" color="text.secondary">
-                                                Đối tượng: {record.doiTuong || 'Công dân Việt Nam'}
-                                            </Typography>
-                                        </Box>
+    //                     <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
+    //                         {filteredRecords.slice(0, 10).map((record, index) => (
+    //                             <Paper
+    //                                 key={index}
+    //                                 variant="outlined"
+    //                                 sx={{
+    //                                     p: 2,
+    //                                     mb: 2,
+    //                                     borderRadius: 2,
+    //                                     border: '1px solid #e0e0e0',
+    //                                     '&:hover': {
+    //                                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    //                                         borderColor: record.isTemplateAvailable
+    //                                             ? '#1976d2'
+    //                                             : '#ed6c02'
+    //                                     },
+    //                                     transition: 'all 0.2s ease-in-out',
+    //                                     opacity: record.isTemplateAvailable ? 1 : 0.7
+    //                                 }}
+    //                             >
+    //                                 <Box
+    //                                     sx={{
+    //                                         display: 'flex',
+    //                                         justifyContent: 'space-between',
+    //                                         alignItems: 'flex-start'
+    //                                     }}
+    //                                 >
+    //                                     <Box sx={{ flex: 1 }}>
+    //                                         <Typography
+    //                                             variant="subtitle1"
+    //                                             color="primary"
+    //                                             sx={{ fontWeight: 'bold', mb: 1 }}
+    //                                         >
+    //                                             {record.maTTHC} - {record.tenTTHC}
+    //                                         </Typography>
+    //                                         <Typography
+    //                                             variant="body2"
+    //                                             color="text.secondary"
+    //                                             sx={{ mb: 1 }}
+    //                                         >
+    //                                             Lĩnh vực: {record.linhVuc}
+    //                                         </Typography>
+    //                                         <Typography variant="body2" color="text.secondary">
+    //                                             Đối tượng: {record.doiTuong || 'Công dân Việt Nam'}
+    //                                         </Typography>
+    //                                     </Box>
 
-                                        <Box
-                                            sx={{
-                                                display: 'flex',
-                                                flexDirection: 'column',
-                                                gap: 1,
-                                                alignItems: 'flex-end'
-                                            }}
-                                        >
-                                            {record.isTemplateAvailable ? (
-                                                <>
-                                                    <Chip
-                                                        label="Có sẵn mẫu"
-                                                        color="success"
-                                                        size="small"
-                                                        icon={<CheckCircleIcon />}
-                                                    />
-                                                    <Button
-                                                        variant="contained"
-                                                        color="primary"
-                                                        size="small"
-                                                        onClick={() =>
-                                                            handleTemplateSelect(record)
-                                                        }
-                                                    >
-                                                        Chọn mẫu này
-                                                    </Button>
-                                                    {(() => {
-                                                        const docs = workingDocsListByCode[record.maTTHC] || [];
-                                                        return docs.slice(0, 3).map(doc => (
-                                                            <Button
-                                                                key={doc.id || doc.updatedAt}
-                                                                variant="text"
-                                                                color="secondary"
-                                                                size="small"
-                                                                onClick={() => handleLoadWorkingFromDb(record.maTTHC, record, doc.id || undefined)}
-                                                                title={new Date(doc.updatedAt).toLocaleString()}
-                                                            >
-                                                                {doc.fileName}
-                                                            </Button>
-                                                        ));
-                                                    })()}
-                                                </>
-                                            ) : (
-                                                <>
-                                                    <Chip
-                                                        label="Chưa có mẫu"
-                                                        color="warning"
-                                                        size="small"
-                                                        icon={<WarningIcon />}
-                                                    />
-                                                    <Button
-                                                        variant="outlined"
-                                                        color="warning"
-                                                        size="small"
-                                                        disabled
-                                                    >
-                                                        Không khả dụng
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </Box>
-                                    </Box>
-                                </Paper>
-                            ))}
+    //                                     <Box
+    //                                         sx={{
+    //                                             display: 'flex',
+    //                                             flexDirection: 'column',
+    //                                             gap: 1,
+    //                                             alignItems: 'flex-end'
+    //                                         }}
+    //                                     >
+    //                                         {record.isTemplateAvailable ? (
+    //                                             <>
+    //                                                 <Chip
+    //                                                     label="Có sẵn mẫu"
+    //                                                     color="success"
+    //                                                     size="small"
+    //                                                     icon={<CheckCircleIcon />}
+    //                                                 />
+    //                                                 <Button
+    //                                                     variant="contained"
+    //                                                     color="primary"
+    //                                                     size="small"
+    //                                                     onClick={() =>
+    //                                                         handleTemplateSelect(record)
+    //                                                     }
+    //                                                 >
+    //                                                     Chọn mẫu này
+    //                                                 </Button>
+    //                                                 {(() => {
+    //                                                     const docs = workingDocsListByCode[record.maTTHC] || [];
+    //                                                     return docs.slice(0, 3).map(doc => (
+    //                                                         <Button
+    //                                                             key={doc.id || doc.updatedAt}
+    //                                                             variant="text"
+    //                                                             color="secondary"
+    //                                                             size="small"
+    //                                                             onClick={() => handleLoadWorkingFromDb(record.maTTHC, record, doc.id || undefined)}
+    //                                                             title={new Date(doc.updatedAt).toLocaleString()}
+    //                                                         >
+    //                                                             {doc.fileName}
+    //                                                         </Button>
+    //                                                     ));
+    //                                                 })()}
+    //                                             </>
+    //                                         ) : (
+    //                                             <>
+    //                                                 <Chip
+    //                                                     label="Chưa có mẫu"
+    //                                                     color="warning"
+    //                                                     size="small"
+    //                                                     icon={<WarningIcon />}
+    //                                                 />
+    //                                                 <Button
+    //                                                     variant="outlined"
+    //                                                     color="warning"
+    //                                                     size="small"
+    //                                                     disabled
+    //                                                 >
+    //                                                     Không khả dụng
+    //                                                 </Button>
+    //                                             </>
+    //                                         )}
+    //                                     </Box>
+    //                                 </Box>
+    //                             </Paper>
+    //                         ))}
 
-                            {filteredRecords.length > 10 && (
-                                <Paper sx={{ p: 2, textAlign: 'center', mt: 2 }}>
-                                    <Typography
-                                        variant="body2"
-                                        color="text.secondary"
-                                        sx={{ mb: 2 }}
-                                    >
-                                        Hiển thị 10 / {filteredRecords.length} thủ tục.
-                                    </Typography>
-                                    <Button
-                                        variant="outlined"
-                                        onClick={() => setShowTemplateModal(true)}
-                                    >
-                                        Xem tất cả ({filteredRecords.length})
-                                    </Button>
-                                </Paper>
-                            )}
+    //                         {filteredRecords.length > 10 && (
+    //                             <Paper sx={{ p: 2, textAlign: 'center', mt: 2 }}>
+    //                                 <Typography
+    //                                     variant="body2"
+    //                                     color="text.secondary"
+    //                                     sx={{ mb: 2 }}
+    //                                 >
+    //                                     Hiển thị 10 / {filteredRecords.length} thủ tục.
+    //                                 </Typography>
+    //                                 <Button
+    //                                     variant="outlined"
+    //                                     onClick={() => setShowTemplateModal(true)}
+    //                                 >
+    //                                     Xem tất cả ({filteredRecords.length})
+    //                                 </Button>
+    //                             </Paper>
+    //                         )}
 
-                            {filteredRecords.length === 0 && (
-                                <Paper sx={{ p: 4, textAlign: 'center' }}>
-                                    <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-                                        Không tìm thấy thủ tục nào
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp
-                                    </Typography>
-                                </Paper>
-                            )}
-                        </Box>
-                    </Box>
-                )}
-            </CardContent>
-        </Card>
-    );
+    //                         {filteredRecords.length === 0 && (
+    //                             <Paper sx={{ p: 4, textAlign: 'center' }}>
+    //                                 <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
+    //                                     Không tìm thấy thủ tục nào
+    //                                 </Typography>
+    //                                 <Typography variant="body2" color="text.secondary">
+    //                                     Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp
+    //                                 </Typography>
+    //                             </Paper>
+    //                         )}
+    //                     </Box>
+    //                 </Box>
+    //             )}
+    //         </CardContent>
+    //     </Card>
+    // );
 
     const renderFilterControls = () => (
         <Card>
@@ -4785,7 +4785,7 @@ function ProceduresComponent() {
 
             {/* Filter Controls */}
             {/* {!state.selectedTemplatePath && renderFilterControls()} */}
-            {renderFilter()}
+            {/* {renderFilter()} */}
 
             {/* Preview section only, status panel removed for simpler UI */}
             {state.selectedTemplatePath ? (
