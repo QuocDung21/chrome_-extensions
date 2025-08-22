@@ -5,6 +5,7 @@
       "tenTTHC": "Xét, cấp học bổng chính sách",
       "qdCongBo": "1724/QĐ-UBND",
       "doiTuong": "Công dân Việt Nam",
+      "maLinhVuc": "G03-GD11",
       "linhVuc": "Giáo dục và Đào tạo thuộc hệ thống giáo dục quốc dân (Bộ Giáo dục và Đào tạo)",
       "coQuanCongKhai": "UBND tỉnh Cà Mau",
       "capThucHien": "Cấp Xã",
@@ -64,6 +65,7 @@
       "tenTTHC": "Hiệu đính, cập nhật, bổ sung thông tin đăng ký hợp tác xã, liên hiệp hợp tác xã",
       "qdCongBo": "1257/QĐ-UBND",
       "doiTuong": "Công dân Việt Nam; Hợp tác xã",
+      "maLinhVuc": "G05-KD07",
       "linhVuc": "Thành lập và hoạt động của tổ hợp tác, hợp tác xã, liên hiệp hợp tác xã (Bộ Tài chính)",
       "coQuanCongKhai": "UBND tỉnh Cà Mau",
       "capThucHien": "Cấp Xã",
@@ -108,6 +110,7 @@
     },
     {
       "stt": 31,
+      "maLinhVuc": "G07-LÐ03",
       "maTTHC": "1.001776.000.00.00.H12",
       "tenTTHC": "Thực hiện, điều chỉnh, thôi hưởng trợ cấp xã hội hàng tháng, hỗ trợ kinh phí chăm sóc, nuôi dưỡng hàng tháng",
       "qdCongBo": "1719/QĐ-UBND",
@@ -146,6 +149,7 @@
     },
     {
       "stt": 46,
+      "maLinhVuc": "G17-XD11",
       "maTTHC": "1.007867",
       "tenTTHC": "Cấp lại biển số nhà theo nhu cầu của chủ sở hữu hoặc người quản lý sử dụng nhà",
       "qdCongBo": "155/QĐ-UBND (TTHC đặc thù, SXD)",
@@ -168,6 +172,7 @@
       "tenTTHC": "Thủ tục đăng ký khai sinh kết hợp đăng ký nhận cha, mẹ, con",
       "qdCongBo": "1242/QĐ-UBND",
       "doiTuong": "Công dân Việt Nam",
+      "maLinhVuc": "G15-TP07",
       "linhVuc": "Hộ tịch (Bộ Tư pháp)",
       "coQuanCongKhai": "UBND tỉnh Cà Mau",
       "capThucHien": "Cấp Xã",
@@ -187,6 +192,7 @@
     },
     {
       "stt": 412,
+      "maLinhVuc": "G05-KD10",
       "maTTHC": "2.000720.000.00.00.H12",
       "tenTTHC": "Đăng ký thay đổi nội dung đăng ký hộ kinh doanh",
       "qdCongBo": "0146/QĐ-UBND",
