@@ -14,13 +14,13 @@ import { Route as rootRouteImport } from './routes/__root'
 
 const WordViewerIndexLazyRouteImport = createFileRoute('/word-viewer/')()
 const WordMapperIndexLazyRouteImport = createFileRoute('/word-mapper/')()
-const TemplateFillerIndexLazyRouteImport =
-  createFileRoute('/template-filler/')()
+const Test11IndexLazyRouteImport = createFileRoute('/test11/')()
+const SignupIndexLazyRouteImport = createFileRoute('/signup/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
 const ServicesIndexLazyRouteImport = createFileRoute('/services/')()
 const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
-const ProceduresIndexLazyRouteImport = createFileRoute('/procedures/')()
 const OcrIndexLazyRouteImport = createFileRoute('/ocr/')()
+const LoginIndexLazyRouteImport = createFileRoute('/login/')()
 const InfoIndexLazyRouteImport = createFileRoute('/info/')()
 const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
 const ExtensionIndexLazyRouteImport = createFileRoute('/extension/')()
@@ -47,13 +47,16 @@ const WordMapperIndexLazyRoute = WordMapperIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/word-mapper/index.lazy').then((d) => d.Route),
 )
-const TemplateFillerIndexLazyRoute = TemplateFillerIndexLazyRouteImport.update({
-  id: '/template-filler/',
-  path: '/template-filler/',
+const Test11IndexLazyRoute = Test11IndexLazyRouteImport.update({
+  id: '/test11/',
+  path: '/test11/',
   getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/template-filler/index.lazy').then((d) => d.Route),
-)
+} as any).lazy(() => import('./routes/test11/index.lazy').then((d) => d.Route))
+const SignupIndexLazyRoute = SignupIndexLazyRouteImport.update({
+  id: '/signup/',
+  path: '/signup/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/signup/index.lazy').then((d) => d.Route))
 const SettingsIndexLazyRoute = SettingsIndexLazyRouteImport.update({
   id: '/settings/',
   path: '/settings/',
@@ -75,18 +78,16 @@ const ProductsIndexLazyRoute = ProductsIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/products/index.lazy').then((d) => d.Route),
 )
-const ProceduresIndexLazyRoute = ProceduresIndexLazyRouteImport.update({
-  id: '/procedures/',
-  path: '/procedures/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/procedures/index.lazy').then((d) => d.Route),
-)
 const OcrIndexLazyRoute = OcrIndexLazyRouteImport.update({
   id: '/ocr/',
   path: '/ocr/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ocr/index.lazy').then((d) => d.Route))
+const LoginIndexLazyRoute = LoginIndexLazyRouteImport.update({
+  id: '/login/',
+  path: '/login/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() => import('./routes/login/index.lazy').then((d) => d.Route))
 const InfoIndexLazyRoute = InfoIndexLazyRouteImport.update({
   id: '/info/',
   path: '/info/',
@@ -151,12 +152,13 @@ export interface FileRoutesByFullPath {
   '/extension': typeof ExtensionIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
+  '/login': typeof LoginIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
-  '/procedures': typeof ProceduresIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
-  '/template-filler': typeof TemplateFillerIndexLazyRoute
+  '/signup': typeof SignupIndexLazyRoute
+  '/test11': typeof Test11IndexLazyRoute
   '/word-mapper': typeof WordMapperIndexLazyRoute
   '/word-viewer': typeof WordViewerIndexLazyRoute
 }
@@ -169,12 +171,13 @@ export interface FileRoutesByTo {
   '/extension': typeof ExtensionIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
+  '/login': typeof LoginIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
-  '/procedures': typeof ProceduresIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
-  '/template-filler': typeof TemplateFillerIndexLazyRoute
+  '/signup': typeof SignupIndexLazyRoute
+  '/test11': typeof Test11IndexLazyRoute
   '/word-mapper': typeof WordMapperIndexLazyRoute
   '/word-viewer': typeof WordViewerIndexLazyRoute
 }
@@ -188,12 +191,13 @@ export interface FileRoutesById {
   '/extension/': typeof ExtensionIndexLazyRoute
   '/forms/': typeof FormsIndexLazyRoute
   '/info/': typeof InfoIndexLazyRoute
+  '/login/': typeof LoginIndexLazyRoute
   '/ocr/': typeof OcrIndexLazyRoute
-  '/procedures/': typeof ProceduresIndexLazyRoute
   '/products/': typeof ProductsIndexLazyRoute
   '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
-  '/template-filler/': typeof TemplateFillerIndexLazyRoute
+  '/signup/': typeof SignupIndexLazyRoute
+  '/test11/': typeof Test11IndexLazyRoute
   '/word-mapper/': typeof WordMapperIndexLazyRoute
   '/word-viewer/': typeof WordViewerIndexLazyRoute
 }
@@ -208,12 +212,13 @@ export interface FileRouteTypes {
     | '/extension'
     | '/forms'
     | '/info'
+    | '/login'
     | '/ocr'
-    | '/procedures'
     | '/products'
     | '/services'
     | '/settings'
-    | '/template-filler'
+    | '/signup'
+    | '/test11'
     | '/word-mapper'
     | '/word-viewer'
   fileRoutesByTo: FileRoutesByTo
@@ -226,12 +231,13 @@ export interface FileRouteTypes {
     | '/extension'
     | '/forms'
     | '/info'
+    | '/login'
     | '/ocr'
-    | '/procedures'
     | '/products'
     | '/services'
     | '/settings'
-    | '/template-filler'
+    | '/signup'
+    | '/test11'
     | '/word-mapper'
     | '/word-viewer'
   id:
@@ -244,12 +250,13 @@ export interface FileRouteTypes {
     | '/extension/'
     | '/forms/'
     | '/info/'
+    | '/login/'
     | '/ocr/'
-    | '/procedures/'
     | '/products/'
     | '/services/'
     | '/settings/'
-    | '/template-filler/'
+    | '/signup/'
+    | '/test11/'
     | '/word-mapper/'
     | '/word-viewer/'
   fileRoutesById: FileRoutesById
@@ -263,12 +270,13 @@ export interface RootRouteChildren {
   ExtensionIndexLazyRoute: typeof ExtensionIndexLazyRoute
   FormsIndexLazyRoute: typeof FormsIndexLazyRoute
   InfoIndexLazyRoute: typeof InfoIndexLazyRoute
+  LoginIndexLazyRoute: typeof LoginIndexLazyRoute
   OcrIndexLazyRoute: typeof OcrIndexLazyRoute
-  ProceduresIndexLazyRoute: typeof ProceduresIndexLazyRoute
   ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
   ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
-  TemplateFillerIndexLazyRoute: typeof TemplateFillerIndexLazyRoute
+  SignupIndexLazyRoute: typeof SignupIndexLazyRoute
+  Test11IndexLazyRoute: typeof Test11IndexLazyRoute
   WordMapperIndexLazyRoute: typeof WordMapperIndexLazyRoute
   WordViewerIndexLazyRoute: typeof WordViewerIndexLazyRoute
 }
@@ -289,11 +297,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof WordMapperIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/template-filler/': {
-      id: '/template-filler/'
-      path: '/template-filler'
-      fullPath: '/template-filler'
-      preLoaderRoute: typeof TemplateFillerIndexLazyRouteImport
+    '/test11/': {
+      id: '/test11/'
+      path: '/test11'
+      fullPath: '/test11'
+      preLoaderRoute: typeof Test11IndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signup/': {
+      id: '/signup/'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/settings/': {
@@ -317,18 +332,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ProductsIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/procedures/': {
-      id: '/procedures/'
-      path: '/procedures'
-      fullPath: '/procedures'
-      preLoaderRoute: typeof ProceduresIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/ocr/': {
       id: '/ocr/'
       path: '/ocr'
       fullPath: '/ocr'
       preLoaderRoute: typeof OcrIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login/': {
+      id: '/login/'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/info/': {
@@ -399,12 +414,13 @@ const rootRouteChildren: RootRouteChildren = {
   ExtensionIndexLazyRoute: ExtensionIndexLazyRoute,
   FormsIndexLazyRoute: FormsIndexLazyRoute,
   InfoIndexLazyRoute: InfoIndexLazyRoute,
+  LoginIndexLazyRoute: LoginIndexLazyRoute,
   OcrIndexLazyRoute: OcrIndexLazyRoute,
-  ProceduresIndexLazyRoute: ProceduresIndexLazyRoute,
   ProductsIndexLazyRoute: ProductsIndexLazyRoute,
   ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
-  TemplateFillerIndexLazyRoute: TemplateFillerIndexLazyRoute,
+  SignupIndexLazyRoute: SignupIndexLazyRoute,
+  Test11IndexLazyRoute: Test11IndexLazyRoute,
   WordMapperIndexLazyRoute: WordMapperIndexLazyRoute,
   WordViewerIndexLazyRoute: WordViewerIndexLazyRoute,
 }
