@@ -488,6 +488,7 @@ const TemplateCard = React.memo<{
     onSelect: (record: EnhancedTTHCRecord) => void;
     onSelectTemplate: (record: EnhancedTTHCRecord) => void;
     onSetupTemplate?: (payload: { docUrl: string; code: string; htmlUrl?: string | null }) => void;
+    onNavigateProcedures?: () => void;
     hasWorkingDocuments?: boolean;
     workingDocumentsCount?: number;
 }>(
@@ -497,6 +498,7 @@ const TemplateCard = React.memo<{
         onSelect,
         onSelectTemplate,
         onSetupTemplate,
+        onNavigateProcedures,
         hasWorkingDocuments = false,
         workingDocumentsCount = 0
     }) => {
@@ -564,7 +566,7 @@ const TemplateCard = React.memo<{
                                 </Typography>
                             ) : (
                                 <>
-                                    <Button
+                                    {/* <Button
                                         variant="contained"
                                         size="small"
                                         onClick={() => onSelect(record)}
@@ -586,7 +588,7 @@ const TemplateCard = React.memo<{
                                         {record.danhSachMauDon.length === 1
                                             ? 'Chọn mẫu'
                                             : 'Chọn mẫu'}
-                                    </Button>
+                                    </Button> */}
 
                                     {hasTemplates && (
                                         <Button
@@ -600,6 +602,9 @@ const TemplateCard = React.memo<{
                                                 // Prefer callback if provided; fallback to navigation + localStorage
                                                 if (onSetupTemplate) {
                                                     onSetupTemplate({ docUrl, code });
+                                                    try {
+                                                        onNavigateProcedures?.();
+                                                    } catch {}
                                                 } else {
                                                     localStorage.setItem(
                                                         'pending_procedure_load',
@@ -1975,6 +1980,15 @@ function TemplateFillerComponent({
                                         onSelect={handleSelectTemplate}
                                         onSelectTemplate={handleSelectTemplate}
                                         onSetupTemplate={onSetupTemplate}
+                                        onNavigateProcedures={() => {
+                                            try {
+                                                navigate({ to: '/procedures' });
+                                            } catch {
+                                                try {
+                                                    window.location.href = '/src/admin/index.html#/procedures/';
+                                                } catch {}
+                                            }
+                                        }}
                                         hasWorkingDocuments={hasWorkingDocuments(record.maTTHC)}
                                         workingDocumentsCount={
                                             getWorkingDocumentsForMaTTHC(record.maTTHC).length
