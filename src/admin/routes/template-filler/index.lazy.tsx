@@ -1190,7 +1190,7 @@ function TemplateFillerComponent() {
                         const suffixMessage =
                             availableSuffixes.length > 0
                                 ? ` (Tìm thấy ${availableSuffixes.length} đối tượng: ${availableSuffixes.map(s => `_${s}`).join(', ')})`
-                                : ' (Không tìm thấy suffix đặc biệt)';
+                                : ' (Không tìm thấy trường đặc biệt)';
 
                         setSnackbar({
                             open: true,
