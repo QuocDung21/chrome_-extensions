@@ -1,14 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { saveAs } from 'file-saver';
 // --- THƯ VIỆN ---
 import { Socket, io } from 'socket.io-client';
-import Swal from 'sweetalert2';
 
-import { Global, css } from '@emotion/react';
 // --- ICON ---
+
 import {
-    Add,
     AddCircleOutline as AddCircleOutlineIcon,
     Badge as BadgeIcon,
     CalendarToday as CalendarTodayIcon,
@@ -32,6 +29,7 @@ import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import {
     Alert,
+    Autocomplete,
     Box,
     Button,
     Card,
@@ -137,6 +135,10 @@ interface TemplateEditorState {
     syncfusionDocumentReady: boolean;
     socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
 }
+type Props = {
+    value?: LinhVuc | null; // cho phép control từ ngoài
+    onChange?: (value: LinhVuc | null) => void;
+};
 // --- CUSTOM HOOKS ---
 const useSocketConnection = (apiUrl: string) => {
     const [socketStatus, setSocketStatus] = useState<
@@ -314,7 +316,8 @@ const enhanceRecordsWithAvailability = async (
 };
 const filterRecords = (
     records: EnhancedTTHCRecord[],
-    filters: FilterState
+    filters: FilterState,
+    linhVucList: LinhVuc[]
 ): EnhancedTTHCRecord[] => {
     return records.filter(record => {
         // Search text filter
@@ -333,9 +336,23 @@ const filterRecords = (
                 return false;
             }
         }
-        if (filters.linhVuc && !record.linhVuc.includes(filters.linhVuc)) {
-            return false;
+
+        // Lĩnh vực filter - sử dụng maLinhVuc để tìm tenLinhVuc tương ứng
+        if (filters.linhVuc) {
+            const selectedLinhVuc = linhVucList.find(lv => lv.maLinhVuc === filters.linhVuc);
+            if (selectedLinhVuc) {
+                // Nếu có maLinhVuc, kiểm tra xem record.linhVuc có chứa tenLinhVuc không
+                if (!record.linhVuc.includes(selectedLinhVuc.tenLinhVuc)) {
+                    return false;
+                }
+            } else {
+                // Fallback: nếu không tìm thấy, kiểm tra trực tiếp
+                if (!record.linhVuc.includes(filters.linhVuc)) {
+                    return false;
+                }
+            }
         }
+
         if (filters.doiTuong && !record.doiTuong.includes(filters.doiTuong)) {
             return false;
         }
@@ -415,11 +432,11 @@ const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
 
 
 
-function LinhVucListComponent() {
+function LinhVucListComponent({ value = '', onChange }: any) {
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
-    const [selectedLinhVuc, setSelectedLinhVuc] = useState('');
+    const [selectedLinhVuc, setSelectedLinhVuc] = useState<LinhVuc | null>(value);
 
     useEffect(() => {
         const loadLinhVuc = async () => {
@@ -438,27 +455,32 @@ function LinhVucListComponent() {
         loadLinhVuc();
     }, []);
 
-    const handleChange = (event: SelectChangeEvent<string>) => {
-        setSelectedLinhVuc(event.target.value);
+    // Nếu prop value thay đổi từ bên ngoài thì đồng bộ lại state
+    useEffect(() => {
+        setSelectedLinhVuc(value || null);
+    }, [value]);
+
+    const handleChange = (event: any, newValue: LinhVuc | null) => {
+        setSelectedLinhVuc(newValue);
+        onChange?.(newValue);
     };
 
     if (loading) return <CircularProgress />;
-    if (error) return <div>Lỗi: {error}</div>;
+    if (error) return <div style={{ color: 'red' }}>Lỗi: {error}</div>;
 
     return (
-        <FormControl fullWidth>
-            <InputLabel>Lĩnh vực</InputLabel>
-            <Select value={selectedLinhVuc} label="Lĩnh vực" onChange={handleChange}>
-                <MenuItem value="">
-                    <em>Tất cả lĩnh vực</em>
-                </MenuItem>
-                {linhVucList.map(item => (
-                    <MenuItem key={item.maLinhVuc} value={item.maLinhVuc}>
-                        {item.tenLinhVuc}
-                    </MenuItem>
-                ))}
-            </Select>
-        </FormControl>
+        <Autocomplete
+            size="small"
+            options={linhVucList}
+            value={selectedLinhVuc}
+            onChange={handleChange}
+            getOptionLabel={option => option.tenLinhVuc}
+            isOptionEqualToValue={(option, value) => option.maLinhVuc === value.maLinhVuc}
+            sx={{ minWidth: 200, maxWidth: 200 }}
+            renderInput={params => (
+                <TextField {...params} label="Lĩnh vực" placeholder="Chọn lĩnh vực" />
+            )}
+        />
     );
 }
 
@@ -471,7 +493,6 @@ const TemplateCard = React.memo<{
     workingDocumentsCount?: number;
 }>(({ record, index, onSelect, onSelectTemplate, hasWorkingDocuments = false, workingDocumentsCount = 0 }) => {
     const hasTemplates = record.danhSachMauDon && record.danhSachMauDon.length > 0;
-
     return (
         <Card
             variant="outlined"
@@ -621,8 +642,8 @@ const TemplateCard = React.memo<{
                     </Box>
                 </Stack>
             </CardContent>
-            <Box sx={{ px: 1, pb: 1 }}>
-                {/* <Box
+            {/* <Box sx={{ px: 1, pb: 1 }}>
+                <Box
                     sx={{
                         display: 'flex',
                         flexDirection: 'row',
@@ -654,8 +675,8 @@ const TemplateCard = React.memo<{
                             Tạo trực tuyến
                         </Button>
                     </Box>
-                </Box> */}
-            </Box>
+                </Box>
+            </Box> */}
         </Card>
     );
 });
@@ -785,7 +806,6 @@ const applyDataToSyncfusion = async (
 };
 // --- COMPONENT CHÍNH ---
 function TemplateFillerComponent() {
-    // State cho danh sách mẫu
     const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
@@ -793,6 +813,8 @@ function TemplateFillerComponent() {
         capThucHien: [],
         thuTucByLinhVuc: {}
     });
+    const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
+    const [linhVucLoading, setLinhVucLoading] = useState(false);
 
     const navigate = useNavigate();
     const { history } = useRouter();
@@ -821,7 +843,7 @@ function TemplateFillerComponent() {
     };
     const [filters, setFilters] = useState<FilterState>({
         searchText: '',
-        linhVuc: '',
+        linhVuc: '', // Sẽ lưu maLinhVuc thay vì tenLinhVuc
         doiTuong: '',
         capThucHien: '',
         availability: 'all'
@@ -1220,6 +1242,41 @@ function TemplateFillerComponent() {
         loadData();
     }, []);
 
+    // Load lĩnh vực data from repository
+    useEffect(() => {
+        const loadLinhVuc = async () => {
+            setLinhVucLoading(true);
+            try {
+                const data = await linhVucRepository.getLinhVucList();
+                setLinhVucList(data);
+                console.log('✅ Loaded lĩnh vực from repository:', data.length, 'items');
+
+                // Log mapping between repository and CSV data for debugging
+                const csvLinhVuc = filterOptions.linhVuc;
+                console.log('📊 CSV lĩnh vực count:', csvLinhVuc.length);
+                console.log('📊 Repository lĩnh vực count:', data.length);
+
+                // Show success message
+                setSnackbar({
+                    open: true,
+                    message: `Đã tải ${data.length} lĩnh vực từ cơ sở dữ liệu`,
+                    severity: 'success'
+                });
+            } catch (error) {
+                console.error('❌ Error loading lĩnh vực:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể tải danh sách lĩnh vực',
+                    severity: 'error'
+                });
+            } finally {
+                setLinhVucLoading(false);
+            }
+        };
+
+        loadLinhVuc();
+    }, [filterOptions.linhVuc]);
+
     // Load working documents from IndexedDB on component mount
     useEffect(() => {
         refreshWorkingDocuments();
@@ -1227,9 +1284,9 @@ function TemplateFillerComponent() {
 
     // Filter records when filters change
     useEffect(() => {
-        const filtered = filterRecords(csvRecords, filters);
+        const filtered = filterRecords(csvRecords, filters, linhVucList);
         setFilteredRecords(filtered);
-    }, [csvRecords, filters]);
+    }, [csvRecords, filters, linhVucList]);
     // Load template when editor modal opens
     useEffect(() => {
         console.log('Modal state changed:', {
@@ -1528,7 +1585,82 @@ function TemplateFillerComponent() {
                             }
                         }}
                     />
-                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
+                    <Autocomplete
+                        size="small"
+                        options={['', ...linhVucList.map(lv => lv.maLinhVuc)]}
+                        value={filters.linhVuc}
+                        onChange={(event, newValue) => {
+                            handleFilterChange('linhVuc', newValue || '');
+
+                            // Debug: Log thông tin lĩnh vực được chọn
+                            if (newValue) {
+                                const selectedLinhVuc = linhVucList.find(
+                                    lv => lv.maLinhVuc === newValue
+                                );
+                                console.log('🎯 Selected lĩnh vực:', {
+                                    maLinhVuc: newValue,
+                                    tenLinhVuc: selectedLinhVuc?.tenLinhVuc,
+                                    csvMatch: filterOptions.linhVuc.includes(
+                                        selectedLinhVuc?.tenLinhVuc || ''
+                                    )
+                                });
+                            }
+                        }}
+                        getOptionLabel={option => {
+                            if (!option) return 'Tất cả';
+                            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === option);
+                            return linhVuc ? linhVuc.tenLinhVuc : option;
+                        }}
+                        renderInput={params => (
+                            <TextField
+                                {...params}
+                                label={`Lĩnh vực (${linhVucList.length})`}
+                                placeholder={linhVucLoading ? 'Đang tải...' : 'Chọn lĩnh vực'}
+                                InputProps={{
+                                    ...params.InputProps,
+                                    endAdornment: (
+                                        <>
+                                            {linhVucLoading && <CircularProgress size={20} />}
+                                            {params.InputProps.endAdornment}
+                                        </>
+                                    )
+                                }}
+                            />
+                        )}
+                        loading={linhVucLoading}
+                        sx={{ minWidth: 250, maxWidth: 250 }}
+                        renderOption={(props, option) => {
+                            if (!option) {
+                                return (
+                                    <Box component="li" {...props}>
+                                        <Typography variant="body2">Tất cả</Typography>
+                                    </Box>
+                                );
+                            }
+
+                            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === option);
+                            return (
+                                <Box component="li" {...props}>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 0.5,
+                                            width: '100%'
+                                        }}
+                                    >
+                                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                                            {linhVuc?.tenLinhVuc || option}
+                                        </Typography>
+                                        <Typography variant="caption" color="text.secondary">
+                                            Mã: {option}
+                                        </Typography>
+                                    </Box>
+                                </Box>
+                            );
+                        }}
+                    />
+                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Lĩnh vực</InputLabel>
                         <Select
                             value={filters.linhVuc}
@@ -1543,8 +1675,8 @@ function TemplateFillerComponent() {
                                 </MenuItem>
                             ))}
                         </Select>
-                    </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
+                    </FormControl> */}
+                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Đối tượng</InputLabel>
                         <Select
                             value={filters.doiTuong}
@@ -1559,8 +1691,31 @@ function TemplateFillerComponent() {
                                 </MenuItem>
                             ))}
                         </Select>
-                    </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
+                    </FormControl> */}
+                    <Autocomplete
+                        size="small"
+                        sx={{ minWidth: 200, maxWidth: 200 }}
+                        options={filterOptions.doiTuong}
+                        value={filters.doiTuong || null}
+                        onChange={(e, newValue) => handleFilterChange('doiTuong', newValue || '')}
+                        renderInput={params => (
+                            <TextField {...params} label="Đối tượng" placeholder="Tất cả" />
+                        )}
+                    />
+                    <Autocomplete
+                        size="small"
+                        sx={{ minWidth: 200, maxWidth: 200 }}
+                        options={filterOptions.capThucHien}
+                        value={filters.capThucHien || null}
+                        onChange={(e, newValue) =>
+                            handleFilterChange('capThucHien', newValue || '')
+                        }
+                        renderInput={params => (
+                            <TextField {...params} label="Cấp thực hiện" placeholder="Tất cả" />
+                        )}
+                    />
+
+                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Cấp thực hiện</InputLabel>
                         <Select
                             value={filters.capThucHien}
@@ -1575,8 +1730,9 @@ function TemplateFillerComponent() {
                                 </MenuItem>
                             ))}
                         </Select>
-                    </FormControl>
-                    <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
+                    </FormControl> */}
+                    {/* <LinhVucListComponent /> */}
+                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
                         <InputLabel>Trạng thái mẫu</InputLabel>
                         <Select
                             value={filters.availability}
@@ -1586,7 +1742,7 @@ function TemplateFillerComponent() {
                             <MenuItem value="available">Có sẵn mẫu</MenuItem>
                             <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
                         </Select>
-                    </FormControl>
+                    </FormControl> */}
                 </Box>
                 {/* Template List */}
                 <Card
@@ -1959,6 +2115,61 @@ function TemplateFillerComponent() {
                                     <Box sx={{ display: 'flex', gap: 1 }}>
                                         <Button
                                             variant="outlined"
+                                            color="secondary"
+                                            size="small"
+                                            onClick={async () => {
+                                                try {
+                                                    const resetSuccess =
+                                                        await resetDocumentToOriginal(
+                                                            sfContainerRef.current,
+                                                            targetState.originalSfdt
+                                                        );
+
+                                                    if (resetSuccess) {
+                                                        const availableSuffixes =
+                                                            scanDocumentForSuffixes(
+                                                                sfContainerRef.current
+                                                            );
+
+                                                        setTargetState(prev => ({
+                                                            ...prev,
+                                                            availableTargets: availableSuffixes,
+                                                            selectedTarget: '',
+                                                            usedTargets: []
+                                                        }));
+
+                                                        setSnackbar({
+                                                            open: true,
+                                                            message:
+                                                                'Đã reset mẫu về trạng thái ban đầu',
+                                                            severity: 'success'
+                                                        });
+                                                    } else {
+                                                        setSnackbar({
+                                                            open: true,
+                                                            message: 'Lỗi khi reset mẫu',
+                                                            severity: 'error'
+                                                        });
+                                                    }
+                                                } catch (error) {
+                                                    console.error(
+                                                        '❌ Error in reset handler:',
+                                                        error
+                                                    );
+                                                    setSnackbar({
+                                                        open: true,
+                                                        message: 'Lỗi khi reset mẫu',
+                                                        severity: 'error'
+                                                    });
+                                                }
+                                            }}
+                                            startIcon={<RestartAltIcon />}
+                                            sx={{ textTransform: 'none' }}
+                                        >
+                                            Khôi phục mẫu
+                                        </Button>
+                                        <Button
+                                            variant="outlined"
                                             onClick={() => {
                                                 if (editorState.selectedRecord) {
                                                     setTemplateSelectionModal({
@@ -2078,9 +2289,6 @@ function TemplateFillerComponent() {
                                         enableToolbar={false}
                                         showPropertiesPane={false}
                                         height={'100%'}
-                                        // toolbarMode={'Ribbon'}
-                                        // ribbonLayout={'Classic'}
-                                        // locale="vi-VN"
                                         fileMenuItems={['Print']}
                                         enableLocalPaste={true}
                                     />
@@ -2168,64 +2376,6 @@ function TemplateFillerComponent() {
                                                         )}
                                                     </Select>
                                                 </FormControl>
-                                                <Button
-                                                    variant="outlined"
-                                                    color="secondary"
-                                                    size="small"
-                                                    onClick={async () => {
-                                                        try {
-                                                            const resetSuccess =
-                                                                await resetDocumentToOriginal(
-                                                                    sfContainerRef.current,
-                                                                    targetState.originalSfdt
-                                                                );
-
-                                                            if (resetSuccess) {
-                                                                // Re-scan document for suffixes after reset
-                                                                const availableSuffixes =
-                                                                    scanDocumentForSuffixes(
-                                                                        sfContainerRef.current
-                                                                    );
-
-                                                                // Reset target state with fresh scan
-                                                                setTargetState(prev => ({
-                                                                    ...prev,
-                                                                    availableTargets:
-                                                                        availableSuffixes,
-                                                                    selectedTarget: '',
-                                                                    usedTargets: []
-                                                                }));
-
-                                                                setSnackbar({
-                                                                    open: true,
-                                                                    message:
-                                                                        'Đã reset mẫu về trạng thái ban đầu',
-                                                                    severity: 'success'
-                                                                });
-                                                            } else {
-                                                                setSnackbar({
-                                                                    open: true,
-                                                                    message: 'Lỗi khi reset mẫu',
-                                                                    severity: 'error'
-                                                                });
-                                                            }
-                                                        } catch (error) {
-                                                            console.error(
-                                                                '❌ Error in reset handler:',
-                                                                error
-                                                            );
-                                                            setSnackbar({
-                                                                open: true,
-                                                                message: 'Lỗi khi reset mẫu',
-                                                                severity: 'error'
-                                                            });
-                                                        }
-                                                    }}
-                                                    startIcon={<RestartAltIcon />}
-                                                    sx={{ textTransform: 'none' }}
-                                                >
-                                                    Khôi phục mẫu
-                                                </Button>
                                             </Box>
                                             {targetState.usedTargets.length > 0 && (
                                                 <Typography
@@ -2477,7 +2627,20 @@ function TemplateFillerComponent() {
                                                 label: 'Lĩnh vực',
                                                 value:
                                                     editorState.selectedRecord?.linhVuc ||
-                                                    '— Chưa chọn mẫu —'
+                                                    '— Chưa chọn mẫu —',
+                                                subValue: (() => {
+                                                    if (!editorState.selectedRecord?.linhVuc)
+                                                        return null;
+                                                    // Tìm maLinhVuc tương ứng với tenLinhVuc
+                                                    const linhVuc = linhVucList.find(
+                                                        lv =>
+                                                            lv.tenLinhVuc ===
+                                                            editorState.selectedRecord?.linhVuc
+                                                    );
+                                                    return linhVuc
+                                                        ? `Mã: ${linhVuc.maLinhVuc}`
+                                                        : null;
+                                                })()
                                             },
                                             {
                                                 label: 'Tên thủ tục',
@@ -2528,23 +2691,34 @@ function TemplateFillerComponent() {
                                                 >
                                                     {field.label}:
                                                 </Typography>
-                                                <Typography
-                                                    variant="body2"
-                                                    sx={{
-                                                        color:
-                                                            field.value &&
-                                                            field.value !== '— Chưa chọn mẫu —'
-                                                                ? 'text.primary'
-                                                                : 'text.disabled',
-                                                        fontStyle:
-                                                            field.value &&
-                                                            field.value !== '— Chưa chọn mẫu —'
-                                                                ? 'normal'
-                                                                : 'italic'
-                                                    }}
-                                                >
-                                                    {field.value}
-                                                </Typography>
+                                                <Box sx={{ flex: 1 }}>
+                                                    <Typography
+                                                        variant="body2"
+                                                        sx={{
+                                                            color:
+                                                                field.value &&
+                                                                field.value !== '— Chưa chọn mẫu —'
+                                                                    ? 'text.primary'
+                                                                    : 'text.disabled',
+                                                            fontStyle:
+                                                                field.value &&
+                                                                field.value !== '— Chưa chọn mẫu —'
+                                                                    ? 'normal'
+                                                                    : 'italic'
+                                                        }}
+                                                    >
+                                                        {field.value}
+                                                    </Typography>
+                                                    {field.subValue && (
+                                                        <Typography
+                                                            variant="caption"
+                                                            color="text.secondary"
+                                                            sx={{ fontStyle: 'italic' }}
+                                                        >
+                                                            {field.subValue}
+                                                        </Typography>
+                                                    )}
+                                                </Box>
                                             </Box>
                                         ))}
                                     </Box>
