@@ -1,0 +1,1630 @@
+{
+    "items": [
+        {
+            "maLinhVuc": "G01-CA02",
+            "tenLinhVuc": "Cấp, quản lý chứng minh nhân dân",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA03",
+            "tenLinhVuc": "Chính sách",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA04",
+            "tenLinhVuc": "Đăng ký, quản lý con dấu",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA05",
+            "tenLinhVuc": "Đăng ký, quản lý cư trú",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA06",
+            "tenLinhVuc": "Đăng ký, quản lý phương tiện giao thông đường bộ",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA07",
+            "tenLinhVuc": "Khiếu nại, tố cáo",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA08",
+            "tenLinhVuc": "Phòng cháy, chữa cháy",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA09",
+            "tenLinhVuc": "Quản lý ngành nghề đầu tư, kinh doanh có điều kiện về an ninh, trật tự",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA10",
+            "tenLinhVuc": "Quản lý vũ khí, vật liệu nổ, công cụ hỗ trợ và pháo",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA11",
+            "tenLinhVuc": "Quản lý xuất nhập cảnh",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G01-CA12",
+            "tenLinhVuc": "Tổ chức, cán bộ",
+            "maNganh": "G01",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT01",
+            "tenLinhVuc": "An toàn thực phẩm",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT02",
+            "tenLinhVuc": "An toàn vệ sinh lao động",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT03",
+            "tenLinhVuc": "Công nghiệp địa phương",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT04",
+            "tenLinhVuc": "Công nghiệp nặng",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT05",
+            "tenLinhVuc": "Công nghiệp tiêu dùng",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT06",
+            "tenLinhVuc": "Dầu khí",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT07",
+            "tenLinhVuc": "Dịch vụ thương mại",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT08",
+            "tenLinhVuc": "Điện",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT09",
+            "tenLinhVuc": "Hóa chất",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT10",
+            "tenLinhVuc": "Kinh doanh khí",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT11",
+            "tenLinhVuc": "Lưu thông hàng hóa trong nước",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT12",
+            "tenLinhVuc": "Năng lượng",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT13",
+            "tenLinhVuc": "Phòng vệ thương mại",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT14",
+            "tenLinhVuc": "Quản lý Cạnh tranh",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT15",
+            "tenLinhVuc": "Sở giao dịch hàng hóa",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT16",
+            "tenLinhVuc": "Thi đua, khen thưởng",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT17",
+            "tenLinhVuc": "Thương mại biên giới và miền núi",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT18",
+            "tenLinhVuc": "Thương mại điện tử",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT19",
+            "tenLinhVuc": "Thương mại quốc tế",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT20",
+            "tenLinhVuc": "Tiêu chuẩn đo lường chất lượng",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT21",
+            "tenLinhVuc": "Vật liệu nổ công nghiệp, tiền chất thuốc nổ",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT22",
+            "tenLinhVuc": "Xuất nhập khẩu",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G02-CT23",
+            "tenLinhVuc": "Xúc tiến thương mại",
+            "maNganh": "G02",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD01",
+            "tenLinhVuc": "Cơ sở vật chất và thiết bị trường học",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD02",
+            "tenLinhVuc": "Đào tạo với nước ngoài",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD03",
+            "tenLinhVuc": "Giáo dục Chuyên nghiệp",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD04",
+            "tenLinhVuc": "Giáo dục Đại học",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD05",
+            "tenLinhVuc": "Giáo dục Dân tộc",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD06",
+            "tenLinhVuc": "Giáo dục Mầm non",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD07",
+            "tenLinhVuc": "Giáo dục Quốc phòng",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD08",
+            "tenLinhVuc": "Giáo dục Thường xuyên",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD09",
+            "tenLinhVuc": "Giáo dục Tiểu học",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD10",
+            "tenLinhVuc": "Giáo dục Trung học",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD11",
+            "tenLinhVuc": "Giáo dục và Đào tạo thuộc hệ thống giáo dục quốc dân",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD12",
+            "tenLinhVuc": "Quy chế thi, tuyển sinh",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G03-GD13",
+            "tenLinhVuc": "Tiêu chuẩn nhà giáo, cán bộ qụản lý giáo dục",
+            "maNganh": "G03",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G04-GT01",
+            "tenLinhVuc": "Đăng kiểm",
+            "maNganh": "G04",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G04-GT02",
+            "tenLinhVuc": "Đường bộ",
+            "maNganh": "G04",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G04-GT03",
+            "tenLinhVuc": "Đường sắt",
+            "maNganh": "G04",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G04-GT04",
+            "tenLinhVuc": "Đường thủy nội địa",
+            "maNganh": "G04",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G04-GT05",
+            "tenLinhVuc": "Hàng Hải",
+            "maNganh": "G04",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G04-GT06",
+            "tenLinhVuc": "Hàng không",
+            "maNganh": "G04",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD01",
+            "tenLinhVuc": "Đầu tư bằng nguồn vốn hỗ trợ phát triển chính thức (ODA)",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD02",
+            "tenLinhVuc": "Đầu tư nước ngoài",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD03",
+            "tenLinhVuc": "Đầu tư tại Việt nam",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD04",
+            "tenLinhVuc": "Đầu tư từ Việt nam ra nước ngoài",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD05",
+            "tenLinhVuc": "Đầu tư vào nông nghiệp, nông thôn",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD06",
+            "tenLinhVuc": "Hỗ trợ doanh nghiệp nhỏ và vừa",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD07",
+            "tenLinhVuc": "Thành lập và hoạt động của doanh nghiệp",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD08",
+            "tenLinhVuc": "Thành lập và hoạt động của hợp tác xã",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD09",
+            "tenLinhVuc": "Thành lập và hoạt động của hợp tác xã (liên hiệp hợp tác xã)",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD10",
+            "tenLinhVuc": "Thành lập và hoạt động doanh nghiệp (hộ kinh doanh)",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD11",
+            "tenLinhVuc": "Thành lập và hoạt động doanh nghiệp xã hội",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G05-KD-12",
+            "tenLinhVuc": "Thành lập và hoạt động của quỹ đầu tư khởi nghiệp sáng tạo",
+            "maNganh": "G05",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G06-KC01",
+            "tenLinhVuc": "An toàn bức xạ và hạt nhân",
+            "maNganh": "G06",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G06-KC02",
+            "tenLinhVuc": "Hoạt động khoa học và công nghệ",
+            "maNganh": "G06",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G06-KC03",
+            "tenLinhVuc": "Sở hữu trí tuệ",
+            "maNganh": "G06",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G06-KC04",
+            "tenLinhVuc": "Tiêu chuẩn đo lường chất lượng",
+            "maNganh": "G06",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G06-KC05",
+            "tenLinhVuc": "Phát triển tiềm lực khoa học và công nghệ",
+            "maNganh": "G06",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ01",
+            "tenLinhVuc": "An toàn, vệ sinh lao động",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ02",
+            "tenLinhVuc": "Bảo hiểm xã hội",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ03",
+            "tenLinhVuc": "Bảo trợ xã hội",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ04",
+            "tenLinhVuc": "Trẻ em",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ05",
+            "tenLinhVuc": "Bình đẳng giới",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ06",
+            "tenLinhVuc": "Giáo dục nghề nghiệp",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ07",
+            "tenLinhVuc": "Lao động",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ08",
+            "tenLinhVuc": "Tiền lương",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ09",
+            "tenLinhVuc": "Người có công",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ10",
+            "tenLinhVuc": "Phòng, chống tệ nạn xã hội",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ11",
+            "tenLinhVuc": "Việc làm",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G07-LÐ12",
+            "tenLinhVuc": "Người lao động Việt Nam đi làm việc ở nước ngoài theo hợp đồng",
+            "maNganh": "G07",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG01",
+            "tenLinhVuc": "Báo chí",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG02",
+            "tenLinhVuc": "Cấp hộ chiếu, giấy thông hành, công hàm đề nghị cấp thị thực",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG03",
+            "tenLinhVuc": "Chứng nhận lãnh sự, hợp pháp hóa lãnh sự",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG04",
+            "tenLinhVuc": "Công chứng, chứng thực",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG05",
+            "tenLinhVuc": "Cấp thị thực, gia hạn tạm trú",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG06",
+            "tenLinhVuc": "Đăng ký công dân",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG07",
+            "tenLinhVuc": "Hộ tịch",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG08",
+            "tenLinhVuc": "Hoạt động của các tổ chức hợp tác, nghiên cứu song phương",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG09",
+            "tenLinhVuc": "Hoạt động của các tổ chức phi chính phủ nước ngoài",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG10",
+            "tenLinhVuc": "Hồi hương",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG11",
+            "tenLinhVuc": "Quốc tịch",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G08-NG12",
+            "tenLinhVuc": "Miễn thị thực",
+            "maNganh": "G08",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV01",
+            "tenLinhVuc": "Cải cách hành chính",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV02",
+            "tenLinhVuc": "Chính quyền địa phương",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV03",
+            "tenLinhVuc": "Công chức, viên chức",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV04",
+            "tenLinhVuc": "Công tác thanh niên",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV05",
+            "tenLinhVuc": "Đào tạo, bồi dưỡng cán bộ công chức, viên chức",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV06",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV07",
+            "tenLinhVuc": "Thanh tra Bộ",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV08",
+            "tenLinhVuc": "Thi đua - khen thưởng",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV09",
+            "tenLinhVuc": "Tiền lương",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV10",
+            "tenLinhVuc": "Tổ chức cán bộ",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV11",
+            "tenLinhVuc": "Tổ chức phi chính phủ",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV12",
+            "tenLinhVuc": "Tổ chức - Biên chế",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV13",
+            "tenLinhVuc": "Tôn giáo Chính phủ",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV14",
+            "tenLinhVuc": "Tổng hợp",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV15",
+            "tenLinhVuc": "Văn thư và Lưu trữ nhà nước",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV16",
+            "tenLinhVuc": "Pháp chế",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV17",
+            "tenLinhVuc": "Kế hoạch - Tài chính",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G09-NV18",
+            "tenLinhVuc": "Văn phòng",
+            "maNganh": "G09",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN01",
+            "tenLinhVuc": "Bảo vệ thực vật",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN02",
+            "tenLinhVuc": "Chăn nuôi",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN03",
+            "tenLinhVuc": "Chế biến và phát triển thị trường Nông sản",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN04",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN05",
+            "tenLinhVuc": "Khoa học, Công nghệ và Môi trường",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN06",
+            "tenLinhVuc": "Kinh tế hợp tác và Phát triển nông thôn",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN07",
+            "tenLinhVuc": "Lâm nghiệp",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN08",
+            "tenLinhVuc": "Phòng, chống thiên tai",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN09",
+            "tenLinhVuc": "Quản lý chất lượng nông lâm sản và thủy sản",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN10",
+            "tenLinhVuc": "Quản lý doanh nghiệp",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN11",
+            "tenLinhVuc": "Quản lý xây dựng công trình",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN12",
+            "tenLinhVuc": "Thú y",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN13",
+            "tenLinhVuc": "Thủy lợi",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN14",
+            "tenLinhVuc": "Thủy sản",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G10-NN15",
+            "tenLinhVuc": "Trồng trọt",
+            "maNganh": "G10",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP01",
+            "tenLinhVuc": "Bảo hiểm xã hội",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP02",
+            "tenLinhVuc": "Bảo hiểm y tế",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP03",
+            "tenLinhVuc": "Chính sách",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP04",
+            "tenLinhVuc": "Chứng thực điện tử",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP05",
+            "tenLinhVuc": "Cơ yếu",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP06",
+            "tenLinhVuc": "Dân quân tự vệ",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP07",
+            "tenLinhVuc": "Động viên quân đội",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP08",
+            "tenLinhVuc": "Khám bệnh, chữa bệnh",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP09",
+            "tenLinhVuc": "Kiểm định an toàn lao động",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP10",
+            "tenLinhVuc": "Nghĩa vụ quân sự",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP11",
+            "tenLinhVuc": "Quản lý biên giới",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP12",
+            "tenLinhVuc": "Quản lý vùng trời",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP13",
+            "tenLinhVuc": "Tuyển sinh quân sự",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP14",
+            "tenLinhVuc": "Xe - Máy",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP15",
+            "tenLinhVuc": "Quản lý công nghệ thông tin",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP16",
+            "tenLinhVuc": "Đối ngoại quốc phòng",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP17",
+            "tenLinhVuc": "Báo chí",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP18 .",
+            "tenLinhVuc": "Khiếu nại, tố cáo",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP19",
+            "tenLinhVuc": "Giao thông (bao gồm đường bộ, đường thủy, hàng không)",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G11-QP20",
+            "tenLinhVuc": "Khen thưởng",
+            "maNganh": "G11",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC01",
+            "tenLinhVuc": "Chính sách Thuế",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC02",
+            "tenLinhVuc": "Chứng khoán",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC03",
+            "tenLinhVuc": "Đầu tư",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC04",
+            "tenLinhVuc": "Hải quan",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC05",
+            "tenLinhVuc": "Kế hoạch - tài chính",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC06",
+            "tenLinhVuc": "Kế toán, kiểm toán",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC07",
+            "tenLinhVuc": "Kho bạc",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC08",
+            "tenLinhVuc": "Ngân sách Nhà nước",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC09",
+            "tenLinhVuc": "Quản lý công sản",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC10",
+            "tenLinhVuc": "Dự trữ",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC11",
+            "tenLinhVuc": "Quản lý giá",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC12",
+            "tenLinhVuc": "Quản lý nợ",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC13",
+            "tenLinhVuc": "Thi đua - khen thưởng",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC14",
+            "tenLinhVuc": "Bảo hiểm",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC15",
+            "tenLinhVuc": "Tài chính doanh nghiệp",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC16",
+            "tenLinhVuc": "Hành chính sự nghiệp",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC17",
+            "tenLinhVuc": "Tài chính ngân hàng",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC18",
+            "tenLinhVuc": "Thuế",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC19",
+            "tenLinhVuc": "Tin học - Thống kê",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC20",
+            "tenLinhVuc": "Quốc phòng, an ninh",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC21",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC22",
+            "tenLinhVuc": "Tổ chức cán bộ",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC23",
+            "tenLinhVuc": "Thanh tra",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC24",
+            "tenLinhVuc": "Pháp chế",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G12-TC25",
+            "tenLinhVuc": "Văn phòng",
+            "maNganh": "G12",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN01",
+            "tenLinhVuc": "Biển và hải đảo",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN02",
+            "tenLinhVuc": "Đất đai",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN03",
+            "tenLinhVuc": "Địa chất và khoáng sản",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN04",
+            "tenLinhVuc": "Đo đạc, bản đồ và thông tin địa lý",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN05",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN06",
+            "tenLinhVuc": "Khí tượng, thủy văn",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN07",
+            "tenLinhVuc": "Biến đổi khí hậu",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN08",
+            "tenLinhVuc": "Khoa học công nghệ",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN09",
+            "tenLinhVuc": "Môi trường",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN10",
+            "tenLinhVuc": "Tài nguyên nước",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN11",
+            "tenLinhVuc": "Tổng hợp",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G13-TN12",
+            "tenLinhVuc": "Viễn thám",
+            "maNganh": "G13",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT01",
+            "tenLinhVuc": "An toàn thông tin",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT02",
+            "tenLinhVuc": "Báo chí",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT03",
+            "tenLinhVuc": "Bưu chính",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT04",
+            "tenLinhVuc": "Công nghệ thông tin,điện tử",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT05",
+            "tenLinhVuc": "Phát thanh, truyền hình và thông tin điện tử",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT06",
+            "tenLinhVuc": "Quản lý doanh nghiệp",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT07",
+            "tenLinhVuc": "Tần số vô tuyến điện",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT08",
+            "tenLinhVuc": "Thông tin cơ sở",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT09",
+            "tenLinhVuc": "Thông tin đối ngoại",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT10",
+            "tenLinhVuc": "Viễn thông và Internet",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G14-TT11",
+            "tenLinhVuc": "Xuất Bản, In và Phát hành",
+            "maNganh": "G14",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP01",
+            "tenLinhVuc": "Bán đấu giá tài sản",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP02",
+            "tenLinhVuc": "Bồi thường nhà nước",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP03",
+            "tenLinhVuc": "Chứng thực",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP04",
+            "tenLinhVuc": "Công chứng",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP05",
+            "tenLinhVuc": "Đăng ký biện pháp bảo đảm",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP06",
+            "tenLinhVuc": "Giám định tư pháp",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP07",
+            "tenLinhVuc": "Hộ tịch",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP08",
+            "tenLinhVuc": "Hòa giải thương mại",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP09",
+            "tenLinhVuc": "Luật sư",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP10",
+            "tenLinhVuc": "Lý lịch tư pháp",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP11",
+            "tenLinhVuc": "Nuôi con nuôi",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP12",
+            "tenLinhVuc": "Phổ biến giáo dục pháp luật",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP13",
+            "tenLinhVuc": "Quản tài viên",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP14",
+            "tenLinhVuc": "Quốc tịch",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP15",
+            "tenLinhVuc": "Thi hành án dân sự",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP16",
+            "tenLinhVuc": "Trợ giúp pháp lý",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP17",
+            "tenLinhVuc": "Trọng tài thương mại",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G15-TP18",
+            "tenLinhVuc": "Tư vấn pháp luật",
+            "maNganh": "G15",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH01",
+            "tenLinhVuc": "Bản quyền tác giả",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH02",
+            "tenLinhVuc": "Di sản văn hóa",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH03",
+            "tenLinhVuc": "Điện ảnh",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH04",
+            "tenLinhVuc": "Gia đình",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH05",
+            "tenLinhVuc": "Lữ hành",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH06",
+            "tenLinhVuc": "Khách sạn",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH07",
+            "tenLinhVuc": "Karaoke, Vũ trường",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH08",
+            "tenLinhVuc": "Văn hóa cơ sở",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH09",
+            "tenLinhVuc": "Mỹ thuật, nhiếp ảnh, triển lãm",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH10",
+            "tenLinhVuc": "Nghệ thuật biểu diễn",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH11",
+            "tenLinhVuc": "Thư viện",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH12",
+            "tenLinhVuc": "Quảng cáo",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH13",
+            "tenLinhVuc": "Văn hóa dân tộc",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH14",
+            "tenLinhVuc": "Thể dục thể thao",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH15",
+            "tenLinhVuc": "Thi đua - Khen thưởng",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G16-VH16",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G16",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD01",
+            "tenLinhVuc": "Giám định nhà nước về chất lượng công trình xây dựng",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD02",
+            "tenLinhVuc": "Hạ tầng kỹ thuật",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD03",
+            "tenLinhVuc": "Hạ tầng kỹ thuật đô thị và khu công nghiệp, khu kinh tế và khu công nghệ cao",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD04",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD05",
+            "tenLinhVuc": "Khoa học công nghệ và môi trường",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD06",
+            "tenLinhVuc": "Kinh doanh bất động sản",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD07",
+            "tenLinhVuc": "Kinh tế xây dựng",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD08",
+            "tenLinhVuc": "Nhà ở và công sở",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD09",
+            "tenLinhVuc": "Phát triển đô thị",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD10",
+            "tenLinhVuc": "Quản lý doanh nghiệp",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD11",
+            "tenLinhVuc": "Quản lý hoạt động xây dựng",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD12",
+            "tenLinhVuc": "Quản lý nhà và thị trường bất động sản",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD13",
+            "tenLinhVuc": "Quy hoạch xây dựng, kiến trúc",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD14",
+            "tenLinhVuc": "Vật liệu xây dựng",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G17-XD15",
+            "tenLinhVuc": "Xây dựng",
+            "maNganh": "G17",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT01",
+            "tenLinhVuc": "An toàn thực phẩm và Dinh dưỡng",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT02",
+            "tenLinhVuc": "Dân số",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT03",
+            "tenLinhVuc": "Đào tạo, Nghiên cứu khoa học và Công nghệ thông tin",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT04",
+            "tenLinhVuc": "Dược phẩm",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT05",
+            "tenLinhVuc": "Giám định y khoa",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT06",
+            "tenLinhVuc": "Hợp tác quốc tế",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT07",
+            "tenLinhVuc": "Khám bệnh, chữa bệnh",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT08",
+            "tenLinhVuc": "Mỹ phẩm",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT09",
+            "tenLinhVuc": "Tài chính y tế",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT10",
+            "tenLinhVuc": "Tổ chức cán bộ",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT11",
+            "tenLinhVuc": "Trang thiết bị và công trình y tế",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G18-YT12",
+            "tenLinhVuc": "Y tế Dự phòng",
+            "maNganh": "G18",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH01",
+            "tenLinhVuc": "Thành lập và hoạt động ngân hàng",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH02",
+            "tenLinhVuc": "Hoạt động tín dụng",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH03",
+            "tenLinhVuc": "Hoạt động thanh toán",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH04",
+            "tenLinhVuc": "Hoạt động tiền tệ",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH05",
+            "tenLinhVuc": "Hoạt động ngoại hối",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH06",
+            "tenLinhVuc": "Hoạt động kho quỹ",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH07",
+            "tenLinhVuc": "Hoạt động công nghệ thông tin ngân hàng",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH08",
+            "tenLinhVuc": "Hoạt động tín dụng",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G19-NH09",
+            "tenLinhVuc": "Hoạt động khác",
+            "maNganh": "G19",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G20-TH01",
+            "tenLinhVuc": "Phòng, chống tham nhũng",
+            "maNganh": "G20",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G20-TH02",
+            "tenLinhVuc": "Giải quyết khiếu nại",
+            "maNganh": "G20",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G20-TH03",
+            "tenLinhVuc": "Giải quyết tố cáo",
+            "maNganh": "G20",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G20-TH04",
+            "tenLinhVuc": "Tiếp công dân",
+            "maNganh": "G20",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G20-TH05",
+            "tenLinhVuc": "Xử lý đơn thư",
+            "maNganh": "G20",
+            "moTa": ""
+        },
+        {
+            "maLinhVuc": "G21-UB01",
+            "tenLinhVuc": "Công tác dân tộc",
+            "maNganh": "G21",
+            "moTa": ""
+        }
+    ]
+}
