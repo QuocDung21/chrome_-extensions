@@ -1,0 +1,35 @@
+// .vscode/launch.json
+{
+    "version": "0.2.0",
+    "configurations": [
+        // Debug Vite dev server trong Chrome
+        {
+            "name": "Debug Vite Dev (Chrome)",
+            "type": "pwa-chrome",
+            "request": "launch",
+            "url": "http://localhost:5173",
+            "webRoot": "${workspaceFolder}/src"
+        },
+
+        // Debug Chrome Extension (sau khi build)
+        {
+            "name": "Debug Chrome Extension",
+            "type": "pwa-chrome",
+            "request": "launch",
+            "runtimeArgs": [
+                "--disable-extensions-except=${workspaceFolder}/dist",
+                "--load-extension=${workspaceFolder}/dist"
+            ],
+            "webRoot": "${workspaceFolder}/src"
+        },
+
+        // Debug Node scripts (VD: organize:templates)
+        {
+            "name": "Debug Node Scripts",
+            "type": "node",
+            "request": "launch",
+            "skipFiles": ["<node_internals>/**"],
+            "program": "${file}"
+        }
+    ]
+}
