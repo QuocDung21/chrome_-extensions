@@ -1091,6 +1091,8 @@ function ProceduresComponent() {
     const [insertFieldKey, setInsertFieldKey] = useState<string>('');
     const htmlClickRangeRef = useRef<Range | null>(null);
     const htmlClickTargetRef = useRef<Element | null>(null);
+    // Lightweight search text for template quick list (borrowed UX from template-filler)
+    const [quickSearchText, setQuickSearchText] = useState<string>('');
 
     // Custom hooks
     const { socketStatus, reconnectAttempts, on, off } = useSocketConnection(SOCKET_URL);
@@ -1195,6 +1197,18 @@ function ProceduresComponent() {
         }
         return filterOptions.thuTucByLinhVuc[filters.linhVuc];
     }, [filters.linhVuc, filterOptions.thuTucByLinhVuc]);
+
+    // Compute list similar to TemplateFiller's "availableTemplates"
+    const quickAvailableTemplates = useMemo(() => {
+        const base = filteredRecords.filter(r => r.isTemplateAvailable);
+        if (!quickSearchText.trim()) return base;
+        const t = quickSearchText.trim().toLowerCase();
+        return base.filter(r =>
+            (r.tenTTHC || '').toLowerCase().includes(t) ||
+            (r.maTTHC || '').toLowerCase().includes(t) ||
+            (r.linhVuc || '').toLowerCase().includes(t)
+        );
+    }, [filteredRecords, quickSearchText]);
 
     const handleInputChange = (event: React.ChangeEvent<HTMLInputElement>) => {
         const value = event.target.value;
@@ -4693,6 +4707,113 @@ function ProceduresComponent() {
                             </Box>
                         </Box>
                     </Box>
+                    {/* Quick search & template list (borrowed from template-filler UX) */}
+                    <Card sx={{ mb: 2 }}>
+                        <CardContent>
+                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+                                <TextField
+                                    size="small"
+                                    value={quickSearchText}
+                                    onChange={e => setQuickSearchText(e.target.value)}
+                                    placeholder="Tìm kiếm thủ tục, mã, lĩnh vực..."
+                                    variant="outlined"
+                                    sx={{ minWidth: 220, flex: 1 }}
+                                />
+                                <FormControl size="small" sx={{ minWidth: 220 }}>
+                                    <InputLabel>Lĩnh vực</InputLabel>
+                                    <Select
+                                        value={filters.linhVuc}
+                                        label="Lĩnh vực"
+                                        onChange={e => handleFilterChange('linhVuc', e.target.value)}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Tất cả</em>
+                                        </MenuItem>
+                                        {filterOptions.linhVuc.map(item => (
+                                            <MenuItem key={item} value={item}>
+                                                {item}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                                <FormControl size="small" sx={{ minWidth: 220 }}>
+                                    <InputLabel>Thủ tục</InputLabel>
+                                    <Select
+                                        value={filters.thuTuc}
+                                        label="Thủ tục"
+                                        onChange={e => handleFilterChange('thuTuc', e.target.value)}
+                                        disabled={!filters.linhVuc}
+                                    >
+                                        <MenuItem value="">
+                                            <em>Tất cả</em>
+                                        </MenuItem>
+                                        {availableThuTuc.map(item => (
+                                            <MenuItem key={item} value={item}>
+                                                {item}
+                                            </MenuItem>
+                                        ))}
+                                    </Select>
+                                </FormControl>
+                            </Box>
+
+                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
+                                <Typography variant="body2" color="text.secondary">
+                                    Mẫu sẵn sàng: {quickAvailableTemplates.length}
+                                </Typography>
+                                <Button size="small" onClick={() => { setQuickSearchText(''); handleClearFilters(); }}>
+                                    Xóa bộ lọc
+                                </Button>
+                            </Box>
+
+                            {/* Template List */}
+                            <Box sx={{ maxHeight: 260, overflowY: 'auto' }}>
+                                {quickAvailableTemplates.slice(0, 50).map((record, index) => (
+                                    <Paper
+                                        key={`${record.maTTHC}-${index}`}
+                                        variant="outlined"
+                                        sx={{ p: 1.5, mb: 1, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}
+                                    >
+                                        <Box sx={{ minWidth: 0, flex: 1 }}>
+                                            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
+                                                {record.tenTTHC}
+                                            </Typography>
+                                            <Typography variant="caption" color="text.secondary" noWrap>
+                                                {record.maTTHC} • {record.linhVuc}
+                                            </Typography>
+                                        </Box>
+                                        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
+                                            <Button
+                                                size="small"
+                                                variant="outlined"
+                                                onClick={e => {
+                                                    e.stopPropagation();
+                                                    handleTemplateFromCSV(record);
+                                                }}
+                                            >
+                                                Chọn
+                                            </Button>
+                                            <Button
+                                                size="small"
+                                                variant="contained"
+                                                onClick={e => {
+                                                    e.stopPropagation();
+                                                    handleOpenProcessingModal(record);
+                                                }}
+                                            >
+                                                Xử lý
+                                            </Button>
+                                        </Box>
+                                    </Paper>
+                                ))}
+                                {quickAvailableTemplates.length === 0 && (
+                                    <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                                        Không có mẫu phù hợp.
+                                    </Typography>
+                                )}
+                            </Box>
+                        </CardContent>
+                    </Card>
+
                     <Divider sx={{ mb: 2 }} />
                     <Paper
                         variant="outlined"
