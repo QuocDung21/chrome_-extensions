@@ -4473,7 +4473,7 @@ function ProceduresComponent() {
 
             setSnackbar({
                 open: true,
-                message: shouldCreateNew ? 'Đã lưu tài liệu mới trong IndexedDB' : 'Đã cập nhật tài liệu đang làm việc',
+                message: shouldCreateNew ? 'Đã lưu tài liệu mới' : 'Đã cập nhật tài liệu đang làm việc',
                 severity: 'success'
             });
         } catch (error) {

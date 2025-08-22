@@ -81,19 +81,19 @@ const scanningItems: NavigationItem[] = [
         label: 'Soạn thảo mẫu',
         icon: <TemplateFillerIcon />,
         path: '/template-filler'
-    },
+    }
     // {
     //     id: 'word-viewer',
     //     label: 'Xem Word',
     //     icon: <WordViewerIcon />,
     //     path: '/word-viewer'
     // }
-    {
-        id: 'procedures',
-        label: 'Thủ tục hành chính',
-        icon: <ArticleIcon />,
-        path: '/procedures'
-    }
+    // {
+    //     id: 'procedures',
+    //     label: 'Thủ tục hành chính',
+    //     icon: <ArticleIcon />,
+    //     path: '/procedures'
+    // }
 ];
 
 const documentsItems: NavigationItem[] = [
