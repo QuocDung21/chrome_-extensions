@@ -487,6 +487,7 @@ const TemplateCard = React.memo<{
     index: number;
     onSelect: (record: EnhancedTTHCRecord) => void;
     onSelectTemplate: (record: EnhancedTTHCRecord) => void;
+    onSetupTemplate?: (payload: { docUrl: string; code: string; htmlUrl?: string | null }) => void;
     hasWorkingDocuments?: boolean;
     workingDocumentsCount?: number;
 }>(
@@ -495,6 +496,7 @@ const TemplateCard = React.memo<{
         index,
         onSelect,
         onSelectTemplate,
+        onSetupTemplate,
         hasWorkingDocuments = false,
         workingDocumentsCount = 0
     }) => {
@@ -586,34 +588,32 @@ const TemplateCard = React.memo<{
                                             : 'Chọn mẫu'}
                                     </Button>
 
-                                    {/* {hasTemplates && (
+                                    {hasTemplates && (
                                         <Button
                                             variant="outlined"
                                             size="small"
                                             onClick={e => {
                                                 e.stopPropagation();
                                                 const selected = record.danhSachMauDon[0];
-                                                const docUrl = buildDocxUrlForRecord(
-                                                    record,
-                                                    selected
-                                                );
+                                                const docUrl = buildDocxUrlForRecord(record, selected);
                                                 const code = record.maTTHC;
-
-                                                // Persist payload in localStorage for the procedures route to pick up
-                                                localStorage.setItem(
-                                                    'pending_procedure_load',
-                                                    JSON.stringify({ docUrl, code })
-                                                );
-                                                // Navigate to procedures route (hash-based)
-                                                window.location.href =
-                                                    '/src/admin/index.html#/procedures/';
+                                                // Prefer callback if provided; fallback to navigation + localStorage
+                                                if (onSetupTemplate) {
+                                                    onSetupTemplate({ docUrl, code });
+                                                } else {
+                                                    localStorage.setItem(
+                                                        'pending_procedure_load',
+                                                        JSON.stringify({ docUrl, code })
+                                                    );
+                                                    window.location.href = '/src/admin/index.html#/procedures/';
+                                                }
                                             }}
                                             startIcon={<EditIcon />}
                                             sx={{ ml: 1, textTransform: 'none' }}
                                         >
                                             Thiết lập mẫu
                                         </Button>
-                                    )} */}
+                                    )}
                                 </>
                             )}
                         </Box>
@@ -823,7 +823,11 @@ const applyDataToSyncfusion = async (
     }
 };
 // --- COMPONENT CHÍNH ---
-function TemplateFillerComponent() {
+function TemplateFillerComponent({
+    onSetupTemplate
+}: {
+    onSetupTemplate?: (payload: { docUrl: string; code: string; htmlUrl?: string | null }) => void;
+}) {
     const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
@@ -1970,6 +1974,7 @@ function TemplateFillerComponent() {
                                         index={index}
                                         onSelect={handleSelectTemplate}
                                         onSelectTemplate={handleSelectTemplate}
+                                        onSetupTemplate={onSetupTemplate}
                                         hasWorkingDocuments={hasWorkingDocuments(record.maTTHC)}
                                         workingDocumentsCount={
                                             getWorkingDocumentsForMaTTHC(record.maTTHC).length

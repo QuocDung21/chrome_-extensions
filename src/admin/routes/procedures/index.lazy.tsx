@@ -4619,6 +4619,27 @@ function ProceduresComponent() {
 
     return (
         <Box sx={{ width: '100%' }}>
+            {/* Quick picker from template-filler above the selection card */}
+            <Box sx={{ mb: 2 }}>
+                <TemplateFillerComponent
+                    onSetupTemplate={({ docUrl, code, htmlUrl }) => {
+                        try {
+                            currentCodeRef.current = code || '';
+                            setState(prev => ({
+                                ...prev,
+                                selectedTemplatePath: docUrl,
+                                selectedHtmlUrl: htmlUrl || null,
+                                generatedBlob: null,
+                                error: null
+                            }));
+                            resetProcessing();
+                            setShowTemplateModal(false);
+                            setSnackbar({ open: true, message: 'Đã thiết lập mẫu từ danh sách nhanh', severity: 'success' });
+                        } catch {}
+                    }}
+                />
+            </Box>
+
             {state.selectedTemplatePath ? (
                 <Paper sx={{ p: 3, height: 'fit-content' }}>
                     <Box
