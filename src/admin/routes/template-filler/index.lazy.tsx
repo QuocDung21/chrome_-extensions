@@ -430,13 +430,8 @@ const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
     return data;
 };
 
-<<<<<<< HEAD
 
-
-function LinhVucListComponent() {
-=======
 function LinhVucListComponent({ value = '', onChange }: any) {
->>>>>>> origin/backup_v2
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
@@ -1246,13 +1241,6 @@ function TemplateFillerComponent() {
         loadData();
     }, []);
 
-<<<<<<< HEAD
-    // Load working documents from IndexedDB on component mount
-    useEffect(() => {
-        refreshWorkingDocuments();
-    }, [refreshWorkingDocuments]);
-
-=======
     // Load lĩnh vực data from repository
     useEffect(() => {
         const loadLinhVuc = async () => {
@@ -1287,7 +1275,6 @@ function TemplateFillerComponent() {
 
         loadLinhVuc();
     }, [filterOptions.linhVuc]);
->>>>>>> origin/backup_v2
     // Filter records when filters change
     useEffect(() => {
         const filtered = filterRecords(csvRecords, filters, linhVucList);
