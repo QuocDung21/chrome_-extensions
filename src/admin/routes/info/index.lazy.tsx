@@ -21,6 +21,7 @@ import {
     Wifi as WifiIcon
 } from '@mui/icons-material';
 import SaveIcon from '@mui/icons-material/Save';
+import { useNavigate } from '@tanstack/react-router';
 import {
     Box,
     Button,
@@ -1013,6 +1014,7 @@ function InfoPage() {
         setEditingIndex(null);
         setEditingUrl('');
     };
+    const navigate = useNavigate();
 
     // Tab: Thông tin gói dịch vụ
     const PackageInfoTab = () => (
@@ -1063,6 +1065,9 @@ function InfoPage() {
                                     sx={{
                                         bgcolor: 'success.main',
                                         '&:hover': { bgcolor: 'success.dark' }
+                                    }}
+                                    onClick={() => {
+                                        navigate({ to: '/procedures' });
                                     }}
                                 >
                                     Thiết mẫu mẫu
