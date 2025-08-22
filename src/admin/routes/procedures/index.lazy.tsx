@@ -96,6 +96,8 @@ import {
     type FilterState,
     TemplateSelectorModal
 } from '../procedures/TemplateSelectorModal';
+// eslint-disable-next-line
+import TemplateFillerComponent from '../../components/TemplateFillerWrapper';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
 

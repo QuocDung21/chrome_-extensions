@@ -1065,7 +1065,7 @@ function InfoPage() {
                                         '&:hover': { bgcolor: 'success.dark' }
                                     }}
                                 >
-                                    Tạo
+                                    Thiết mẫu mẫu
                                 </Button>
                             </Box>
                         </Box>
