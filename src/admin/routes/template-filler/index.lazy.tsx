@@ -586,7 +586,7 @@ const TemplateCard = React.memo<{
                                             : 'Chọn mẫu'}
                                     </Button>
 
-                                    {hasTemplates && (
+                                    {/* {hasTemplates && (
                                         <Button
                                             variant="outlined"
                                             size="small"
@@ -613,7 +613,7 @@ const TemplateCard = React.memo<{
                                         >
                                             Thiết lập mẫu
                                         </Button>
-                                    )}
+                                    )} */}
                                 </>
                             )}
                         </Box>
@@ -2780,34 +2780,16 @@ function TemplateFillerComponent() {
                         <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
                             Chọn mẫu đơn - {templateSelectionModal.record?.tenTTHC}
                         </Typography>
-                        {/* <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <Button
-                                variant="outlined"
-                                size="small"
-                                onClick={refreshWorkingDocuments}
-                                disabled={workingDocsState.isLoading}
-                                sx={{
-                                    color: 'white',
-                                    borderColor: 'white',
-                                    '&:hover': {
-                                        borderColor: 'white',
-                                        backgroundColor: 'rgba(255,255,255,0.1)'
-                                    }
-                                }}
-                            >
-                                {workingDocsState.isLoading ? (
-                                    <CircularProgress size={16} sx={{ color: 'white' }} />
-                                ) : (
-                                    '🔄 Làm mới IndexedDB'
-                                )}
-                            </Button>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                             <IconButton
-                                onClick={() => setTemplateSelectionModal({ open: false, record: null })}
+                                onClick={() =>
+                                    setTemplateSelectionModal({ open: false, record: null })
+                                }
                                 sx={{ color: 'white' }}
                             >
                                 <CloseIcon />
                             </IconButton>
-                        </Box> */}
+                        </Box>
                     </Box>
                     <DialogContent sx={{ p: 3 }}>
                         <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>

@@ -86,6 +86,9 @@ import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
 import { ProcessingModal } from '../../components/word-mapper/ProcessingModal';
+import { db } from '../../db/db';
+import type { WorkingDocument } from '../../db/db';
+import { thuTucHCRepository } from '../../repository/ThuTucHCRepository';
 // --- COMPONENTS ---
 import {
     type EnhancedTTHCRecord,
@@ -93,10 +96,6 @@ import {
     type FilterState,
     TemplateSelectorModal
 } from '../procedures/TemplateSelectorModal';
-
-import { db } from '../../db/db';
-import type { WorkingDocument } from '../../db/db';
-import { thuTucHCRepository } from '../../repository/ThuTucHCRepository';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
 
@@ -867,47 +866,6 @@ const parseCSVLine = (line: string): string[] => {
     return result;
 };
 
-const parseCSVData = (csvContent: string): TTHCRecord[] => {
-    const lines = csvContent.split('\n').filter(line => line.trim());
-    const records: TTHCRecord[] = [];
-
-    // Skip header rows (first 6 lines based on CSV structure)
-    for (let i = 6; i < lines.length; i++) {
-        const line = lines[i];
-        if (!line.trim()) continue;
-
-        const columns = parseCSVLine(line);
-
-        // Check if this row has data (either STT or just template file info)
-        const hasSTT = columns[0] && columns[0] !== '';
-        const hasTemplateFile = columns[11] && columns[11].includes('.doc');
-
-        if (columns.length >= 11 && (hasSTT || hasTemplateFile)) {
-            const record: TTHCRecord = {
-                stt: columns[0] || '',
-                maTTHC: columns[1] || '',
-                tenTTHC: columns[2] || '',
-                qdCongBo: columns[3] || '',
-                doiTuong: columns[4] || '',
-                linhVuc: columns[5] || '',
-                coQuanCongKhai: columns[6] || '',
-                capThucHien: columns[7] || '',
-                tinhTrang: columns[8] || '',
-                tenGiayTo: columns[9] || '',
-                mauDon: columns[10] || '',
-                tenFile: columns[11] || ''
-            };
-
-            // Only add records that have template files (using the new tenFile column)
-            if (record.tenFile && record.tenFile.includes('.doc')) {
-                records.push(record);
-            }
-        }
-    }
-
-    return records;
-};
-
 // Parse JSON data (converted from CSV)
 const parseJSONData = (jsonArray: any[]): TTHCRecord[] => {
     if (!Array.isArray(jsonArray)) return [];
@@ -1098,8 +1056,12 @@ function ProceduresComponent() {
     const [showTemplateModal, setShowTemplateModal] = useState(false);
     const [showProcessingModal, setShowProcessingModal] = useState(false);
     const [selectedRecord, setSelectedRecord] = useState<LocalEnhancedTTHCRecord | null>(null);
-    const [workingDocsByCode, setWorkingDocsByCode] = useState<Record<string, WorkingDocument | undefined>>({});
-    const [workingDocsListByCode, setWorkingDocsListByCode] = useState<Record<string, WorkingDocument[]>>({});
+    const [workingDocsByCode, setWorkingDocsByCode] = useState<
+        Record<string, WorkingDocument | undefined>
+    >({});
+    const [workingDocsListByCode, setWorkingDocsListByCode] = useState<
+        Record<string, WorkingDocument[]>
+    >({});
     const [csvLoading, setCsvLoading] = useState(false);
     const [availableTemplates, setAvailableTemplates] = useState<string[]>([]);
 
@@ -1313,7 +1275,11 @@ function ProceduresComponent() {
                 if (v) data[f.key] = v;
             });
             if (Object.keys(data).length === 0) {
-                setSnackbar({ open: true, message: 'Chưa có dữ liệu để áp dụng', severity: 'info' });
+                setSnackbar({
+                    open: true,
+                    message: 'Chưa có dữ liệu để áp dụng',
+                    severity: 'info'
+                });
                 return;
             }
             const ok = await applyDataToSyncfusion(data);
@@ -1323,7 +1289,11 @@ function ProceduresComponent() {
                 severity: ok ? 'success' : 'error'
             });
         } catch (e: any) {
-            setSnackbar({ open: true, message: e?.message || 'Lỗi áp dụng dữ liệu', severity: 'error' });
+            setSnackbar({
+                open: true,
+                message: e?.message || 'Lỗi áp dụng dữ liệu',
+                severity: 'error'
+            });
         }
     }, [applyDataToSyncfusion, quickInputFields, quickInputValues, setSnackbar]);
 
@@ -1588,7 +1558,10 @@ function ProceduresComponent() {
 
                 // Load existing working docs (V2) from IndexedDB and index latest by maTTHC
                 try {
-                    const allWorking = await db.workingDocumentsV2.orderBy('updatedAt').reverse().toArray();
+                    const allWorking = await db.workingDocumentsV2
+                        .orderBy('updatedAt')
+                        .reverse()
+                        .toArray();
                     const byCode: { [code: string]: WorkingDocument } = {};
                     const listByCode: { [code: string]: WorkingDocument[] } = {};
                     allWorking.forEach(doc => {
@@ -1599,7 +1572,9 @@ function ProceduresComponent() {
                     });
                     setWorkingDocsByCode(byCode);
                     setWorkingDocsListByCode(listByCode);
-                    console.log(`✅ Loaded ${Object.keys(byCode).length} working documents from IndexedDB (V2)`);
+                    console.log(
+                        `✅ Loaded ${Object.keys(byCode).length} working documents from IndexedDB (V2)`
+                    );
                 } catch (e) {
                     console.warn('Không thể đọc Working Documents từ IndexedDB', e);
                 }
@@ -1698,44 +1673,53 @@ function ProceduresComponent() {
     }, []);
 
     // Function to delete working document from IndexedDB
-    const deleteWorkingDocument = useCallback(async (maTTHC: string) => {
-        try {
-            await db.workingDocumentsV2.where('maTTHC').equals(maTTHC).delete();
-            setWorkingDocsByCode(prev => {
-                const newState = { ...prev };
-                delete newState[maTTHC];
-                return newState;
-            });
-            setWorkingDocsListByCode(prev => {
-                const next = { ...prev };
-                delete next[maTTHC];
-                return next;
-            });
-            console.log(`✅ Deleted working document for maTTHC: ${maTTHC}`);
-            setSnackbar({
-                open: true,
-                message: 'Đã xóa tài liệu đã lưu',
-                severity: 'success'
-            });
-        } catch (e) {
-            console.error('❌ Failed to delete working document:', e);
-            setSnackbar({
-                open: true,
-                message: 'Lỗi khi xóa tài liệu đã lưu',
-                severity: 'error'
-            });
-        }
-    }, [setSnackbar]);
+    const deleteWorkingDocument = useCallback(
+        async (maTTHC: string) => {
+            try {
+                await db.workingDocumentsV2.where('maTTHC').equals(maTTHC).delete();
+                setWorkingDocsByCode(prev => {
+                    const newState = { ...prev };
+                    delete newState[maTTHC];
+                    return newState;
+                });
+                setWorkingDocsListByCode(prev => {
+                    const next = { ...prev };
+                    delete next[maTTHC];
+                    return next;
+                });
+                console.log(`✅ Deleted working document for maTTHC: ${maTTHC}`);
+                setSnackbar({
+                    open: true,
+                    message: 'Đã xóa tài liệu đã lưu',
+                    severity: 'success'
+                });
+            } catch (e) {
+                console.error('❌ Failed to delete working document:', e);
+                setSnackbar({
+                    open: true,
+                    message: 'Lỗi khi xóa tài liệu đã lưu',
+                    severity: 'error'
+                });
+            }
+        },
+        [setSnackbar]
+    );
 
     // Function to get working document info for display
-    const getWorkingDocumentInfo = useCallback((maTTHC: string) => {
-        return workingDocsByCode[maTTHC];
-    }, [workingDocsByCode]);
+    const getWorkingDocumentInfo = useCallback(
+        (maTTHC: string) => {
+            return workingDocsByCode[maTTHC];
+        },
+        [workingDocsByCode]
+    );
 
     // Function to check if working document exists for a specific maTTHC
-    const hasWorkingDocument = useCallback((maTTHC: string) => {
-        return !!workingDocsByCode[maTTHC];
-    }, [workingDocsByCode]);
+    const hasWorkingDocument = useCallback(
+        (maTTHC: string) => {
+            return !!workingDocsByCode[maTTHC];
+        },
+        [workingDocsByCode]
+    );
 
     // Function to get all working documents for display
     const getAllWorkingDocuments = useCallback(() => {
@@ -1748,53 +1732,86 @@ function ProceduresComponent() {
     }, [workingDocsByCode]);
 
     // Function to get working document by filename for search
-    const getWorkingDocumentByFilename = useCallback((filename: string) => {
-        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).find(doc => doc.fileName === filename);
-    }, [workingDocsByCode]);
+    const getWorkingDocumentByFilename = useCallback(
+        (filename: string) => {
+            return Object.values(workingDocsByCode)
+                .filter((doc): doc is WorkingDocument => !!doc)
+                .find(doc => doc.fileName === filename);
+        },
+        [workingDocsByCode]
+    );
 
     // Function to get working document by maTTHC for quick access
-    const getWorkingDocumentByMaTTHC = useCallback((maTTHC: string) => {
-        return workingDocsByCode[maTTHC];
-    }, [workingDocsByCode]);
+    const getWorkingDocumentByMaTTHC = useCallback(
+        (maTTHC: string) => {
+            return workingDocsByCode[maTTHC];
+        },
+        [workingDocsByCode]
+    );
 
-        // Function to get working documents by date range for filtering
-    const getWorkingDocumentsByDateRange = useCallback((startDate: Date, endDate: Date) => {
-        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
-            const docDate = new Date(doc.updatedAt);
-            return docDate >= startDate && docDate <= endDate;
-        });
-    }, [workingDocsByCode]);
+    // Function to get working documents by date range for filtering
+    const getWorkingDocumentsByDateRange = useCallback(
+        (startDate: Date, endDate: Date) => {
+            return Object.values(workingDocsByCode)
+                .filter((doc): doc is WorkingDocument => !!doc)
+                .filter(doc => {
+                    const docDate = new Date(doc.updatedAt);
+                    return docDate >= startDate && docDate <= endDate;
+                });
+        },
+        [workingDocsByCode]
+    );
 
     // Function to get working documents by mime type for filtering
-    const getWorkingDocumentsByMimeType = useCallback((mimeType: string) => {
-        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
-            return doc.mimeType === mimeType;
-        });
-    }, [workingDocsByCode]);
+    const getWorkingDocumentsByMimeType = useCallback(
+        (mimeType: string) => {
+            return Object.values(workingDocsByCode)
+                .filter((doc): doc is WorkingDocument => !!doc)
+                .filter(doc => {
+                    return doc.mimeType === mimeType;
+                });
+        },
+        [workingDocsByCode]
+    );
 
     // Function to get working documents by size range for filtering
-    const getWorkingDocumentsBySizeRange = useCallback((minSize: number, maxSize: number) => {
-        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
-            const docSize = doc.blob.size;
-            return docSize >= minSize && docSize <= maxSize;
-        });
-    }, [workingDocsByCode]);
+    const getWorkingDocumentsBySizeRange = useCallback(
+        (minSize: number, maxSize: number) => {
+            return Object.values(workingDocsByCode)
+                .filter((doc): doc is WorkingDocument => !!doc)
+                .filter(doc => {
+                    const docSize = doc.blob.size;
+                    return docSize >= minSize && docSize <= maxSize;
+                });
+        },
+        [workingDocsByCode]
+    );
 
     // Function to get working documents by filename pattern for search
-    const getWorkingDocumentsByFilenamePattern = useCallback((pattern: string) => {
-        const regex = new RegExp(pattern, 'i');
-        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
-            return regex.test(doc.fileName);
-        });
-    }, [workingDocsByCode]);
+    const getWorkingDocumentsByFilenamePattern = useCallback(
+        (pattern: string) => {
+            const regex = new RegExp(pattern, 'i');
+            return Object.values(workingDocsByCode)
+                .filter((doc): doc is WorkingDocument => !!doc)
+                .filter(doc => {
+                    return regex.test(doc.fileName);
+                });
+        },
+        [workingDocsByCode]
+    );
 
     // Function to get working documents by maTTHC pattern for search
-    const getWorkingDocumentsByMaTTHCPattern = useCallback((pattern: string) => {
-        const regex = new RegExp(pattern, 'i');
-        return Object.values(workingDocsByCode).filter((doc): doc is WorkingDocument => !!doc).filter(doc => {
-            return regex.test(doc.maTTHC);
-        });
-    }, [workingDocsByCode]);
+    const getWorkingDocumentsByMaTTHCPattern = useCallback(
+        (pattern: string) => {
+            const regex = new RegExp(pattern, 'i');
+            return Object.values(workingDocsByCode)
+                .filter((doc): doc is WorkingDocument => !!doc)
+                .filter(doc => {
+                    return regex.test(doc.maTTHC);
+                });
+        },
+        [workingDocsByCode]
+    );
 
     // Filter records when filters change
     useEffect(() => {
@@ -1822,7 +1839,7 @@ function ProceduresComponent() {
             try {
                 // Since we only use syncfusion mode, this section is not needed
                 // All document viewing is handled by Syncfusion editor
-                
+
                 // ----- Chế độ xem Syncfusion -----
                 if (previewMode === 'syncfusion') {
                     // Điều kiện kiểm tra ref cho Syncfusion
@@ -1830,17 +1847,19 @@ function ProceduresComponent() {
 
                     // Kiểm tra xem có phải là working document từ IndexedDB không
                     const isWorkingDocument = templateUrl.startsWith('working://');
-                    
+
                     if (isWorkingDocument && state.generatedBlob) {
                         // Nếu là working document và có blob, mở trực tiếp vào Syncfusion
-                        console.log('🔄 Loading working document from IndexedDB into Syncfusion...');
+                        console.log(
+                            '🔄 Loading working document from IndexedDB into Syncfusion...'
+                        );
                         setSyncfusionLoading(true);
                         setSyncfusionDocumentReady(false);
 
                         try {
                             // Mở trực tiếp blob vào Syncfusion editor
                             sfContainerRef.current.documentEditor.open(state.generatedBlob);
-                            
+
                             // Wait a bit for the document to be fully loaded
                             setTimeout(() => {
                                 // Verify document is actually loaded by checking its content
@@ -1853,7 +1872,11 @@ function ProceduresComponent() {
                                                 ? JSON.parse(testSfdt)
                                                 : testSfdt;
                                         const testSections = testJson?.sections || testJson?.sec;
-                                        if (testJson && testSections && Array.isArray(testSections)) {
+                                        if (
+                                            testJson &&
+                                            testSections &&
+                                            Array.isArray(testSections)
+                                        ) {
                                             setSyncfusionDocumentReady(true);
                                             setSyncfusionLoading(false);
                                             console.log(
@@ -1899,7 +1922,8 @@ function ProceduresComponent() {
                             setSyncfusionDocumentReady(false);
                             setSnackbar({
                                 open: true,
-                                message: e?.message || 'Không thể mở tài liệu đã lưu trong Syncfusion',
+                                message:
+                                    e?.message || 'Không thể mở tài liệu đã lưu trong Syncfusion',
                                 severity: 'error'
                             });
                             // Nếu lỗi, giữ nguyên chế độ syncfusion
@@ -1917,7 +1941,11 @@ function ProceduresComponent() {
 
                             const blob = await res.blob();
                             const form = new FormData();
-                            form.append('files', blob, state.uploadedTemplateName || 'template.docx');
+                            form.append(
+                                'files',
+                                blob,
+                                state.uploadedTemplateName || 'template.docx'
+                            );
 
                             console.log('🔄 Converting DOCX to SFDT...');
                             // Gọi service của Syncfusion để chuyển đổi docx -> sfdt
@@ -1949,7 +1977,11 @@ function ProceduresComponent() {
                                                 ? JSON.parse(testSfdt)
                                                 : testSfdt;
                                         const testSections = testJson?.sections || testJson?.sec;
-                                        if (testJson && testSections && Array.isArray(testSections)) {
+                                        if (
+                                            testJson &&
+                                            testSections &&
+                                            Array.isArray(testSections)
+                                        ) {
                                             setSyncfusionDocumentReady(true);
                                             setSyncfusionLoading(false);
                                             console.log(
@@ -1999,7 +2031,9 @@ function ProceduresComponent() {
                                 severity: 'error'
                             });
                             // Nếu lỗi, giữ nguyên chế độ syncfusion
-                            console.warn('Error loading Syncfusion document, keeping syncfusion mode');
+                            console.warn(
+                                'Error loading Syncfusion document, keeping syncfusion mode'
+                            );
                         }
                     }
                 }
@@ -2015,7 +2049,13 @@ function ProceduresComponent() {
         renderSelectedTemplate();
         // Cần thêm state.generatedBlob vào dependency array vì chúng ta sử dụng nó để kiểm tra
         // xem có phải là working document từ IndexedDB không
-    }, [state.selectedTemplatePath, state.uploadedTemplateUrl, previewMode, state.selectedHtmlUrl, state.generatedBlob]);
+    }, [
+        state.selectedTemplatePath,
+        state.uploadedTemplateUrl,
+        previewMode,
+        state.selectedHtmlUrl,
+        state.generatedBlob
+    ]);
     useEffect(() => {
         const loadHtml = async () => {
             const url = state.selectedHtmlUrl;
@@ -2554,8 +2594,7 @@ function ProceduresComponent() {
     // }, [state.generatedBlob, displayTemplateName, extractCurrentCode]);
 
     const handlePrintPreview = useCallback(() => {
-       
-         if (previewMode === 'syncfusion') {
+        if (previewMode === 'syncfusion') {
             try {
                 sfContainerRef.current?.documentEditor?.print();
             } catch {}
@@ -3104,8 +3143,6 @@ function ProceduresComponent() {
 
     const handlePrint = useCallback(async () => {
         try {
-            
-
             // HTML mode: reuse existing preview printing
             const iframe = htmlIframeRef.current;
             const doc = iframe?.contentDocument;
@@ -3167,261 +3204,6 @@ function ProceduresComponent() {
     const handleErrorClose = useCallback(() => {
         setState(prev => ({ ...prev, error: null }));
     }, []);
-
-    // Render helpers
-    // Đơn giản hóa: bỏ chip trạng thái socket
-
-    // const renderFilter = () => (
-    //     <Card>
-    //         <CardContent>
-    //             <Typography variant="h6" sx={{ mb: 2 }}>
-    //                 Danh sách thủ tục hành chính
-    //             </Typography>
-
-    //             {/* Filter Controls */}
-    //             <Box sx={{ mb: 3 }}>
-    //                 <Box
-    //                     sx={{
-    //                         display: 'grid',
-    //                         gridTemplateColumns: { xs: '1fr', md: 'repeat(3, 1fr)' },
-    //                         gap: 2,
-    //                         mb: 2
-    //                     }}
-    //                 >
-    //                     <FormControl fullWidth size="small">
-    //                         <InputLabel>Lĩnh vực</InputLabel>
-    //                         <Select
-    //                             value={filters.linhVuc}
-    //                             label="Lĩnh vực"
-    //                             onChange={e => handleFilterChange('linhVuc', e.target.value)}
-    //                         >
-    //                             <MenuItem value="">Tất cả</MenuItem>
-    //                             {filterOptions.linhVuc.map(item => (
-    //                                 <MenuItem key={item} value={item}>
-    //                                     {item}
-    //                                 </MenuItem>
-    //                             ))}
-    //                         </Select>
-    //                     </FormControl>
-
-    //                     <FormControl fullWidth size="small">
-    //                         <InputLabel>Thủ tục</InputLabel>
-    //                         <Select
-    //                             value={filters.thuTuc}
-    //                             label="Thủ tục"
-    //                             onChange={e => handleFilterChange('thuTuc', e.target.value)}
-    //                             disabled={!filters.linhVuc}
-    //                         >
-    //                             <MenuItem value="">Tất cả</MenuItem>
-    //                             {availableThuTuc.map(item => (
-    //                                 <MenuItem key={item} value={item}>
-    //                                     {item}
-    //                                 </MenuItem>
-    //                             ))}
-    //                         </Select>
-    //                     </FormControl>
-
-    //                     <FormControl fullWidth size="small">
-    //                         <InputLabel>Trạng thái mẫu</InputLabel>
-    //                         <Select
-    //                             value={filters.availability}
-    //                             label="Trạng thái mẫu"
-    //                             onChange={e => handleFilterChange('availability', e.target.value)}
-    //                         >
-    //                             <MenuItem value="all">Tất cả</MenuItem>
-    //                             <MenuItem value="available">Có sẵn mẫu</MenuItem>
-    //                             <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
-    //                         </Select>
-    //                     </FormControl>
-    //                 </Box>
-
-    //                 <Button variant="outlined" onClick={handleClearFilters} size="small">
-    //                     Xóa bộ lọc
-    //                 </Button>
-    //             </Box>
-
-    //             {/* Summary and Template List */}
-    //             {csvLoading ? (
-    //                 <Box sx={{ display: 'flex', justifyContent: 'center', p: 2 }}>
-    //                     <CircularProgress />
-    //                 </Box>
-    //             ) : (
-    //                 <Box>
-    //                     <Box
-    //                         sx={{
-    //                             mb: 2,
-    //                             display: 'flex',
-    //                             justifyContent: 'space-between',
-    //                             alignItems: 'center'
-    //                         }}
-    //                     >
-    //                         <Typography variant="body2" color="text.secondary">
-    //                             Tìm thấy {filteredRecords.length} thủ tục hành chính
-    //                         </Typography>
-    //                         <Box sx={{ display: 'flex', gap: 1 }}>
-    //                             <Chip
-    //                                 icon={<CheckCircleIcon />}
-    //                                 label={`${filteredRecords.filter(r => r.isTemplateAvailable).length} có mẫu`}
-    //                                 color="success"
-    //                                 size="small"
-    //                                 variant="outlined"
-    //                             />
-    //                             <Chip
-    //                                 icon={<WarningIcon />}
-    //                                 label={`${filteredRecords.filter(r => !r.isTemplateAvailable).length} chưa có`}
-    //                                 color="warning"
-    //                                 size="small"
-    //                                 variant="outlined"
-    //                             />
-    //                         </Box>
-    //                     </Box>
-
-    //                     <Box sx={{ maxHeight: 400, overflowY: 'auto' }}>
-    //                         {filteredRecords.slice(0, 10).map((record, index) => (
-    //                             <Paper
-    //                                 key={index}
-    //                                 variant="outlined"
-    //                                 sx={{
-    //                                     p: 2,
-    //                                     mb: 2,
-    //                                     borderRadius: 2,
-    //                                     border: '1px solid #e0e0e0',
-    //                                     '&:hover': {
-    //                                         boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    //                                         borderColor: record.isTemplateAvailable
-    //                                             ? '#1976d2'
-    //                                             : '#ed6c02'
-    //                                     },
-    //                                     transition: 'all 0.2s ease-in-out',
-    //                                     opacity: record.isTemplateAvailable ? 1 : 0.7
-    //                                 }}
-    //                             >
-    //                                 <Box
-    //                                     sx={{
-    //                                         display: 'flex',
-    //                                         justifyContent: 'space-between',
-    //                                         alignItems: 'flex-start'
-    //                                     }}
-    //                                 >
-    //                                     <Box sx={{ flex: 1 }}>
-    //                                         <Typography
-    //                                             variant="subtitle1"
-    //                                             color="primary"
-    //                                             sx={{ fontWeight: 'bold', mb: 1 }}
-    //                                         >
-    //                                             {record.maTTHC} - {record.tenTTHC}
-    //                                         </Typography>
-    //                                         <Typography
-    //                                             variant="body2"
-    //                                             color="text.secondary"
-    //                                             sx={{ mb: 1 }}
-    //                                         >
-    //                                             Lĩnh vực: {record.linhVuc}
-    //                                         </Typography>
-    //                                         <Typography variant="body2" color="text.secondary">
-    //                                             Đối tượng: {record.doiTuong || 'Công dân Việt Nam'}
-    //                                         </Typography>
-    //                                     </Box>
-
-    //                                     <Box
-    //                                         sx={{
-    //                                             display: 'flex',
-    //                                             flexDirection: 'column',
-    //                                             gap: 1,
-    //                                             alignItems: 'flex-end'
-    //                                         }}
-    //                                     >
-    //                                         {record.isTemplateAvailable ? (
-    //                                             <>
-    //                                                 <Chip
-    //                                                     label="Có sẵn mẫu"
-    //                                                     color="success"
-    //                                                     size="small"
-    //                                                     icon={<CheckCircleIcon />}
-    //                                                 />
-    //                                                 <Button
-    //                                                     variant="contained"
-    //                                                     color="primary"
-    //                                                     size="small"
-    //                                                     onClick={() =>
-    //                                                         handleTemplateSelect(record)
-    //                                                     }
-    //                                                 >
-    //                                                     Chọn mẫu này
-    //                                                 </Button>
-    //                                                 {(() => {
-    //                                                     const docs = workingDocsListByCode[record.maTTHC] || [];
-    //                                                     return docs.slice(0, 3).map(doc => (
-    //                                                         <Button
-    //                                                             key={doc.id || doc.updatedAt}
-    //                                                             variant="text"
-    //                                                             color="secondary"
-    //                                                             size="small"
-    //                                                             onClick={() => handleLoadWorkingFromDb(record.maTTHC, record, doc.id || undefined)}
-    //                                                             title={new Date(doc.updatedAt).toLocaleString()}
-    //                                                         >
-    //                                                             {doc.fileName}
-    //                                                         </Button>
-    //                                                     ));
-    //                                                 })()}
-    //                                             </>
-    //                                         ) : (
-    //                                             <>
-    //                                                 <Chip
-    //                                                     label="Chưa có mẫu"
-    //                                                     color="warning"
-    //                                                     size="small"
-    //                                                     icon={<WarningIcon />}
-    //                                                 />
-    //                                                 <Button
-    //                                                     variant="outlined"
-    //                                                     color="warning"
-    //                                                     size="small"
-    //                                                     disabled
-    //                                                 >
-    //                                                     Không khả dụng
-    //                                                 </Button>
-    //                                             </>
-    //                                         )}
-    //                                     </Box>
-    //                                 </Box>
-    //                             </Paper>
-    //                         ))}
-
-    //                         {filteredRecords.length > 10 && (
-    //                             <Paper sx={{ p: 2, textAlign: 'center', mt: 2 }}>
-    //                                 <Typography
-    //                                     variant="body2"
-    //                                     color="text.secondary"
-    //                                     sx={{ mb: 2 }}
-    //                                 >
-    //                                     Hiển thị 10 / {filteredRecords.length} thủ tục.
-    //                                 </Typography>
-    //                                 <Button
-    //                                     variant="outlined"
-    //                                     onClick={() => setShowTemplateModal(true)}
-    //                                 >
-    //                                     Xem tất cả ({filteredRecords.length})
-    //                                 </Button>
-    //                             </Paper>
-    //                         )}
-
-    //                         {filteredRecords.length === 0 && (
-    //                             <Paper sx={{ p: 4, textAlign: 'center' }}>
-    //                                 <Typography variant="h6" color="text.secondary" sx={{ mb: 1 }}>
-    //                                     Không tìm thấy thủ tục nào
-    //                                 </Typography>
-    //                                 <Typography variant="body2" color="text.secondary">
-    //                                     Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp
-    //                                 </Typography>
-    //                             </Paper>
-    //                         )}
-    //                     </Box>
-    //                 </Box>
-    //             )}
-    //         </CardContent>
-    //     </Card>
-    // );
 
     const renderFilterControls = () => (
         <Card>
@@ -4065,7 +3847,7 @@ function ProceduresComponent() {
                 if (url.startsWith('working://')) {
                     return url.replace('working://', '').trim();
                 }
-                
+
                 const parts = url.split('/');
                 const idx = parts.indexOf('templates_by_code');
                 if (idx >= 0 && idx + 1 < parts.length) {
@@ -4172,22 +3954,34 @@ function ProceduresComponent() {
     // Download the currently selected template for user to customize
     const handleDownloadOriginalTemplate = useCallback(async () => {
         if (!state.selectedTemplatePath) return;
-        
+
         // Check if it's a working document from IndexedDB
         if (state.selectedTemplatePath.startsWith('working://')) {
             if (state.generatedBlob) {
                 // Use the blob directly for working documents
-                const baseName = (state.uploadedTemplateName || selectedTemplateNameFromPath || 'mau')
+                const baseName = (
+                    state.uploadedTemplateName ||
+                    selectedTemplateNameFromPath ||
+                    'mau'
+                )
                     .replace(/\s/g, '_')
                     .replace(/\.(docx?|DOCX?)$/, '');
                 saveAs(state.generatedBlob, `${baseName}.docx`);
-                setSnackbar({ open: true, message: 'Đã tải xuống tài liệu đã lưu', severity: 'success' });
+                setSnackbar({
+                    open: true,
+                    message: 'Đã tải xuống tài liệu đã lưu',
+                    severity: 'success'
+                });
             } else {
-                setSnackbar({ open: true, message: 'Không thể tải xuống tài liệu đã lưu', severity: 'error' });
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể tải xuống tài liệu đã lưu',
+                    severity: 'error'
+                });
             }
             return;
         }
-        
+
         try {
             const res = await fetch(state.selectedTemplatePath);
             if (!res.ok) throw new Error('Không thể tải file mẫu');
@@ -4199,7 +3993,12 @@ function ProceduresComponent() {
         } catch (e) {
             setSnackbar({ open: true, message: 'Không thể tải mẫu gốc', severity: 'error' });
         }
-    }, [state.selectedTemplatePath, state.uploadedTemplateName, selectedTemplateNameFromPath, state.generatedBlob]);
+    }, [
+        state.selectedTemplatePath,
+        state.uploadedTemplateName,
+        selectedTemplateNameFromPath,
+        state.generatedBlob
+    ]);
 
     // Upload a customized template and use it immediately
     const handleUploadCustomTemplate = useCallback(
@@ -4249,7 +4048,7 @@ function ProceduresComponent() {
 
             // Create object URL for the new file
             const url = URL.createObjectURL(file);
-            
+
             // Update state to replace current working document
             setState(prev => ({
                 ...prev,
@@ -4262,17 +4061,17 @@ function ProceduresComponent() {
 
             // Reset processing state
             resetProcessing();
-            
+
             // Clear any existing preview content
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
                 // Load the new document into Syncfusion editor
                 sfContainerRef.current.documentEditor.open(file);
             }
 
-            setSnackbar({ 
-                open: true, 
-                message: `Đã thay thế tài liệu hiện tại bằng "${file.name}"`, 
-                severity: 'success' 
+            setSnackbar({
+                open: true,
+                message: `Đã thay thế tài liệu hiện tại bằng "${file.name}"`,
+                severity: 'success'
             });
         },
         [resetProcessing, previewMode]
@@ -4285,14 +4084,14 @@ function ProceduresComponent() {
                     console.error('❌ maTTHC is required to save working document');
                     return;
                 }
-                
+
                 // Check if document already exists for this maTTHC
                 const byUpdated = await db.workingDocumentsV2
                     .where('maTTHC')
                     .equals(maTTHC)
                     .sortBy('updatedAt');
                 const existingDoc = byUpdated[byUpdated.length - 1];
-                
+
                 if (existingDoc) {
                     // Update existing document
                     const updatedRecord: WorkingDocument = {
@@ -4302,20 +4101,23 @@ function ProceduresComponent() {
                         blob,
                         updatedAt: Date.now()
                     };
-                    
+
                     if (existingDoc.id != null) {
                         await db.workingDocumentsV2.update(existingDoc.id, updatedRecord);
                     } else {
                         await db.workingDocumentsV2.add(updatedRecord);
                     }
-                    
+
                     // Update local state
                     setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: updatedRecord }));
                     setWorkingDocsListByCode(prev => ({
                         ...prev,
-                        [maTTHC]: [updatedRecord, ...(prev[maTTHC] || []).filter(d => d.id !== (existingDoc?.id))]
+                        [maTTHC]: [
+                            updatedRecord,
+                            ...(prev[maTTHC] || []).filter(d => d.id !== existingDoc?.id)
+                        ]
                     }));
-                    
+
                     console.log(`✅ Successfully updated existing working document in IndexedDB:`, {
                         maTTHC,
                         fileName,
@@ -4332,16 +4134,16 @@ function ProceduresComponent() {
                         blob,
                         updatedAt: Date.now()
                     };
-                    
+
                     await db.workingDocumentsV2.add(newRecord);
-                    
+
                     // Update local state
                     setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: newRecord }));
                     setWorkingDocsListByCode(prev => ({
                         ...prev,
                         [maTTHC]: [newRecord, ...(prev[maTTHC] || [])]
                     }));
-                    
+
                     console.log(`✅ Successfully created new working document in IndexedDB:`, {
                         maTTHC,
                         fileName,
@@ -4373,7 +4175,8 @@ function ProceduresComponent() {
 
             // Determine current content to save
             let blob: Blob | null = null;
-            let mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+            let mimeType =
+                'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
                 blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
@@ -4400,10 +4203,14 @@ function ProceduresComponent() {
             }
 
             // Determine whether to create a new entry or update the current working doc
-            const isWorkingContext = !!state.selectedTemplatePath && state.selectedTemplatePath.startsWith('working://');
+            const isWorkingContext =
+                !!state.selectedTemplatePath && state.selectedTemplatePath.startsWith('working://');
             const hasUploadedReplacement = !!state.uploadedTemplateUrl;
             // Create new if an uploaded replacement exists; else, if we have a current working doc id, update that one; otherwise create new
-            const shouldCreateNew = hasUploadedReplacement || !isWorkingContext || currentWorkingDocIdRef.current == null;
+            const shouldCreateNew =
+                hasUploadedReplacement ||
+                !isWorkingContext ||
+                currentWorkingDocIdRef.current == null;
 
             const byUpdated = await db.workingDocumentsV2
                 .where('maTTHC')
@@ -4413,7 +4220,9 @@ function ProceduresComponent() {
 
             let fileNameToSave: string;
             if (shouldCreateNew) {
-                const baseName = state.uploadedTemplateName || (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
+                const baseName =
+                    state.uploadedTemplateName ||
+                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
                 const safeBase = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
                 // make name unique by appending timestamp to avoid collisions
                 const ts = Date.now();
@@ -4428,7 +4237,9 @@ function ProceduresComponent() {
                 });
             } else {
                 // Update currently opened working doc (latest for this code)
-                const baseName = existingDoc?.fileName || (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
+                const baseName =
+                    existingDoc?.fileName ||
+                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
                 fileNameToSave = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
                 const updatedRecord: WorkingDocument = {
                     ...(existingDoc || { maTTHC: currentCode }),
@@ -4468,12 +4279,18 @@ function ProceduresComponent() {
 
             // Clear uploaded replacement marker after creating a new entry
             if (hasUploadedReplacement) {
-                setState(prev => ({ ...prev, uploadedTemplateUrl: null, uploadedTemplateName: null }));
+                setState(prev => ({
+                    ...prev,
+                    uploadedTemplateUrl: null,
+                    uploadedTemplateName: null
+                }));
             }
 
             setSnackbar({
                 open: true,
-                message: shouldCreateNew ? 'Đã lưu tài liệu mới' : 'Đã cập nhật tài liệu đang làm việc',
+                message: shouldCreateNew
+                    ? 'Đã lưu tài liệu mới'
+                    : 'Đã cập nhật tài liệu đang làm việc',
                 severity: 'success'
             });
         } catch (error) {
@@ -4484,7 +4301,17 @@ function ProceduresComponent() {
                 severity: 'error'
             });
         }
-    }, [extractCurrentCode, previewMode, state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, saveWorkingDocToDb, refreshWorkingDocuments]);
+    }, [
+        extractCurrentCode,
+        previewMode,
+        state.generatedBlob,
+        state.uploadedTemplateUrl,
+        state.uploadedTemplateName,
+        state.selectedTemplatePath,
+        displayTemplateName,
+        saveWorkingDocToDb,
+        refreshWorkingDocuments
+    ]);
 
     // Download the current working document (filled document, custom template, or original template)
     const handleDownloadWorkingDocument = useCallback(async () => {
@@ -4496,7 +4323,7 @@ function ProceduresComponent() {
                 selectedHtmlUrl: state.selectedHtmlUrl,
                 extractedCode: currentCode
             });
-            
+
             if (!currentCode) {
                 setSnackbar({
                     open: true,
@@ -4516,17 +4343,18 @@ function ProceduresComponent() {
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
-                mimeType = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                
+                mimeType =
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
                 // Save to IndexedDB
                 await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
-                
+
                 // Refresh working documents from IndexedDB
                 await refreshWorkingDocuments();
-                
+
                 // Download the file
                 saveAs(blob, fileName);
-                
+
                 setSnackbar({
                     open: true,
                     message: `Đã lưu và tải xuống tài liệu đã chỉnh sửa: ${fileName}`,
@@ -4535,24 +4363,25 @@ function ProceduresComponent() {
                 return;
             }
 
-
             // Priority 3: Save the filled document if available
             if (state.generatedBlob) {
                 const baseName = displayTemplateName || 'file';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 blob = state.generatedBlob;
-                mimeType = state.generatedBlob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                
+                mimeType =
+                    state.generatedBlob.type ||
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
                 // Save to IndexedDB
                 await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
-                
+
                 // Refresh working documents from IndexedDB
                 await refreshWorkingDocuments();
-                
+
                 // Download the file
                 saveAs(blob, fileName);
-                
+
                 setSnackbar({
                     open: true,
                     message: `Đã lưu và tải xuống tài liệu đã điền: ${fileName}`,
@@ -4568,17 +4397,19 @@ function ProceduresComponent() {
                 const baseName = state.uploadedTemplateName || 'mau_da_chinh';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
-                mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                
+                mimeType =
+                    blob.type ||
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
                 // Save to IndexedDB
                 await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
-                
+
                 // Refresh working documents from IndexedDB
                 await refreshWorkingDocuments();
-                
+
                 // Download the file
                 saveAs(blob, fileName);
-                
+
                 setSnackbar({
                     open: true,
                     message: `Đã lưu và tải xuống mẫu đã chỉnh: ${fileName}`,
@@ -4597,17 +4428,19 @@ function ProceduresComponent() {
                         const baseName = displayTemplateName || 'mau_goc';
                         const timestamp = Date.now();
                         fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
-                        mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                        
+                        mimeType =
+                            blob.type ||
+                            'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
                         // Save to IndexedDB
                         await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
-                        
+
                         // Refresh working documents from IndexedDB
                         await refreshWorkingDocuments();
-                        
+
                         // Download the file
                         saveAs(blob, fileName);
-                        
+
                         setSnackbar({
                             open: true,
                             message: `Đã lưu và tải xuống tài liệu đã lưu: ${fileName}`,
@@ -4623,24 +4456,26 @@ function ProceduresComponent() {
                         return;
                     }
                 }
-                
+
                 // For regular templates, fetch from URL
                 const response = await fetch(state.selectedTemplatePath);
                 blob = await response.blob();
                 const baseName = displayTemplateName || 'mau_goc';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
-                mimeType = blob.type || 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
-                
+                mimeType =
+                    blob.type ||
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+
                 // Save to IndexedDB
                 await saveWorkingDocToDb(currentCode, blob, fileName, mimeType);
-                
+
                 // Refresh working documents from IndexedDB
                 await refreshWorkingDocuments();
-                
+
                 // Download the file
                 saveAs(blob, fileName);
-                
+
                 setSnackbar({
                     open: true,
                     message: `Đã lưu và tải xuống mẫu gốc: ${fileName}`,
@@ -4663,7 +4498,17 @@ function ProceduresComponent() {
                 severity: 'error'
             });
         }
-    }, [state.generatedBlob, state.uploadedTemplateUrl, state.uploadedTemplateName, state.selectedTemplatePath, displayTemplateName, previewMode, extractCurrentCode, saveWorkingDocToDb, refreshWorkingDocuments]);
+    }, [
+        state.generatedBlob,
+        state.uploadedTemplateUrl,
+        state.uploadedTemplateName,
+        state.selectedTemplatePath,
+        displayTemplateName,
+        previewMode,
+        extractCurrentCode,
+        saveWorkingDocToDb,
+        refreshWorkingDocuments
+    ]);
 
     const handleLoadWorkingFromDb = useCallback(
         async (maTTHC: string, record: LocalEnhancedTTHCRecord, docId?: number) => {
@@ -4676,11 +4521,14 @@ function ProceduresComponent() {
                 } else {
                     doc = workingDocsByCode[maTTHC];
                     if (!doc) {
-                        const list = await db.workingDocumentsV2.where('maTTHC').equals(maTTHC).sortBy('updatedAt');
+                        const list = await db.workingDocumentsV2
+                            .where('maTTHC')
+                            .equals(maTTHC)
+                            .sortBy('updatedAt');
                         doc = list[list.length - 1];
                     }
                 }
-                
+
                 if (!doc) {
                     setSnackbar({
                         open: true,
@@ -4700,32 +4548,32 @@ function ProceduresComponent() {
                 // Create object URL for the blob
                 const objectUrl = URL.createObjectURL(doc.blob);
 
-                                    if (doc.mimeType === 'text/html') {
-                        // For HTML files, set as HTML URL but keep syncfusion mode
-                        setState(prev => ({
-                            ...prev,
-                            selectedTemplatePath: `working://${maTTHC}`,
-                            selectedHtmlUrl: objectUrl,
-                            generatedBlob: null,
-                            error: null
-                        }));
-                        
-                        // Keep syncfusion mode for consistency
-                    } else {
-                        // For DOCX and other binary files
-                        setState(prev => ({
-                            ...prev,
-                            selectedTemplatePath: `working://${maTTHC}`,
-                            selectedHtmlUrl: null,
-                            generatedBlob: doc.blob,
-                            error: null
-                        }));
-                        
-                        // Load directly into Syncfusion editor
-                        if (sfContainerRef.current?.documentEditor) {
-                            sfContainerRef.current.documentEditor.open(doc.blob);
-                        }
+                if (doc.mimeType === 'text/html') {
+                    // For HTML files, set as HTML URL but keep syncfusion mode
+                    setState(prev => ({
+                        ...prev,
+                        selectedTemplatePath: `working://${maTTHC}`,
+                        selectedHtmlUrl: objectUrl,
+                        generatedBlob: null,
+                        error: null
+                    }));
+
+                    // Keep syncfusion mode for consistency
+                } else {
+                    // For DOCX and other binary files
+                    setState(prev => ({
+                        ...prev,
+                        selectedTemplatePath: `working://${maTTHC}`,
+                        selectedHtmlUrl: null,
+                        generatedBlob: doc.blob,
+                        error: null
+                    }));
+
+                    // Load directly into Syncfusion editor
+                    if (sfContainerRef.current?.documentEditor) {
+                        sfContainerRef.current.documentEditor.open(doc.blob);
                     }
+                }
 
                 // Reset processing state and close modals
                 resetProcessing();
@@ -4738,7 +4586,9 @@ function ProceduresComponent() {
                     severity: 'success'
                 });
 
-                console.log(`✅ Loaded working document from IndexedDB: ${doc.fileName} for maTTHC: ${maTTHC}`);
+                console.log(
+                    `✅ Loaded working document from IndexedDB: ${doc.fileName} for maTTHC: ${maTTHC}`
+                );
             } catch (error) {
                 console.error('Lỗi khi mở tài liệu đã lưu từ IndexedDB:', error);
                 setSnackbar({
@@ -4753,41 +4603,6 @@ function ProceduresComponent() {
 
     return (
         <Box sx={{ width: '100%' }}>
-            {/* <Box
-                sx={{
-                    display: 'flex',
-                    justifyContent: 'space-between',
-                    alignItems: 'center',
-                    mb: 3
-                }}
-            >
-                <Box />
-                {state.selectedTemplatePath && (
-                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                        <Chip label={displayTemplateName} color="info" />
-                        <Button
-                            variant="contained"
-                            color="primary"
-                            startIcon={<RestartAltIcon />}
-                            onClick={handleReset}
-                            disabled={isProcessing}
-                        >
-                            Chọn mẫu khác
-                        </Button>
-                    </Box>
-                )}
-            </Box> */}
-
-            {/* Data Source is configured in Info > Settings; read from localStorage */}
-
-            {/* Data Input Section */}
-            {/* {state.selectedTemplatePath && renderDataInputSection()} */}
-
-            {/* Filter Controls */}
-            {/* {!state.selectedTemplatePath && renderFilterControls()} */}
-            {/* {renderFilter()} */}
-
-            {/* Preview section only, status panel removed for simpler UI */}
             {state.selectedTemplatePath ? (
                 <Paper sx={{ p: 3, height: 'fit-content' }}>
                     <Box
@@ -4797,10 +4612,15 @@ function ProceduresComponent() {
                             justifyContent: 'space-between'
                         }}
                     >
-                        {/* <Typography variant="h6" gutterBottom>
-                        {state.generatedBlob ? 'Xem trước tài liệu' : 'Xem trước mẫu'}
-                    </Typography> */}
-                        <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', justifyContent: 'space-between', width: '100%' }}>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                gap: 1,
+                                flexWrap: 'wrap',
+                                justifyContent: 'space-between',
+                                width: '100%'
+                            }}
+                        >
                             <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                 <Button
                                     variant="outlined"
@@ -4836,21 +4656,37 @@ function ProceduresComponent() {
                                     />
                                 </Button>
                             </Box>
-                            
+
                             <Box sx={{ display: 'flex', gap: 1 }}>
-                                <Button 
-                                    variant="outlined" 
+                                <Button
+                                    variant="outlined"
                                     startIcon={<DownloadIcon />}
                                     onClick={handleDownloadWorkingDocument}
-                                    disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
+                                    disabled={
+                                        !(
+                                            state.generatedBlob ||
+                                            state.uploadedTemplateUrl ||
+                                            state.selectedTemplatePath ||
+                                            (previewMode === 'syncfusion' &&
+                                                sfContainerRef.current?.documentEditor)
+                                        )
+                                    }
                                 >
                                     TẢI MẪU ĐÃ TÙY CHỈNH
                                 </Button>
-                                <Button 
-                                    variant="outlined" 
+                                <Button
+                                    variant="outlined"
                                     startIcon={<SaveIcon />}
                                     onClick={handleSaveWorkingDocument}
-                                    disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor))}
+                                    disabled={
+                                        !(
+                                            state.generatedBlob ||
+                                            state.uploadedTemplateUrl ||
+                                            state.selectedTemplatePath ||
+                                            (previewMode === 'syncfusion' &&
+                                                sfContainerRef.current?.documentEditor)
+                                        )
+                                    }
                                 >
                                     Lưu mẫu đã tùy chỉnh
                                 </Button>
@@ -4994,16 +4830,6 @@ function ProceduresComponent() {
                                                     color: 'primary'
                                                 },
                                                 {
-                                                    label: 'CCCD',
-                                                    value: '{cccd}',
-                                                    color: 'secondary'
-                                                },
-                                                {
-                                                    label: 'CMND',
-                                                    value: '{cmnd}',
-                                                    color: 'secondary'
-                                                },
-                                                {
                                                     label: 'Ngày sinh',
                                                     value: '{ngay_sinh}',
                                                     color: 'info'
@@ -5024,16 +4850,10 @@ function ProceduresComponent() {
                                                     color: 'warning'
                                                 },
                                                 {
-                                                    label: 'Nơi cấp',
-                                                    value: '{noi_cap}',
-                                                    color: 'error'
-                                                },
-                                                {
                                                     label: 'Ngày cấp',
                                                     value: '{ngay_cap}',
                                                     color: 'error'
                                                 },
-                                                // Thêm fields từ mobile
                                                 {
                                                     label: 'Số CCCD',
                                                     value: '{so_cccd}',
@@ -5045,34 +4865,19 @@ function ProceduresComponent() {
                                                     color: 'secondary'
                                                 },
                                                 {
-                                                    label: 'Ngày S',
-                                                    value: '{ns_ngay}',
+                                                    label: 'Ngày hiện tại',
+                                                    value: '{ngay_hientai}',
                                                     color: 'info'
                                                 },
                                                 {
-                                                    label: 'Tháng S',
-                                                    value: '{ns_thang}',
+                                                    label: 'Tháng hiện tại',
+                                                    value: '{thang_hientai}',
                                                     color: 'info'
                                                 },
                                                 {
-                                                    label: 'Năm S',
-                                                    value: '{ns_nam}',
+                                                    label: 'Năm hiện tại',
+                                                    value: '{nam_hientai}',
                                                     color: 'info'
-                                                },
-                                                {
-                                                    label: 'Ngày C',
-                                                    value: '{nc_ngay}',
-                                                    color: 'error'
-                                                },
-                                                {
-                                                    label: 'Tháng C',
-                                                    value: '{nc_thang}',
-                                                    color: 'error'
-                                                },
-                                                {
-                                                    label: 'Năm C',
-                                                    value: '{nc_nam}',
-                                                    color: 'error'
                                                 }
                                             ].map((field, index) => (
                                                 <Button
@@ -5116,7 +4921,14 @@ function ProceduresComponent() {
                                             💡 Click để chèn field vào vị trí con trỏ
                                         </Typography>
                                         {/* Quick input box (separate fields) */}
-                                        <Box sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}>
+                                        <Box
+                                            sx={{
+                                                mt: 2,
+                                                display: 'flex',
+                                                flexDirection: 'column',
+                                                gap: 1.5
+                                            }}
+                                        >
                                             <Typography variant="caption" color="text.secondary">
                                                 Nhập nhanh giá trị (tùy chọn)
                                             </Typography>
@@ -5143,16 +4955,29 @@ function ProceduresComponent() {
                                                     />
                                                 ))}
                                             </Box>
-                                            <Box sx={{ display: 'flex', gap: 1, justifyContent: 'flex-end' }}>
-                                                <Button size="small" color="inherit" onClick={handleClearQuickInputs}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    gap: 1,
+                                                    justifyContent: 'flex-end'
+                                                }}
+                                            >
+                                                <Button
+                                                    size="small"
+                                                    color="inherit"
+                                                    onClick={handleClearQuickInputs}
+                                                >
                                                     Xóa
                                                 </Button>
-                                                <Button size="small" variant="contained" onClick={handleApplyQuickInputs}>
+                                                <Button
+                                                    size="small"
+                                                    variant="contained"
+                                                    onClick={handleApplyQuickInputs}
+                                                >
                                                     Áp dụng
                                                 </Button>
                                             </Box>
                                         </Box>
-                                        
                                     </Box>
                                 )}
                             </div>
@@ -5563,7 +5388,9 @@ function ProceduresComponent() {
                         .filter(([, v]) => !!v)
                         .map(([k, v]) => [k, (v as WorkingDocument).fileName])
                 )}
-                onLoadSaved={rec => handleLoadWorkingFromDb(rec.maTTHC, rec as LocalEnhancedTTHCRecord)}
+                onLoadSaved={rec =>
+                    handleLoadWorkingFromDb(rec.maTTHC, rec as LocalEnhancedTTHCRecord)
+                }
             />
 
             {/* Processing Modal */}
