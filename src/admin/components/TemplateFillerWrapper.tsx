@@ -741,7 +741,7 @@ const TemplateCard = React.memo<{
                                             : 'Chọn mẫu'}
                                     </Button>
 
-                                    {hasTemplates && (
+                                    {/* {hasTemplates && (
                                         <Button
                                             variant="outlined"
                                             size="small"
@@ -773,7 +773,7 @@ const TemplateCard = React.memo<{
                                         >
                                             Thiết lập mẫu
                                         </Button>
-                                    )}
+                                    )} */}
                                 </>
                             )}
                         </Box>
