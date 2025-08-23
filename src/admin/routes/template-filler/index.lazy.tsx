@@ -1783,7 +1783,7 @@ function TemplateFillerComponent() {
                     <CardHeader
                         title="Danh sách mẫu đơn"
                         sx={{
-                            pb: 1,
+                            pb: 0,
                             '& .MuiCardHeader-title': {
                                 fontSize: '1.1rem',
                                 fontWeight: 600
@@ -2105,7 +2105,7 @@ function TemplateFillerComponent() {
                                 width: '100%',
                                 height: '100%',
                                 gap: { xs: 1, sm: 2 },
-                                p: { xs: 1, sm: 2 }
+                                p: { xs: 1, sm: 1 }
                             }}
                         >
                             <Card
@@ -2113,7 +2113,7 @@ function TemplateFillerComponent() {
                                     position: 'relative',
                                     height: { xs: '60%', lg: '100%' },
                                     width: { xs: '100%', lg: '70%' },
-                                    borderRadius: { xs: 1, sm: 2 },
+                                    borderRadius: { xs: 1, sm: 1 },
                                     boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                                     background: 'rgba(255,255,255,0.95)',
                                     overflow: 'hidden'
@@ -2124,7 +2124,7 @@ function TemplateFillerComponent() {
                                         background:
                                             'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                                         borderBottom: '1px solid rgba(0,0,0,0.1)',
-                                        p: 2,
+                                        p: 1,
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between'
@@ -2139,6 +2139,42 @@ function TemplateFillerComponent() {
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'flex', gap: 1 }}>
+                                        {/* Chọn đối tượng */}
+                                        <FormControl
+                                            size="small"
+                                            sx={{ maxWidth: 120, minWidth: 120 }}
+                                        >
+                                            <InputLabel>Đối tượng</InputLabel>
+                                            <Select
+                                                size="small"
+                                                value={targetState.selectedTarget}
+                                                label="Đối tượng"
+                                                onChange={e =>
+                                                    setTargetState(prev => ({
+                                                        ...prev,
+                                                        selectedTarget: e.target.value
+                                                    }))
+                                                }
+                                                disabled={
+                                                    targetState.availableTargets.length ===
+                                                    0
+                                                }
+                                            >
+                                                <MenuItem value="">
+                                                    <em>Mặc định</em>
+                                                </MenuItem>
+                                                {targetState.availableTargets.map(
+                                                    target => (
+                                                        <MenuItem
+                                                            key={target}
+                                                            value={target}
+                                                        >
+                                                            Đối tượng {target} (_{target})
+                                                        </MenuItem>
+                                                    )
+                                                )}
+                                            </Select>
+                                        </FormControl>
                                         <Button
                                             variant="outlined"
                                             color="secondary"
@@ -2194,6 +2230,7 @@ function TemplateFillerComponent() {
                                         >
                                             Khôi phục mẫu
                                         </Button>
+
                                         <Button
                                             variant="outlined"
                                             onClick={() => {
@@ -2352,7 +2389,7 @@ function TemplateFillerComponent() {
                                 >
                                     <Box sx={{ mb: 4 }}>
                                         {/* Target Selector - Chung cho cả 2 modes */}
-                                        <Box sx={{ mb: 3 }}>
+                                        {/* <Box sx={{ mb: 3 }}>
                                             <Typography
                                                 variant="body2"
                                                 color="text.secondary"
@@ -2425,7 +2462,7 @@ function TemplateFillerComponent() {
                                                     _3). Sử dụng chế độ "Mặc định" để điền dữ liệu.
                                                 </Typography>
                                             )}
-                                        </Box>
+                                        </Box> */}
                                         <Box
                                             sx={{
                                                 display: 'flex',
@@ -2607,7 +2644,7 @@ function TemplateFillerComponent() {
                                                     onChange={(
                                                         e: React.ChangeEvent<HTMLInputElement>
                                                     ) => handleInputTextChange(e.target.value)}
-                                                    placeholder="Ví dụ: 012345678901|012345678901|NGUYEN VAN A|01/01/1990|Nam|Hà Nội|01/01/2022"
+                                                    placeholder=""
                                                     variant="outlined"
                                                     sx={{
                                                         '& .MuiOutlinedInput-root': {
@@ -2791,17 +2828,16 @@ function TemplateFillerComponent() {
                             </IconButton>
                         </Box>
                     </Box>
-                    <DialogContent sx={{ p: 3 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                    <DialogContent sx={{ p: 1 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                             Vui lòng chọn một mẫu đơn từ danh sách bên dưới để tiếp tục:
                         </Typography>
-
                         {/* CSV Templates Section */}
                         {templateSelectionModal.record?.danhSachMauDon &&
                             templateSelectionModal.record.danhSachMauDon.length > 0 && (
                                 <>
                                     <Typography
-                                        variant="h6"
+                                        variant="body2"
                                         sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
                                     >
                                         Mẫu đơn hệ thống
@@ -2811,7 +2847,7 @@ function TemplateFillerComponent() {
                                             display: 'flex',
                                             flexDirection: 'column',
                                             gap: 2,
-                                            mb: 4
+                                            mb: 1
                                         }}
                                     >
                                         {templateSelectionModal.record.danhSachMauDon.map(
@@ -2820,7 +2856,7 @@ function TemplateFillerComponent() {
                                                     key={`csv-${index}`}
                                                     variant="outlined"
                                                     sx={{
-                                                        p: 3,
+                                                        p: 1,
                                                         borderRadius: 1,
                                                         border: '2px solid transparent',
                                                         background:
@@ -2835,7 +2871,6 @@ function TemplateFillerComponent() {
                                                         }
                                                     }}
                                                     onClick={() => {
-                                                        // Cập nhật selectedMauDon cho record
                                                         const updatedRecord = {
                                                             ...templateSelectionModal.record!,
                                                             selectedMauDon: mauDon
@@ -2870,14 +2905,14 @@ function TemplateFillerComponent() {
                                                     >
                                                         <Box sx={{ flex: 1 }}>
                                                             <Typography
-                                                                variant="h6"
+                                                                variant="body2"
                                                                 sx={{ fontWeight: 600, mb: 1 }}
                                                             >
                                                                 {mauDon.tenFile}
                                                             </Typography>
                                                             {mauDon.tenGiayTo && (
                                                                 <Typography
-                                                                    variant="body2"
+                                                                    variant="body1"
                                                                     color="text.secondary"
                                                                 >
                                                                     {mauDon.tenGiayTo}
@@ -2931,10 +2966,10 @@ function TemplateFillerComponent() {
                             hasWorkingDocuments(templateSelectionModal.record.maTTHC) && (
                                 <>
                                     <Typography
-                                        variant="h6"
-                                        sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
+                                        variant="body2"
+                                        sx={{ mb: 1, color: 'primary.main', fontWeight: 600 }}
                                     >
-                                        Mẫu đơn được thiết lập
+                                        Mẫu đơn đã thiết lập
                                     </Typography>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                         {getWorkingDocumentsForMaTTHC(
@@ -3003,7 +3038,7 @@ function TemplateFillerComponent() {
                                                 >
                                                     <Box sx={{ flex: 1 }}>
                                                         <Typography
-                                                            variant="h6"
+                                                            variant="body2"
                                                             sx={{ fontWeight: 600, mb: 1 }}
                                                         >
                                                             {workingDoc.fileName}

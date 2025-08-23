@@ -69,13 +69,13 @@ const scanningItems: NavigationItem[] = [
     //     path: '/forms'
     //     // badge: 'NEW'
     // },
-    {
-        id: 'word-mapper',
-        label: 'Mẫu đơn, tờ khai',
-        icon: <WordMapperIcon />,
-        path: '/word-mapper',
-        badge: 'NEW'
-    },
+    // {
+    //     id: 'word-mapper',
+    //     label: 'Mẫu đơn, tờ khai',
+    //     icon: <WordMapperIcon />,
+    //     path: '/word-mapper',
+    //     badge: 'NEW'
+    // },
     {
         id: 'template-filler',
         label: 'Soạn thảo mẫu',
