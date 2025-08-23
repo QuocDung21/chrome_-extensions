@@ -1,10 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-
 // --- THƯ VIỆN ---
 import { Socket, io } from 'socket.io-client';
-
+import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
 // --- ICON ---
-
 import {
     AddCircleOutline as AddCircleOutlineIcon,
     Badge as BadgeIcon,
@@ -24,6 +22,7 @@ import {
     Star,
     Wc as WcIcon,
     Wifi as WifiIcon
+    , MoreHoriz
 } from '@mui/icons-material';
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
@@ -44,6 +43,7 @@ import {
     DialogTitle,
     FormControl,
     Grid,
+    Icon,
     IconButton,
     InputLabel,
     MenuItem,
@@ -53,6 +53,7 @@ import {
     Snackbar,
     Stack,
     TextField,
+    Tooltip,
     Typography
 } from '@mui/material';
 import Divider from '@mui/material/Divider';
@@ -540,7 +541,7 @@ const TemplateCard = React.memo<{
                                     fontWeight="500"
                                 >
                                     Mã thủ tục:
-                                </Typography>{' '}
+                                </Typography>
                                 {record.maTTHC}
                             </Typography>
                             <Typography variant="body2" color="text.secondary">
@@ -1777,7 +1778,7 @@ function TemplateFillerComponent() {
                         background: 'rgba(255,255,255,0.95)',
                         border: '1px solid rgba(255,255,255,0.2)',
                         transition: 'all 0.3s ease',
-                        height: '90vh'
+                        height: '90vh',
                     }}
                 >
                     <CardHeader
@@ -1975,6 +1976,7 @@ function TemplateFillerComponent() {
                                             getWorkingDocumentsForMaTTHC(record.maTTHC).length
                                         }
                                     />
+
                                 ))}
                                 {availableTemplates.length === 0 && (
                                     <Paper
@@ -2104,15 +2106,15 @@ function TemplateFillerComponent() {
                                 flexDirection: { xs: 'column', lg: 'row' },
                                 width: '100%',
                                 height: '100%',
-                                gap: { xs: 1, sm: 2 },
-                                p: { xs: 1, sm: 1 }
+                                gap: { xs: .5, sm: .5 },
+                                p: { xs: .5, sm: .5 }
                             }}
                         >
                             <Card
                                 sx={{
                                     position: 'relative',
                                     height: { xs: '60%', lg: '100%' },
-                                    width: { xs: '100%', lg: '70%' },
+                                    width: { xs: '100%', lg: '75%' },
                                     borderRadius: { xs: 1, sm: 1 },
                                     boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
                                     background: 'rgba(255,255,255,0.95)',
@@ -2139,98 +2141,63 @@ function TemplateFillerComponent() {
                                         </Typography>
                                     </Box>
                                     <Box sx={{ display: 'flex', gap: 1 }}>
-                                        {/* Chọn đối tượng */}
-                                        <FormControl
-                                            size="small"
-                                            sx={{ maxWidth: 120, minWidth: 120 }}
-                                        >
-                                            <InputLabel>Đối tượng</InputLabel>
-                                            <Select
+                                        <Tooltip title="Làm mới tài liệu về mặc định">
+                                            <Button
+                                                variant="outlined"
+                                                color="secondary"
                                                 size="small"
-                                                value={targetState.selectedTarget}
-                                                label="Đối tượng"
-                                                onChange={e =>
-                                                    setTargetState(prev => ({
-                                                        ...prev,
-                                                        selectedTarget: e.target.value
-                                                    }))
-                                                }
-                                                disabled={
-                                                    targetState.availableTargets.length ===
-                                                    0
-                                                }
-                                            >
-                                                <MenuItem value="">
-                                                    <em>Mặc định</em>
-                                                </MenuItem>
-                                                {targetState.availableTargets.map(
-                                                    target => (
-                                                        <MenuItem
-                                                            key={target}
-                                                            value={target}
-                                                        >
-                                                            Đối tượng {target} (_{target})
-                                                        </MenuItem>
-                                                    )
-                                                )}
-                                            </Select>
-                                        </FormControl>
-                                        <Button
-                                            variant="outlined"
-                                            color="secondary"
-                                            size="small"
-                                            onClick={async () => {
-                                                try {
-                                                    const resetSuccess =
-                                                        await resetDocumentToOriginal(
-                                                            sfContainerRef.current,
-                                                            targetState.originalSfdt
-                                                        );
-
-                                                    if (resetSuccess) {
-                                                        const availableSuffixes =
-                                                            scanDocumentForSuffixes(
-                                                                sfContainerRef.current
+                                                onClick={async () => {
+                                                    try {
+                                                        const resetSuccess =
+                                                            await resetDocumentToOriginal(
+                                                                sfContainerRef.current,
+                                                                targetState.originalSfdt
                                                             );
 
-                                                        setTargetState(prev => ({
-                                                            ...prev,
-                                                            availableTargets: availableSuffixes,
-                                                            selectedTarget: '',
-                                                            usedTargets: []
-                                                        }));
+                                                        if (resetSuccess) {
+                                                            const availableSuffixes =
+                                                                scanDocumentForSuffixes(
+                                                                    sfContainerRef.current
+                                                                );
 
-                                                        setSnackbar({
-                                                            open: true,
-                                                            message:
-                                                                'Đã reset mẫu về trạng thái ban đầu',
-                                                            severity: 'success'
-                                                        });
-                                                    } else {
+                                                            setTargetState(prev => ({
+                                                                ...prev,
+                                                                availableTargets: availableSuffixes,
+                                                                selectedTarget: '',
+                                                                usedTargets: []
+                                                            }));
+
+                                                            setSnackbar({
+                                                                open: true,
+                                                                message:
+                                                                    'Đã làm mới mẫu',
+                                                                severity: 'success'
+                                                            });
+                                                        } else {
+                                                            setSnackbar({
+                                                                open: true,
+                                                                message: 'Lỗi khi reset mẫu',
+                                                                severity: 'error'
+                                                            });
+                                                        }
+                                                    } catch (error) {
+                                                        console.error(
+                                                            '❌ Error in reset handler:',
+                                                            error
+                                                        );
                                                         setSnackbar({
                                                             open: true,
                                                             message: 'Lỗi khi reset mẫu',
                                                             severity: 'error'
                                                         });
                                                     }
-                                                } catch (error) {
-                                                    console.error(
-                                                        '❌ Error in reset handler:',
-                                                        error
-                                                    );
-                                                    setSnackbar({
-                                                        open: true,
-                                                        message: 'Lỗi khi reset mẫu',
-                                                        severity: 'error'
-                                                    });
-                                                }
-                                            }}
-                                            startIcon={<RestartAltIcon />}
-                                            sx={{ textTransform: 'none' }}
-                                        >
-                                            Khôi phục mẫu
-                                        </Button>
-
+                                                }}
+                                                startIcon={<RestartAltIcon />}
+                                                sx={{ textTransform: 'none' }}
+                                            >
+                                                Làm mới dữ liệu
+                                            </Button>
+                                        </Tooltip>
                                         <Button
                                             variant="outlined"
                                             onClick={() => {
@@ -2291,6 +2258,50 @@ function TemplateFillerComponent() {
                                         >
                                             In
                                         </Button>
+                                        {/* Chọn đối tượng */}
+                                        <Tooltip title="Chọn đối tượng _1 _2 _3 để chèn dữ liệu vào tài liệu nếu không có sẽ tự động chọn mặc định">
+                                            <FormControl
+                                                size="small"
+                                                sx={{ maxWidth: 120, minWidth: 120, }}
+                                            >
+                                                <InputLabel>Đối tượng</InputLabel>
+                                                <Select
+                                                    size="small"
+                                                    value={targetState.selectedTarget}
+                                                    label="Đối tượng"
+                                                    variant='outlined'
+                                                    color='primary'
+                                                    onChange={e =>
+                                                        setTargetState(prev => ({
+                                                            ...prev,
+                                                            selectedTarget: e.target.value
+                                                        }))
+                                                    }
+                                                    disabled={
+                                                        targetState.availableTargets.length ===
+                                                        0
+                                                    }
+                                                >
+                                                    <MenuItem value="">
+                                                        <em>Mặc định</em>
+                                                    </MenuItem>
+                                                    {targetState.availableTargets.map(
+                                                        target => (
+                                                            <MenuItem
+                                                                key={target}
+                                                                value={target}
+                                                            >
+                                                                Đối tượng {target} (_{target})
+                                                            </MenuItem>
+                                                        )
+                                                    )}
+                                                </Select>
+                                            </FormControl>
+                                        </Tooltip>
+
+                                        {/* <IconButton>
+                                            <PriorityHighIcon />
+                                        </IconButton> */}
                                     </Box>
                                 </Box>
                                 <CardContent
@@ -2376,7 +2387,7 @@ function TemplateFillerComponent() {
                             </Card>
                             <Card
                                 sx={{
-                                    width: { xs: '100%', lg: '30%' },
+                                    width: { xs: '100%', lg: '25%' },
                                     height: { xs: '40%', lg: '100%' },
                                     borderRadius: { xs: 1, sm: 2 },
                                     boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
@@ -2385,7 +2396,7 @@ function TemplateFillerComponent() {
                                 }}
                             >
                                 <CardContent
-                                    sx={{ p: 3, height: 'calc(100% - 60px)', overflow: 'auto' }}
+                                    sx={{ p: 1, height: 'calc(100% - 60px)', overflow: 'auto' }}
                                 >
                                     <Box sx={{ mb: 4 }}>
                                         {/* Target Selector - Chung cho cả 2 modes */}
@@ -2694,7 +2705,6 @@ function TemplateFillerComponent() {
                                                 subValue: (() => {
                                                     if (!editorState.selectedRecord?.linhVuc)
                                                         return null;
-                                                    // Tìm maLinhVuc tương ứng với tenLinhVuc
                                                     const linhVuc = linhVucList.find(
                                                         lv =>
                                                             lv.tenLinhVuc ===
@@ -2840,14 +2850,15 @@ function TemplateFillerComponent() {
                                         variant="body2"
                                         sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
                                     >
-                                        Mẫu đơn hệ thống
+                                        1. Mẫu đơn hệ thống
                                     </Typography>
                                     <Box
                                         sx={{
                                             display: 'flex',
                                             flexDirection: 'column',
-                                            gap: 2,
-                                            mb: 1
+                                            gap: 1,
+                                            mb: 1,
+
                                         }}
                                     >
                                         {templateSelectionModal.record.danhSachMauDon.map(
@@ -2858,7 +2869,7 @@ function TemplateFillerComponent() {
                                                     sx={{
                                                         p: 1,
                                                         borderRadius: 1,
-                                                        border: '2px solid transparent',
+                                                        border: '1px solid #f3f6f4',
                                                         background:
                                                             'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                                                         cursor: 'pointer',
@@ -2935,7 +2946,7 @@ function TemplateFillerComponent() {
                                                     >
                                                         <Button
                                                             variant="contained"
-                                                            size="medium"
+                                                            size="small"
                                                             startIcon={<EditIcon />}
                                                             sx={{
                                                                 borderRadius: 1,
@@ -2967,9 +2978,9 @@ function TemplateFillerComponent() {
                                 <>
                                     <Typography
                                         variant="body2"
-                                        sx={{ mb: 1, color: 'primary.main', fontWeight: 600 }}
+                                        sx={{ mb: 1, color: 'primary.main', fontWeight: 600, textTransform: 'underline' }}
                                     >
-                                        Mẫu đơn đã thiết lập
+                                        2. Mẫu đơn đã thiết lập
                                     </Typography>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                         {getWorkingDocumentsForMaTTHC(
@@ -2979,9 +2990,9 @@ function TemplateFillerComponent() {
                                                 key={`indexeddb-${index}`}
                                                 variant="outlined"
                                                 sx={{
-                                                    p: 3,
+                                                    p: 1,
                                                     borderRadius: 1,
-                                                    border: '2px solid transparent',
+                                                    border: '1px solid #f3f6f4',
                                                     background:
                                                         'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
                                                     cursor: 'pointer',
@@ -3024,7 +3035,7 @@ function TemplateFillerComponent() {
 
                                                     setSnackbar({
                                                         open: true,
-                                                        message: `Đang tải mẫu từ IndexedDB: ${workingDoc.fileName}`,
+                                                        message: `Đang tải mẫu: ${workingDoc.fileName}`,
                                                         severity: 'info'
                                                     });
                                                 }}
@@ -3066,7 +3077,7 @@ function TemplateFillerComponent() {
                                                 >
                                                     <Button
                                                         variant="contained"
-                                                        size="medium"
+                                                        size="small"
                                                         startIcon={<EditIcon />}
                                                         sx={{
                                                             borderRadius: 1,
