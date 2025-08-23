@@ -647,6 +647,17 @@ const useDocumentProcessor = () => {
 };
 
 // --- UTILITY FUNCTIONS ---
+// Helper function to decode URL-encoded filenames
+const decodeFileName = (fileName: string): string => {
+    try {
+        // Decode URL-encoded characters
+        return decodeURIComponent(fileName);
+    } catch {
+        // If decoding fails, return the original filename
+        return fileName;
+    }
+};
+
 const fillWordTemplate = async (
     templateArrayBuffer: ArrayBuffer,
     jsonData: ProcessingData
@@ -4002,9 +4013,11 @@ function ProceduresComponent() {
             const res = await fetch(state.selectedTemplatePath);
             if (!res.ok) throw new Error('Không thể tải file mẫu');
             const blob = await res.blob();
-            const baseName = (state.uploadedTemplateName || selectedTemplateNameFromPath || 'mau')
-                .replace(/\s/g, '_')
-                .replace(/\.(docx?|DOCX?)$/, '');
+            const baseName = decodeFileName(
+                state.uploadedTemplateName || 
+                selectedTemplateNameFromPath || 
+                'mau'
+            ).replace(/\s/g, '_').replace(/\.(docx?|DOCX?)$/, '');
             saveAs(blob, `${baseName}.docx`);
         } catch (e) {
             setSnackbar({ open: true, message: 'Không thể tải mẫu gốc', severity: 'error' });
@@ -4236,9 +4249,10 @@ function ProceduresComponent() {
 
             let fileNameToSave: string;
             if (shouldCreateNew) {
-                const baseName =
+                const baseName = decodeFileName(
                     state.uploadedTemplateName ||
-                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
+                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx')
+                );
                 const safeBase = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
                 // make name unique by appending timestamp to avoid collisions
                 const ts = Date.now();
@@ -4253,9 +4267,10 @@ function ProceduresComponent() {
                 });
             } else {
                 // Update currently opened working doc (latest for this code)
-                const baseName =
+                const baseName = decodeFileName(
                     existingDoc?.fileName ||
-                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx');
+                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx')
+                );
                 fileNameToSave = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
                 const updatedRecord: WorkingDocument = {
                     ...(existingDoc || { maTTHC: currentCode }),
@@ -4355,7 +4370,7 @@ function ProceduresComponent() {
 
             // Priority 1: If Syncfusion editor is active and ready, save the current edited content
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
-                const baseName = displayTemplateName || 'file';
+                const baseName = decodeFileName(displayTemplateName) || 'file';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
@@ -4381,7 +4396,7 @@ function ProceduresComponent() {
 
             // Priority 3: Save the filled document if available
             if (state.generatedBlob) {
-                const baseName = displayTemplateName || 'file';
+                const baseName = decodeFileName(displayTemplateName) || 'file';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 blob = state.generatedBlob;
@@ -4410,7 +4425,7 @@ function ProceduresComponent() {
             if (state.uploadedTemplateUrl) {
                 const response = await fetch(state.uploadedTemplateUrl);
                 blob = await response.blob();
-                const baseName = state.uploadedTemplateName || 'mau_da_chinh';
+                const baseName = decodeFileName(state.uploadedTemplateName || '') || 'mau_da_chinh';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 mimeType =
@@ -4441,7 +4456,7 @@ function ProceduresComponent() {
                     if (state.generatedBlob) {
                         // Use the blob directly for working documents
                         blob = state.generatedBlob;
-                        const baseName = displayTemplateName || 'mau_goc';
+                        const baseName = decodeFileName(displayTemplateName) || 'mau_goc';
                         const timestamp = Date.now();
                         fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                         mimeType =
@@ -4476,7 +4491,7 @@ function ProceduresComponent() {
                 // For regular templates, fetch from URL
                 const response = await fetch(state.selectedTemplatePath);
                 blob = await response.blob();
-                const baseName = displayTemplateName || 'mau_goc';
+                const baseName = decodeFileName(displayTemplateName) || 'mau_goc';
                 const timestamp = Date.now();
                 fileName = `${currentCode}_${baseName.replace(/\s/g, '_')}_${timestamp}.docx`;
                 mimeType =
@@ -4731,111 +4746,6 @@ function ProceduresComponent() {
                         </Box>
                     </Box>
                     {/* Quick search & template list (borrowed from template-filler UX) */}
-                    <Card sx={{ mb: 2 }}>
-                        <CardContent>
-                            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
-                                <TextField
-                                    size="small"
-                                    value={quickSearchText}
-                                    onChange={e => setQuickSearchText(e.target.value)}
-                                    placeholder="Tìm kiếm thủ tục, mã, lĩnh vực..."
-                                    variant="outlined"
-                                    sx={{ minWidth: 220, flex: 1 }}
-                                />
-                                <FormControl size="small" sx={{ minWidth: 220 }}>
-                                    <InputLabel>Lĩnh vực</InputLabel>
-                                    <Select
-                                        value={filters.linhVuc}
-                                        label="Lĩnh vực"
-                                        onChange={e => handleFilterChange('linhVuc', e.target.value)}
-                                    >
-                                        <MenuItem value="">
-                                            <em>Tất cả</em>
-                                        </MenuItem>
-                                        {filterOptions.linhVuc.map(item => (
-                                            <MenuItem key={item} value={item}>
-                                                {item}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                                <FormControl size="small" sx={{ minWidth: 220 }}>
-                                    <InputLabel>Thủ tục</InputLabel>
-                                    <Select
-                                        value={filters.thuTuc}
-                                        label="Thủ tục"
-                                        onChange={e => handleFilterChange('thuTuc', e.target.value)}
-                                        disabled={!filters.linhVuc}
-                                    >
-                                        <MenuItem value="">
-                                            <em>Tất cả</em>
-                                        </MenuItem>
-                                        {availableThuTuc.map(item => (
-                                            <MenuItem key={item} value={item}>
-                                                {item}
-                                            </MenuItem>
-                                        ))}
-                                    </Select>
-                                </FormControl>
-                            </Box>
-
-                            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 1 }}>
-                                <Typography variant="body2" color="text.secondary">
-                                    Mẫu sẵn sàng: {quickAvailableTemplates.length}
-                                </Typography>
-                                <Button size="small" onClick={() => { setQuickSearchText(''); handleClearFilters(); }}>
-                                    Xóa bộ lọc
-                                </Button>
-                            </Box>
-
-                            {/* Template List */}
-                            <Box sx={{ maxHeight: 260, overflowY: 'auto' }}>
-                                {quickAvailableTemplates.slice(0, 50).map((record, index) => (
-                                    <Paper
-                                        key={`${record.maTTHC}-${index}`}
-                                        variant="outlined"
-                                        sx={{ p: 1.5, mb: 1, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 1 }}
-                                    >
-                                        <Box sx={{ minWidth: 0, flex: 1 }}>
-                                            <Typography variant="body2" sx={{ fontWeight: 600 }} noWrap>
-                                                {record.tenTTHC}
-                                            </Typography>
-                                            <Typography variant="caption" color="text.secondary" noWrap>
-                                                {record.maTTHC} • {record.linhVuc}
-                                            </Typography>
-                                        </Box>
-                                        <Box sx={{ display: 'flex', gap: 1, flexShrink: 0 }}>
-                                            <Button
-                                                size="small"
-                                                variant="outlined"
-                                                onClick={e => {
-                                                    e.stopPropagation();
-                                                    handleTemplateFromCSV(record);
-                                                }}
-                                            >
-                                                Chọn
-                                            </Button>
-                                            <Button
-                                                size="small"
-                                                variant="contained"
-                                                onClick={e => {
-                                                    e.stopPropagation();
-                                                    handleOpenProcessingModal(record);
-                                                }}
-                                            >
-                                                Xử lý
-                                            </Button>
-                                        </Box>
-                                    </Paper>
-                                ))}
-                                {quickAvailableTemplates.length === 0 && (
-                                    <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                                        Không có mẫu phù hợp.
-                                    </Typography>
-                                )}
-                            </Box>
-                        </CardContent>
-                    </Card>
 
                     <Divider sx={{ mb: 2 }} />
                     <Paper
