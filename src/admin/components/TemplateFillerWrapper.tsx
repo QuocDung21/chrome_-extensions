@@ -1124,7 +1124,7 @@ function TemplateFillerComponent({
     const navigate = useNavigate();
     const templatePathRef = useRef<string>('');
     const { history } = useRouter();
-    const currentWorkingDocIdRef = useRef<number | null>(null);
+    const currentWorkingDocIdRef = useRef<number | null | undefined>(null);
     const [selectedRecord, setSelectedRecord] = useState<LocalEnhancedTTHCRecord | null>(null);
     const [showTemplateModal, setShowTemplateModal] = useState(false);
 
@@ -1617,8 +1617,8 @@ function TemplateFillerComponent({
             }
 
             // Simplified logic: determine if we should update existing or create new
-            let shouldUpdateExisting = currentWorkingDocIdRef.current != null && 
-                !state.uploadedTemplateUrl; // Don't update if we have a new uploaded template
+            let shouldUpdateExisting =
+                currentWorkingDocIdRef.current != null && !state.uploadedTemplateUrl; // Don't update if we have a new uploaded template
 
             let fileNameToSave: string;
 
@@ -1630,22 +1630,27 @@ function TemplateFillerComponent({
 
             if (shouldUpdateExisting) {
                 // UPDATE CASE: Update the existing working document
-                console.log('🔄 Updating existing working document with ID:', currentWorkingDocIdRef.current);
-                
+                console.log(
+                    '🔄 Updating existing working document with ID:',
+                    currentWorkingDocIdRef.current
+                );
+
                 try {
                     // Get the existing document to preserve its filename
-                    const existingDoc = await db.workingDocumentsV2.get(currentWorkingDocIdRef.current!);
+                    const existingDoc = await db.workingDocumentsV2.get(
+                        currentWorkingDocIdRef.current!
+                    );
                     if (existingDoc) {
                         // Preserve the original filename when updating
                         fileNameToSave = existingDoc.fileName;
-                        
+
                         await db.workingDocumentsV2.update(currentWorkingDocIdRef.current!, {
                             fileName: fileNameToSave,
                             mimeType,
                             blob,
                             updatedAt: Date.now()
                         });
-                        
+
                         console.log('✅ Successfully updated existing working document:', {
                             id: currentWorkingDocIdRef.current,
                             fileName: fileNameToSave,
@@ -1662,11 +1667,11 @@ function TemplateFillerComponent({
                     shouldUpdateExisting = false;
                 }
             }
-            
+
             if (!shouldUpdateExisting) {
                 // CREATE NEW CASE: Create a new working document entry
                 console.log('🆕 Creating new working document entry');
-                
+
                 // Generate a meaningful filename
                 let baseName = 'mau_da_chinh';
                 if (state.uploadedTemplateName) {
@@ -1674,20 +1679,23 @@ function TemplateFillerComponent({
                 } else if (displayTemplateName) {
                     baseName = displayTemplateName;
                 } else if (editorState.selectedRecord?.selectedMauDon?.tenFile) {
-                    baseName = editorState.selectedRecord.selectedMauDon.tenFile.replace(/\.docx$/i, '');
+                    baseName = editorState.selectedRecord.selectedMauDon.tenFile.replace(
+                        /\.docx$/i,
+                        ''
+                    );
                 }
-                
+
                 console.log('🔍 Filename generation:', {
                     uploadedTemplateName: state.uploadedTemplateName,
                     displayTemplateName,
                     selectedMauDonFile: editorState.selectedRecord?.selectedMauDon?.tenFile,
                     finalBaseName: baseName
                 });
-                
+
                 // Make filename unique with timestamp
                 const timestamp = new Date().toISOString().slice(0, 19).replace(/:/g, '-');
                 fileNameToSave = `${baseName}_${timestamp}.docx`;
-                
+
                 // Create new document
                 const newId = await db.workingDocumentsV2.add({
                     maTTHC: currentCode,
@@ -1696,10 +1704,10 @@ function TemplateFillerComponent({
                     blob,
                     updatedAt: Date.now()
                 });
-                
+
                 // Update the current working doc reference
                 currentWorkingDocIdRef.current = Number(newId);
-                
+
                 console.log('✅ Successfully created new working document:', {
                     id: newId,
                     fileName: fileNameToSave,
@@ -4205,9 +4213,21 @@ function TemplateFillerComponent({
                                                         syncfusionDocumentReady: false
                                                     }));
 
+                                                    // Set the current working doc reference
+                                                    currentWorkingDocIdRef.current = workingDoc.id;
+
+                                                    // Reset uploadedTemplateUrl để không bị coi như upload mới
+                                                    setState(prev => ({
+                                                        ...prev,
+                                                        uploadedTemplateUrl: null,
+                                                        uploadedTemplateName: null,
+                                                        selectedTemplatePath: `working://${templateSelectionModal.record!.maTTHC}`,
+                                                        generatedBlob: workingDoc.blob // nếu bạn load sẵn blob
+                                                    }));
+
                                                     setSnackbar({
                                                         open: true,
-                                                        message: `Đang tải mẫu từ IndexedDB: ${workingDoc.fileName}`,
+                                                        message: `Đang tải mẫu đã thiết lập: ${workingDoc.fileName}`,
                                                         severity: 'info'
                                                     });
                                                 }}
