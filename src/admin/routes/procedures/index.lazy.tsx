@@ -4655,7 +4655,7 @@ function ProceduresComponent() {
                 />
             </Box>
 
-            {state.selectedTemplatePath ? (
+            {/* {state.selectedTemplatePath ? (
                 <Paper sx={{ p: 3, height: 'fit-content' }}>
                     <Box
                         sx={{
@@ -4745,7 +4745,7 @@ function ProceduresComponent() {
                             </Box>
                         </Box>
                     </Box>
-                    {/* Quick search & template list (borrowed from template-filler UX) */}
+
 
                     <Divider sx={{ mb: 2 }} />
                     <Paper
@@ -4782,7 +4782,7 @@ function ProceduresComponent() {
                                 }, 50);
                             }}
                         />
-                    )} */}
+                    )} 
                         {previewMode === 'syncfusion' && (
                             <div style={{ width: '100%', minHeight: '70vh', position: 'relative' }}>
                                 {syncfusionLoading && (
@@ -4845,7 +4845,6 @@ function ProceduresComponent() {
                                     locale="vi-VN"
                                 />
 
-                                {/* Quick Insert Field Panel */}
                                 {syncfusionDocumentReady && (
                                     <Box
                                         sx={{
@@ -4974,7 +4973,7 @@ function ProceduresComponent() {
                                         >
                                             💡 Click để chèn field vào vị trí con trỏ
                                         </Typography>
-                                        {/* Quick input box (separate fields) */}
+                               
                                         <Box
                                             sx={{
                                                 mt: 2,
@@ -5055,7 +5054,7 @@ function ProceduresComponent() {
                         Chọn mẫu đơn
                     </Button>
                 </Paper>
-            )}
+            )} */}
 
             {/* Dialog: Hướng dẫn chèn {field} */}
             <Dialog
