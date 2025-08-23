@@ -839,7 +839,7 @@ function TemplateFillerComponent() {
 
     const handlePrintClick = async () => {
         if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            await sfContainerRef.current.documentEditor.print();
+            await sfContainerRef.current.documentEditor.print(window);
             await window.print();
             await history.back();
             await navigate({
@@ -1789,66 +1789,66 @@ function TemplateFillerComponent() {
                                 fontWeight: 600
                             }
                         }}
-                        // action={
-                        //     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        //         <Button
-                        //             variant="outlined"
-                        //             size="small"
-                        //             onClick={refreshWorkingDocuments}
-                        //             disabled={workingDocsState.isLoading}
-                        //             startIcon={<RestartAltIcon />}
-                        //             sx={{
-                        //                 borderRadius: 1,
-                        //                 textTransform: 'none',
-                        //                 fontWeight: 600,
-                        //                 borderColor: 'success.main',
-                        //                 color: 'success.main',
-                        //                 '&:hover': {
-                        //                     borderColor: 'success.dark',
-                        //                     backgroundColor: 'success.light',
-                        //                     color: 'success.dark'
-                        //                 }
-                        //             }}
-                        //         >
-                        //             {workingDocsState.isLoading ? 'Đang tải...' : '🔄 Làm mới IndexedDB'}
-                        //         </Button>
-                        //         <Chip
-                        //             icon={<CheckCircleIcon />}
-                        //             label={`${availableTemplates.length} có sẵn`}
-                        //             color="success"
-                        //             size="small"
-                        //             variant="filled"
-                        //             sx={{
-                        //                 fontWeight: 600,
-                        //                 '& .MuiChip-icon': {
-                        //                     color: 'inherit'
-                        //                 }
-                        //             }}
-                        //         />
-                        //         <Chip
-                        //             label={`${filteredRecords.length} tổng cộng`}
-                        //             color="primary"
-                        //             size="small"
-                        //             variant="outlined"
-                        //             sx={{ fontWeight: 500 }}
-                        //         />
-                        //         {/* IndexedDB working documents count */}
-                        //         {Object.keys(workingDocsState.workingDocsListByCode).length > 0 && (
-                        //             <Chip
-                        //                 icon={<Star />}
-                        //                 label={`${Object.keys(workingDocsState.workingDocsListByCode).length} từ IndexedDB`}
-                        //                 color="success"
-                        //                 size="small"
-                        //                 variant="outlined"
-                        //                 sx={{
-                        //                     fontWeight: 500,
-                        //                     borderColor: 'success.main',
-                        //                     color: 'success.main'
-                        //                 }}
-                        //             />
-                        //         )}
-                        //     </Box>
-                        // }
+                    // action={
+                    //     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                    //         <Button
+                    //             variant="outlined"
+                    //             size="small"
+                    //             onClick={refreshWorkingDocuments}
+                    //             disabled={workingDocsState.isLoading}
+                    //             startIcon={<RestartAltIcon />}
+                    //             sx={{
+                    //                 borderRadius: 1,
+                    //                 textTransform: 'none',
+                    //                 fontWeight: 600,
+                    //                 borderColor: 'success.main',
+                    //                 color: 'success.main',
+                    //                 '&:hover': {
+                    //                     borderColor: 'success.dark',
+                    //                     backgroundColor: 'success.light',
+                    //                     color: 'success.dark'
+                    //                 }
+                    //             }}
+                    //         >
+                    //             {workingDocsState.isLoading ? 'Đang tải...' : '🔄 Làm mới IndexedDB'}
+                    //         </Button>
+                    //         <Chip
+                    //             icon={<CheckCircleIcon />}
+                    //             label={`${availableTemplates.length} có sẵn`}
+                    //             color="success"
+                    //             size="small"
+                    //             variant="filled"
+                    //             sx={{
+                    //                 fontWeight: 600,
+                    //                 '& .MuiChip-icon': {
+                    //                     color: 'inherit'
+                    //                 }
+                    //             }}
+                    //         />
+                    //         <Chip
+                    //             label={`${filteredRecords.length} tổng cộng`}
+                    //             color="primary"
+                    //             size="small"
+                    //             variant="outlined"
+                    //             sx={{ fontWeight: 500 }}
+                    //         />
+                    //         {/* IndexedDB working documents count */}
+                    //         {Object.keys(workingDocsState.workingDocsListByCode).length > 0 && (
+                    //             <Chip
+                    //                 icon={<Star />}
+                    //                 label={`${Object.keys(workingDocsState.workingDocsListByCode).length} từ IndexedDB`}
+                    //                 color="success"
+                    //                 size="small"
+                    //                 variant="outlined"
+                    //                 sx={{
+                    //                     fontWeight: 500,
+                    //                     borderColor: 'success.main',
+                    //                     color: 'success.main'
+                    //                 }}
+                    //             />
+                    //         )}
+                    //     </Box>
+                    // }
                     />
                     <CardContent>
                         {csvLoading ? (
@@ -2723,12 +2723,12 @@ function TemplateFillerComponent() {
                                                         sx={{
                                                             color:
                                                                 field.value &&
-                                                                field.value !== '— Chưa chọn mẫu —'
+                                                                    field.value !== '— Chưa chọn mẫu —'
                                                                     ? 'text.primary'
                                                                     : 'text.disabled',
                                                             fontStyle:
                                                                 field.value &&
-                                                                field.value !== '— Chưa chọn mẫu —'
+                                                                    field.value !== '— Chưa chọn mẫu —'
                                                                     ? 'normal'
                                                                     : 'italic'
                                                         }}
