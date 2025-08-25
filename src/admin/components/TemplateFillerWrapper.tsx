@@ -2528,7 +2528,7 @@ function TemplateFillerComponent({
                             '🔄 Loading working document from IndexedDB into Syncfusion...'
                         );
                         setSyncfusionLoading(true);
-                        setSyncfusionDocumentReady(false);
+                        setSyncfusionDocumentReady(true);
 
                         try {
                             // Mở trực tiếp blob vào Syncfusion editor
@@ -3846,7 +3846,7 @@ function TemplateFillerComponent({
                                                     />
 
                                                     {/* Quick Insert Field Panel */}
-                                                    {syncfusionDocumentReady &&
+                                                    {syncfusionDocumentReady ||
                                                         showQuickInsertPanel && (
                                                             <Box
                                                                 sx={{
