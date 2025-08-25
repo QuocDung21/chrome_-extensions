@@ -16,8 +16,10 @@ import {
     CheckCircle as CheckCircleIcon,
     Close,
     Close as CloseIcon,
+    Delete as DeleteIcon,
     Download,
     Download as DownloadIcon,
+    ContentCopy as ContentCopyIcon,
     Edit as EditIcon,
     EventAvailable as EventAvailableIcon,
     Event as EventIcon,
@@ -26,6 +28,7 @@ import {
     Person as PersonIcon,
     Print as PrintIcon,
     RestartAlt as RestartAltIcon,
+    ExpandMore as ExpandMoreIcon,
     Star,
     Upload as UploadIcon,
     Wc as WcIcon,
@@ -34,7 +37,9 @@ import {
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import SaveIcon from '@mui/icons-material/Save';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
+
 import {
+    Accordion,
     Alert,
     Autocomplete,
     Box,
@@ -60,7 +65,10 @@ import {
     Snackbar,
     Stack,
     TextField,
-    Typography
+    Typography,
+    AccordionSummary,
+    Tooltip as MuiTooltip,
+    AccordionDetails
 } from '@mui/material';
 import Divider from '@mui/material/Divider';
 // --- SYNCFUSION WORD EDITOR ---
@@ -1111,6 +1119,12 @@ function TemplateFillerComponent({
         uploadedTemplateUrl: null,
         uploadedTemplateName: null
     });
+    const [confirmDialog, setConfirmDialog] = useState<{
+        open: boolean;
+        id?: number;
+        fileName?: string;
+    }>({ open: false });
+
     const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
@@ -1120,7 +1134,7 @@ function TemplateFillerComponent({
     });
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
-
+    
     const navigate = useNavigate();
     const templatePathRef = useRef<string>('');
     const { history } = useRouter();
@@ -1765,6 +1779,38 @@ function TemplateFillerComponent({
         saveWorkingDocToDb,
         refreshWorkingDocuments
     ]);
+
+    const handleDeleteWorkingDocument = useCallback(
+        async (id: number, fileName: string) => {
+            try {
+                await db.workingDocumentsV2.delete(id);
+
+                console.log('✅ Đã xóa working document:', { id, fileName });
+
+                // Refresh lại danh sách tài liệu
+                await refreshWorkingDocuments();
+
+                // Reset currentWorkingDocIdRef nếu đang xóa chính nó
+                if (currentWorkingDocIdRef.current === id) {
+                    currentWorkingDocIdRef.current = null;
+                }
+
+                setSnackbar({
+                    open: true,
+                    message: `Đã xóa mẫu: ${fileName}`,
+                    severity: 'success'
+                });
+            } catch (error) {
+                console.error('❌ Lỗi khi xóa working document:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Lỗi khi xóa mẫu',
+                    severity: 'error'
+                });
+            }
+        },
+        [refreshWorkingDocuments]
+    );
 
     // Download the current working document (filled document, custom template, or original template)
     const handleDownloadWorkingDocument = useCallback(async () => {
@@ -3543,7 +3589,7 @@ function TemplateFillerComponent({
                                                         startIcon={<InfoIcon />}
                                                         onClick={() => setShowFieldGuide(true)}
                                                     >
-                                                        Hướng dẫn chèn {`{field}`}
+                                                        Hướng dẫn chèn mẫu thiết lập
                                                     </Button>
                                                     <Button
                                                         variant="outlined"
@@ -3560,8 +3606,8 @@ function TemplateFillerComponent({
                                                                 : 'transparent'
                                                         }}
                                                     >
-                                                        {showQuickInsertPanel ? 'Ẩn' : 'Hiện'} Panel
-                                                        Field
+                                                        {showQuickInsertPanel ? 'Ẩn' : 'Hiện'} modal
+                                                        thiết lập
                                                     </Button>
                                                     {/* <Button
                                                         variant="outlined"
@@ -3609,7 +3655,7 @@ function TemplateFillerComponent({
                                                             )
                                                         }
                                                     >
-                                                        TẢI MẪU ĐÃ TÙY CHỈNH
+                                                        TẢI
                                                     </Button>
                                                     <Button
                                                         variant="outlined"
@@ -3626,7 +3672,7 @@ function TemplateFillerComponent({
                                                             )
                                                         }
                                                     >
-                                                        Lưu mẫu đã tùy chỉnh
+                                                        Lưu
                                                     </Button>
                                                 </Box>
                                             </Box>
@@ -3684,6 +3730,7 @@ function TemplateFillerComponent({
                                                         serviceUrl={SYNCFUSION_SERVICE_URL}
                                                         enableToolbar={true}
                                                         height={'70vh'}
+                                                        width={'80vw'}
                                                         style={{ display: 'block' }}
                                                         toolbarMode={'Toolbar'}
                                                         locale="vi-VN"
@@ -4287,6 +4334,34 @@ function TemplateFillerComponent({
                                                     >
                                                         Sử dụng mẫu này
                                                     </Button>
+                                                    <Button
+                                                        variant="contained"
+                                                        size="medium"
+                                                        startIcon={<DeleteIcon />}
+                                                        sx={{
+                                                            borderRadius: 1,
+                                                            textTransform: 'none',
+                                                            fontWeight: 600,
+                                                            background:
+                                                                'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                            '&:hover': {
+                                                                background:
+                                                                    'linear-gradient(45deg, #1565c0, #1976d2)',
+                                                                transform: 'translateY(-2px)'
+                                                            },
+                                                            transition: 'all 0.3s ease'
+                                                        }}
+                                                        onClick={e => {
+                                                            e.stopPropagation();
+                                                            setConfirmDialog({
+                                                                open: true,
+                                                                id: workingDoc.id,
+                                                                fileName: workingDoc.fileName
+                                                            });
+                                                        }}
+                                                    >
+                                                        Xóa mẫu
+                                                    </Button>
                                                 </Box>
                                             </Paper>
                                         ))}
@@ -4320,6 +4395,272 @@ function TemplateFillerComponent({
                             )}
                     </DialogContent>
                 </Dialog>
+                <Dialog open={confirmDialog.open} onClose={() => setConfirmDialog({ open: false })}>
+                    <DialogTitle>Xác nhận xóa</DialogTitle>
+                    <DialogContent>
+                        <Typography>
+                            Bạn có chắc chắn muốn xóa mẫu <b>{confirmDialog.fileName}</b>?
+                        </Typography>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setConfirmDialog({ open: false })}>Hủy</Button>
+                        <Button
+                            color="error"
+                            variant="contained"
+                            onClick={() => {
+                                if (confirmDialog.id != null) {
+                                    handleDeleteWorkingDocument(
+                                        confirmDialog.id,
+                                        confirmDialog.fileName!
+                                    );
+                                }
+                                setConfirmDialog({ open: false });
+                            }}
+                        >
+                            Xóa
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Dialog: Hướng dẫn chèn {field} */}
+                <Dialog
+                    open={showFieldGuide}
+                    onClose={() => setShowFieldGuide(false)}
+                    maxWidth="md"
+                    fullWidth
+                >
+                    <DialogTitle>Hướng dẫn thiết lập mẫu</DialogTitle>
+                    <DialogContent dividers>
+                        {/* Quick actions */}
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
+                            {/* <Button
+                                            size="small"
+                                            startIcon={<GetAppIcon />}
+                                            onClick={handleDownloadOriginalTemplate}
+                                        >
+                                            Tải mẫu gốc
+                                        </Button> */}
+                            {/* <Button 
+                                            size="small" 
+                                            startIcon={<DownloadIcon />}
+                                            onClick={handleDownloadWorkingDocument}
+                                            disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) || (previewMode === 'html' && htmlIframeRef.current?.contentDocument))}
+                                        >
+                                            Tải mẫu đã chỉnh
+                                        </Button> */}
+                            {/* <Button
+                                            component="label"
+                                            size="small"
+                                            startIcon={<UploadIcon />}
+                                            variant="outlined"
+                                        >
+                                            Thay thế tài liệu
+                                            <input
+                                                type="file"
+                                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                                                hidden
+                                                onChange={e => {
+                                                    const file = e.target.files?.[0];
+                                                    if (file) handleUploadReplaceDocument(file);
+                                                    // Reset input value to allow selecting the same file again
+                                                    e.target.value = '';
+                                                }}
+                                            />
+                                        </Button> */}
+                        </Box>
+
+                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
+                            3 bước đơn giản
+                        </Typography>
+                        <Box
+                            sx={{
+                                display: 'grid',
+                                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
+                                gap: 2,
+                                mb: 2
+                            }}
+                        >
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                    Bước 1: Chèn thẻ
+                                </Typography>
+                                <Typography variant="body2">
+                                    Mở file Word và gõ các thẻ như {`{hoTen}`}, {`{cccd}`},{' '}
+                                    {`{ngay}`}/{`{thang}`}/{`{nam}`} vào vị trí cần điền.
+                                </Typography>
+                            </Paper>
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                    Bước 2: Lưu và tải lên
+                                </Typography>
+                                <Typography variant="body2">
+                                    Lưu file .docx rồi bấm "Tải mẫu đã chỉnh" để sử dụng ngay.
+                                </Typography>
+                            </Paper>
+                            <Paper variant="outlined" sx={{ p: 2 }}>
+                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
+                                    Bước 3: Nhập dữ liệu
+                                </Typography>
+                                <Typography variant="body2">
+                                    Quét QR/nhập dữ liệu. Hệ thống sẽ tự điền vào đúng vị trí trên
+                                    mẫu.
+                                </Typography>
+                            </Paper>
+                        </Box>
+
+                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
+                            Ví dụ nhanh
+                        </Typography>
+                        <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+                            <Typography
+                                variant="body2"
+                                sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}
+                                align="left"
+                            >
+                                {`
+                                        Họ và tên: {ho_ten}
+                                        Số CCCD: {cccd}
+                                        Ngày sinh: {ns_ngay}/{ns_thang}/{ns_nam}  (hoặc {ngay_sinh})
+                                        Giới tính: {gioi_tinh}
+                                        Địa chỉ: {noi_cu_tru}
+                                        Ngày cấp: {nc_ngay}/{nc_thang}/{nc_nam}  (hoặc {ngay_cap})
+                                        `}
+                            </Typography>
+                        </Paper>
+
+                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
+                            Danh sách trường hỗ trợ (bấm để sao chép)
+                        </Typography>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            Nhóm chính:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {[
+                                'cccd',
+                                'cmnd',
+                                'hoTen',
+                                'ngaySinh',
+                                'gioiTinh',
+                                'diaChi',
+                                'ngayCap'
+                            ].map(k => (
+                                <MuiTooltip key={k} title="Bấm để sao chép">
+                                    <Chip
+                                        label={`{${k}}`}
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                    />
+                                </MuiTooltip>
+                            ))}
+                        </Box>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            Tương thích (snake_case):
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {[
+                                'ho_ten',
+                                'ngay_sinh',
+                                'gioi_tinh',
+                                'dia_chi',
+                                'ngay_cap',
+                                'noi_cu_tru'
+                            ].map(k => (
+                                <MuiTooltip key={k} title="Bấm để sao chép">
+                                    <Chip
+                                        label={`{${k}}`}
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                    />
+                                </MuiTooltip>
+                            ))}
+                        </Box>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            Bí danh/tiện dụng:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
+                            {[
+                                'ten',
+                                'hoten',
+                                'ho_va_ten',
+                                'so_cccd',
+                                'so_cmnd',
+                                'ngay_thang_nam_sinh',
+                                'ngay_thang_nam_cap'
+                            ].map(k => (
+                                <MuiTooltip key={k} title="Bấm để sao chép">
+                                    <Chip
+                                        label={`{${k}}`}
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                    />
+                                </MuiTooltip>
+                            ))}
+                        </Box>
+                        <Typography variant="body2" sx={{ mb: 1 }}>
+                            Tách ngày/tháng/năm tự động:
+                        </Typography>
+                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
+                            {[
+                                'ngay',
+                                'thang',
+                                'nam',
+                                'ngay_sinh_full',
+                                'ngayCap_full',
+                                'ngay_cap_full',
+                                'ngay_cap_ngay',
+                                'ngay_cap_thang',
+                                'ngay_cap_nam'
+                            ].map(k => (
+                                <MuiTooltip key={k} title="Bấm để sao chép">
+                                    <Chip
+                                        label={`{${k}}`}
+                                        variant="outlined"
+                                        size="small"
+                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
+                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
+                                    />
+                                </MuiTooltip>
+                            ))}
+                        </Box>
+
+                        <Accordion sx={{ mt: 2 }}>
+                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+                                <Typography variant="subtitle2">Câu hỏi thường gặp</Typography>
+                            </AccordionSummary>
+                            <AccordionDetails>
+                                <Typography variant="body2" sx={{ mb: 1 }}>
+                                    • Không thấy dữ liệu hiện lên? Hãy kiểm tra chính tả của thẻ, ví
+                                    dụ {`{hoTen}`} không phải {`{hoten}`}. Bạn có thể dùng các thẻ
+                                    trong danh sách phía trên để copy cho chính xác.
+                                </Typography>
+                                <Typography variant="body2" sx={{ mb: 1 }}>
+                                    • Có thể ghi tiếng Việt có dấu không? Có, thẻ {`{field}`} chỉ là
+                                    tên khóa, bạn có thể đặt văn bản mô tả xung quanh tùy ý.
+                                </Typography>
+                                <Typography variant="body2" sx={{ mb: 1 }}>
+                                    • Thay đổi mẫu nhiều lần được không? Được, bạn có thể bấm "Tải
+                                    mẫu gốc" rồi "Tải mẫu đã chỉnh" để cập nhật bất cứ khi nào.
+                                </Typography>
+                            </AccordionDetails>
+                        </Accordion>
+                    </DialogContent>
+                    <DialogActions>
+                        <Button onClick={() => setShowFieldGuide(false)} autoFocus>
+                            Đóng
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
                 {/* Snackbar for notifications */}
                 <Snackbar
                     open={snackbar.open}
