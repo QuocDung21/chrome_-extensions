@@ -16,19 +16,19 @@ import {
     CheckCircle as CheckCircleIcon,
     Close,
     Close as CloseIcon,
+    ContentCopy as ContentCopyIcon,
     Delete as DeleteIcon,
     Download,
     Download as DownloadIcon,
-    ContentCopy as ContentCopyIcon,
     Edit as EditIcon,
     EventAvailable as EventAvailableIcon,
     Event as EventIcon,
+    ExpandMore as ExpandMoreIcon,
     Home as HomeIcon,
     Info as InfoIcon,
     Person as PersonIcon,
     Print as PrintIcon,
     RestartAlt as RestartAltIcon,
-    ExpandMore as ExpandMoreIcon,
     Star,
     Upload as UploadIcon,
     Wc as WcIcon,
@@ -37,9 +37,10 @@ import {
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import SaveIcon from '@mui/icons-material/Save';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
-
 import {
     Accordion,
+    AccordionDetails,
+    AccordionSummary,
     Alert,
     Autocomplete,
     Box,
@@ -59,16 +60,14 @@ import {
     IconButton,
     InputLabel,
     MenuItem,
+    Tooltip as MuiTooltip,
     Paper,
     Select,
     SelectChangeEvent,
     Snackbar,
     Stack,
     TextField,
-    Typography,
-    AccordionSummary,
-    Tooltip as MuiTooltip,
-    AccordionDetails
+    Typography
 } from '@mui/material';
 import Divider from '@mui/material/Divider';
 // --- SYNCFUSION WORD EDITOR ---
@@ -1134,7 +1133,7 @@ function TemplateFillerComponent({
     });
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
-    
+
     const navigate = useNavigate();
     const templatePathRef = useRef<string>('');
     const { history } = useRouter();
@@ -3640,6 +3639,116 @@ function TemplateFillerComponent({
                                                 </Box>
 
                                                 <Box sx={{ display: 'flex', gap: 1 }}>
+                                                    {/* Dropdown to select a template */}
+                                                    <FormControl
+                                                        size="small"
+                                                        sx={{ minWidth: 200 }}
+                                                    >
+                                                        <InputLabel id="template-select-label">
+                                                            Chọn mẫu
+                                                        </InputLabel>
+                                                        <Select
+                                                            labelId="template-select-label"
+                                                            value={
+                                                                editorState.selectedRecord
+                                                                    ?.selectedMauDon?.tenFile || ''
+                                                            }
+                                                            onChange={async e => {
+                                                                const selectedTemplateName =
+                                                                    e.target.value;
+
+                                                                // Find the selected template in both CSV and IndexedDB templates
+                                                                const selectedTemplate =
+                                                                    editorState.selectedRecord?.danhSachMauDon.find(
+                                                                        template =>
+                                                                            template.tenFile ===
+                                                                            selectedTemplateName
+                                                                    ) ||
+                                                                    getWorkingDocumentsForMaTTHC(
+                                                                        editorState.selectedRecord
+                                                                            ?.maTTHC || ''
+                                                                    ).find(
+                                                                        doc =>
+                                                                            doc.fileName ===
+                                                                            selectedTemplateName
+                                                                    );
+
+                                                                if (selectedTemplate) {
+                                                                    let updatedRecord = {
+                                                                        ...editorState.selectedRecord!
+                                                                    };
+
+                                                                    // Check if the selected template is from IndexedDB
+                                                                    if (
+                                                                        'blob' in selectedTemplate
+                                                                    ) {
+                                                                        // Create a custom `MauDon` object for IndexedDB templates
+                                                                        const customMauDon = {
+                                                                            tenGiayTo: `Tài liệu đã lưu - ${selectedTemplate.fileName}`,
+                                                                            tenFile:
+                                                                                selectedTemplate.fileName,
+                                                                            duongDan: `IndexedDB - ${new Date(selectedTemplate.updatedAt).toLocaleDateString('vi-VN')}`,
+                                                                            isFromIndexedDB: true,
+                                                                            workingDocument:
+                                                                                selectedTemplate
+                                                                        };
+                                                                        updatedRecord.selectedMauDon =
+                                                                            customMauDon;
+                                                                    } else {
+                                                                        // For CSV templates
+                                                                        updatedRecord.selectedMauDon =
+                                                                            selectedTemplate;
+                                                                    }
+
+                                                                    // Update the editor state with the selected template
+                                                                    setEditorState(prev => ({
+                                                                        ...prev,
+                                                                        selectedRecord:
+                                                                            updatedRecord,
+                                                                        syncfusionLoading: true,
+                                                                        syncfusionDocumentReady: false
+                                                                    }));
+
+                                                                    // Reload the selected template into Syncfusion
+                                                                    await loadTemplateIntoSyncfusion(
+                                                                        updatedRecord
+                                                                    );
+
+                                                                    setSnackbar({
+                                                                        open: true,
+                                                                        message: `Đã tải mẫu: ${selectedTemplateName}`,
+                                                                        severity: 'success'
+                                                                    });
+                                                                }
+                                                            }}
+                                                        >
+                                                            {/* Add CSV templates */}
+                                                            {editorState.selectedRecord?.danhSachMauDon.map(
+                                                                (template, index) => (
+                                                                    <MenuItem
+                                                                        key={`csv-${index}`}
+                                                                        value={template.tenFile}
+                                                                    >
+                                                                        {template.tenFile}
+                                                                    </MenuItem>
+                                                                )
+                                                            )}
+
+                                                            {/* Add IndexedDB templates */}
+                                                            {getWorkingDocumentsForMaTTHC(
+                                                                editorState.selectedRecord
+                                                                    ?.maTTHC || ''
+                                                            ).map((workingDoc, index) => (
+                                                                <MenuItem
+                                                                    key={`indexeddb-${index}`}
+                                                                    value={workingDoc.fileName}
+                                                                >
+                                                                    {workingDoc.fileName}{' '}
+                                                                    (mẫu đã thiết lập)
+                                                                </MenuItem>
+                                                            ))}
+                                                        </Select>
+                                                    </FormControl>
                                                     <Button
                                                         variant="outlined"
                                                         startIcon={<DownloadIcon />}
@@ -4113,7 +4222,7 @@ function TemplateFillerComponent({
                                                         // Set the current code reference for later use
                                                         currentCodeRef.current =
                                                             templateSelectionModal.record!.maTTHC;
-
+                                                        
                                                         // Trực tiếp mở editor thay vì gọi handleSelectTemplate
                                                         setEditorState(prev => ({
                                                             ...prev,
@@ -4122,6 +4231,8 @@ function TemplateFillerComponent({
                                                             syncfusionLoading: true,
                                                             syncfusionDocumentReady: false
                                                         }));
+                                                        setShowQuickInsertPanel(true);
+                                                        resetProcessing();
 
                                                         setSnackbar({
                                                             open: true,
@@ -4272,6 +4383,8 @@ function TemplateFillerComponent({
                                                         generatedBlob: workingDoc.blob // nếu bạn load sẵn blob
                                                     }));
 
+                                                    setShowQuickInsertPanel(true);
+
                                                     setSnackbar({
                                                         open: true,
                                                         message: `Đang tải mẫu đã thiết lập: ${workingDoc.fileName}`,
@@ -4311,7 +4424,8 @@ function TemplateFillerComponent({
                                                 <Box
                                                     sx={{
                                                         display: 'flex',
-                                                        justifyContent: 'flex-end'
+                                                        justifyContent: 'flex-end',
+                                                        gap: 1
                                                     }}
                                                 >
                                                     <Button
@@ -4343,10 +4457,10 @@ function TemplateFillerComponent({
                                                             textTransform: 'none',
                                                             fontWeight: 600,
                                                             background:
-                                                                'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                                'linear-gradient(45deg, #db3e3eff, #c01919ff)',
                                                             '&:hover': {
                                                                 background:
-                                                                    'linear-gradient(45deg, #1565c0, #1976d2)',
+                                                                    'linear-gradient(45deg, #c01919ff, #db5454ff)',
                                                                 transform: 'translateY(-2px)'
                                                             },
                                                             transition: 'all 0.3s ease'
