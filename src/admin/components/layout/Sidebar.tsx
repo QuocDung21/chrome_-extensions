@@ -2,6 +2,7 @@ import { ReactElement } from 'react';
 
 import {
     AdminPanelSettings as AdminIcon,
+    ArticleOutlined as ArticleIcon,
     Description as DocumentIcon,
     TrendingUp as EconomicIcon,
     Assignment as FormIcon,
@@ -15,8 +16,7 @@ import {
     DriveFileRenameOutline as TemplateFillerIcon,
     CloudUpload as UploadIcon,
     EditNote as WordMapperIcon,
-    Description as WordViewerIcon,
-    ArticleOutlined as ArticleIcon
+    Description as WordViewerIcon
 } from '@mui/icons-material';
 import {
     Box,
@@ -62,13 +62,13 @@ const scanningItems: NavigationItem[] = [
         icon: <QRIcon />,
         path: '/qr-cccd'
     },
-    // {
-    //     id: 'word-mapper',
-    //     label: 'Mẫu đơn, tờ khai',
-    //     icon: <WordMapperIcon />,
-    //     path: '/forms'
-    //     // badge: 'NEW'
-    // },
+    {
+        id: 'word-mapper',
+        label: 'Mẫu đơn, tờ khai',
+        icon: <WordMapperIcon />,
+        path: '/forms'
+        // badge: 'NEW'
+    },
     // {
     //     id: 'word-mapper',
     //     label: 'Mẫu đơn, tờ khai',
