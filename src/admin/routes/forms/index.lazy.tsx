@@ -1,246 +1,383 @@
-import { useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
+// --- Imports từ các thư viện ---
+// Material-UI Components & Icons
+import CloseIcon from '@mui/icons-material/Close';
+import DescriptionIcon from '@mui/icons-material/Description';
+import {
+    Box,
+    Button,
+    Card,
+    CardActions,
+    CardContent,
+    CircularProgress,
+    Divider,
+    IconButton,
+    List,
+    ListItem,
+    ListItemText,
+    Modal,
+    Paper,
+    Typography
+} from '@mui/material';
+// Syncfusion CSS
+import '@syncfusion/ej2-base/styles/material.css';
+import '@syncfusion/ej2-buttons/styles/material.css';
+import '@syncfusion/ej2-dropdowns/styles/material.css';
+import '@syncfusion/ej2-inputs/styles/material.css';
+import '@syncfusion/ej2-lists/styles/material.css';
+import '@syncfusion/ej2-navigations/styles/material.css';
+import '@syncfusion/ej2-popups/styles/material.css';
+// Syncfusion Components & Modules
+import {
+    DocumentEditorContainerComponent,
+    Print,
+    SfdtExport,
+    Toolbar
+} from '@syncfusion/ej2-react-documenteditor';
+import '@syncfusion/ej2-react-documenteditor/styles/material.css';
+import '@syncfusion/ej2-splitbuttons/styles/material.css';
+// TanStack Router
 import { createLazyFileRoute } from '@tanstack/react-router';
 
-import { SimpleHtmlRenderer } from '../../components';
+// --- Helper Functions for IndexedDB ---
+// Các hàm này quản lý việc lưu và lấy quyền truy cập thư mục (folderHandle)
+const DB_NAME = 'WebAppStorage';
+const STORE_NAME = 'fileSystemHandles';
 
-export const Route = createLazyFileRoute('/forms/')({
-    component: RouteComponent
-});
-
-function RouteComponent() {
-    const myHtml = `
-    <!DOCTYPE html>
-    <html lang="vi">
-    <head>
-    <meta charset="UTF-8">
-    <title> </title>    
-    <style>
-        body { font-family: 'Times New Roman', Times, serif; margin: 40px; }
-        h1, h2, h3 { text-align: center; }
-        .header, .footer { text-align: center; }
-        .section-title { font-weight: bold; margin-top: 30px; }
-        table { width: 100%; border-collapse: collapse; margin-bottom: 20px;}
-        th, td { border: 1px solid #444; padding: 6px; }
-        .no-border { border: none !important; }
-        .note { font-size: 0.95em; color: #444; }
-        input[type="text"], input[type="date"], input[type="tel"] {
-            width: 250px; padding: 2px 6px; font-size: 1em; border: 1px solid #aaa; border-radius: 4px;
-        }
-        input[type="number"] { width: 80px; }
-        select { padding: 2px 6px; font-size: 1em; }
-        textarea { width: 98%; min-height: 36px; }
-        .short { width: 80px; }
-        .center { text-align: center; }
-        .checkbox { width: 22px; height: 22px; }
-        /* CSS cho in */
-        @media print {
-            @page {
-                margin: 0.5in;
-                size: A4;
+function getDB(): Promise<IDBDatabase> {
+    return new Promise((resolve, reject) => {
+        const request = indexedDB.open(DB_NAME, 1);
+        request.onerror = () => reject('Lỗi khi mở IndexedDB');
+        request.onsuccess = () => resolve(request.result);
+        request.onupgradeneeded = event => {
+            const db = (event.target as IDBOpenDBRequest).result;
+            if (!db.objectStoreNames.contains(STORE_NAME)) {
+                db.createObjectStore(STORE_NAME);
             }
+        };
+    });
+}
 
-            /* Ẩn hoàn toàn tất cả */
-            * {
-                visibility: hidden !important;
-            }
+async function saveFolderHandle(handle: FileSystemDirectoryHandle): Promise<void> {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readwrite');
+    store.put(handle, 'syncFolderHandle');
+    await tx.done;
+}
 
-            /* Chỉ hiển thị form và các elements con */
-            .print-container,
-            .print-container * {
-                visibility: visible !important;
-            }
+async function getFolderHandle(): Promise<FileSystemDirectoryHandle | null> {
+    const db = await getDB();
+    const tx = db.transaction(STORE_NAME, 'readonly');
+    const store = tx.objectStore(STORE_NAME);
+    const request = store.get('syncFolderHandle');
+    return new Promise(resolve => {
+        request.onsuccess = () => resolve(request.result || null);
+    });
+}
 
-            /* Đặt form làm root element khi in */
-            .print-container {
-                position: absolute !important;
-                left: 0 !important;
-                top: 0 !important;
-                width: 100% !important;
-                height: auto !important;
-                background: white !important;
-                z-index: 9999 !important;
-            }
+// --- Cấu hình và Dữ liệu mẫu ---
+const SERVER_BASE_URL = 'http://laptrinhid.qlns.vn'; // Thay thế bằng URL server của bạn
+const SYNCFUSION_SERVICE_URL =
+    'https://ej2services.syncfusion.com/production/web-services/api/documenteditor/';
+const serverResponse = {
+    success: true,
+    data: [
+        '/uploads/files/18.TKyeucaubansaotrichluchotich5eb55ed7-e7fa-4609-80c2-5d665d60887c.docx'
+    ]
+};
 
-            /* Style cho form elements */
-            input, select, textarea {
-                border: none !important;
-                background: none !important;
-                box-shadow: none !important;
-                font-family: 'Times New Roman', Times, serif !important;
-                color: #000 !important;
-            }
-            input[type="checkbox"] {
-                width: 16px !important;
-                height: 16px !important;
-            }
-        }
-    </style>
-    </head>
-    <body>
-    <!-- Nút in -->
-    <div class="print-btn" style="text-align:right; margin-bottom:20px;">
-        <button type="button" id="print-button" style="padding:7px 20px;font-size:16px;background:#1976d2;color:white;border:none;border-radius:4px;cursor:pointer;">🖨️ In đơn</button>
-    </div>
+// Kích hoạt các module cần thiết cho Syncfusion Document Editor
+DocumentEditorContainerComponent.Inject(Print, SfdtExport, Toolbar);
 
-    <div class="print-container">
-    <form>
-    <div class="header">
-        <div>CỘNG HÒA XÃ HỘI CHỦ NGHĨA VIỆT NAM</div>
-        <div><b>Độc lập – Tự do – Hạnh phúc</b></div>
-        <br>
-        <h2>ĐƠN ĐỀ NGHỊ XÁC ĐỊNH, XÁC ĐỊNH LẠI MỨC ĐỘ KHUYẾT TẬT<br>
-        VÀ CẤP, CẤP ĐỔI, CẤP LẠI GIẤY XÁC NHẬN KHUYẾT TẬT</h2>
-    </div>
+// --- Component Chính: SyncPage ---
+function SyncPage() {
+    // State quản lý quyền truy cập thư mục
+    const [folderHandle, setFolderHandle] = useState<FileSystemDirectoryHandle | null>(null);
+    // State quản lý giao diện (trạng thái, loading, danh sách file)
+    const [status, setStatus] = useState('Sẵn sàng khởi tạo...');
+    const [isLoading, setIsLoading] = useState(false);
+    const [fileList, setFileList] = useState<string[]>([]);
+    // State cho Modal Editor
+    const [isEditorOpen, setIsEditorOpen] = useState(false);
+    const [editingFile, setEditingFile] = useState<string | null>(null);
+    const sfContainerRef = useRef<DocumentEditorContainerComponent>(null);
 
-    <div>
-        <b>Kính gửi:</b> Chủ tịch UBND xã (phường, thị trấn) <input type="text" name="ubnd_xa"><br>
-        Huyện (quận, thị xã, thành phố) <input type="text" name="huyen"><br>
-        Tỉnh, thành phố <input type="text" name="tinh">
-    </div>
-
-    <p style="margin-top: 24px;">
-        Sau khi tìm hiểu quy định về xác định mức độ khuyết tật, tôi đề nghị:<br>
-        <input type="checkbox" name="de_nghi1" class="checkbox"> Xác định mức độ khuyết tật và cấp Giấy xác nhận khuyết tật<br>
-        <input type="checkbox" name="de_nghi2" class="checkbox"> Xác định lại mức độ khuyết tật và cấp Giấy xác nhận khuyết tật<br>
-        <input type="checkbox" name="de_nghi3" class="checkbox"> Cấp lại Giấy xác nhận khuyết tật<br>
-        <input type="checkbox" name="de_nghi4" class="checkbox"> Cấp đổi Giấy xác nhận khuyết tật<br>
-        <span class="note">(Trường hợp cấp đổi Giấy xác nhận khuyết tật thì không phải kê khai thông tin tại Mục III dưới đây).</span>
-    </p>
-
-    <div class="section-title">I. Thông tin người được xác định mức độ khuyết tật</div>
-    <ul>
-        <li>Họ và tên: <input type="text" name="ho_ten"></li>
-        <li>Sinh ngày <input type="number" name="ngay" class="short"> tháng <input type="number" name="thang" class="short"> năm <input type="number" name="nam" class="short">
-            Giới tính: <select name="gioi_tinh"><option>Nam</option><option>Nữ</option></select></li>
-        <li>Số CMND hoặc CCCD: <input type="text" name="cccd"></li>
-        <li>Nơi ở hiện nay: <input type="text" name="dia_chi" style="width:350px"></li>
-    </ul>
-
-    <div class="section-title">II. Thông tin người đại diện hợp pháp (nếu có)</div>
-    <ul>
-        <li>Họ và tên: <input type="text" name="ho_ten_dd"></li>
-        <li>Mối quan hệ với người được xác định khuyết tật: <input type="text" name="moi_quan_he"></li>
-        <li>Số CMND hoặc CCCD: <input type="text" name="cccd_dd"></li>
-        <li>Nơi ở hiện nay: <input type="text" name="dia_chi_dd" style="width:350px"></li>
-        <li>Số điện thoại: <input type="tel" name="sdt"></li>
-    </ul>
-
-    <div class="section-title">III. Thông tin về tình trạng khuyết tật</div>
-    <b>1. Thông tin về dạng khuyết tật (Đánh dấu x vào ô tương ứng):</b>
-    <table>
-        <tr>
-            <th>STT</th>
-            <th>Các dạng khuyết tật</th>
-            <th class="center">Có</th>
-            <th class="center">Không</th>
-        </tr>
-        <tr>
-            <td>1</td>
-            <td>Khuyết tật vận động</td>
-            <td class="center"><input type="checkbox" name="vt_1_co"></td>
-            <td class="center"><input type="checkbox" name="vt_1_khong"></td>
-        </tr>
-        <tr>
-            <td>1.1</td>
-            <td>Mềm nhẽo hoặc co cứng toàn thân</td>
-            <td class="center"><input type="checkbox" name="vt_11_co"></td>
-            <td class="center"><input type="checkbox" name="vt_11_khong"></td>
-        </tr>
-        <tr>
-            <td>1.2</td>
-            <td>Thiếu tay hoặc không cử động được tay</td>
-            <td class="center"><input type="checkbox" name="vt_12_co"></td>
-            <td class="center"><input type="checkbox" name="vt_12_khong"></td>
-        </tr>
-        <!-- ...Các dòng còn lại giữ nguyên như phần đã cung cấp ở trên... -->
-    </table>
-
-    <b>2. Thông tin về mức độ khuyết tật (Trường hợp trẻ em dưới 6 tuổi không phải kê khai)</b>
-    <table>
-        <tr>
-            <th rowspan="2">Các hoạt động</th>
-            <th colspan="4">Mức độ thực hiện</th>
-        </tr>
-        <tr>
-            <th>Thực hiện được</th>
-            <th>Thực hiện được nhưng cần trợ giúp</th>
-            <th>Không thực hiện được</th>
-            <th>Không xác định được</th>
-        </tr>
-        <tr>
-            <td>1. Đi lại</td>
-            <td class="center"><input type="checkbox" name="hd_1_a"></td>
-            <td class="center"><input type="checkbox" name="hd_1_b"></td>
-            <td class="center"><input type="checkbox" name="hd_1_c"></td>
-            <td class="center"><input type="checkbox" name="hd_1_d"></td>
-        </tr>
-        <!-- ...Các dòng còn lại giữ nguyên như phần đã cung cấp ở trên... -->
-    </table>
-
-    <div class="footer">
-        <br><br>
-        ………….., ngày <input type="number" name="ngay_nop" class="short"> tháng <input type="number" name="thang_nop" class="short"> năm <input type="number" name="nam_nop" class="short"><br>
-        Người viết đơn<br>
-        (Ký và ghi rõ họ tên) <input type="text" name="nguoi_viet">
-    </div>
-    </form>
-    </div>
-
-
-
-    </body>
-    </html>
-
-    `;
-
-    // Bind events sau khi component render
+    // Effect chạy lần đầu để kiểm tra quyền truy cập đã được lưu chưa
     useEffect(() => {
-        const printButton = document.getElementById('print-button');
-
-        const handlePrint = () => {
-            console.log('Print button clicked!');
-
-            // Sync form values to attributes trước khi in
-            const inputs = document.querySelectorAll('input, select, textarea');
-            inputs.forEach((input: any) => {
-                if (input.type === 'checkbox') {
-                    if (input.checked) {
-                        input.setAttribute('checked', 'checked');
-                    } else {
-                        input.removeAttribute('checked');
-                    }
-                } else if (input.tagName === 'SELECT') {
-                    Array.from(input.options).forEach((option: any) => {
-                        if (option.selected) {
-                            option.setAttribute('selected', 'selected');
-                        } else {
-                            option.removeAttribute('selected');
-                        }
-                    });
-                } else {
-                    input.setAttribute('value', input.value);
-                }
-            });
-
-            console.log('Printing form...');
-            window.print();
-        };
-
-        if (printButton) {
-            printButton.addEventListener('click', handlePrint);
-            console.log('Print button event bound successfully!');
-        } else {
-            console.log('Print button not found!');
-        }
-
-        // Cleanup
-        return () => {
-            if (printButton) {
-                printButton.removeEventListener('click', handlePrint);
+        getFolderHandle().then(handle => {
+            if (handle) {
+                setFolderHandle(handle);
+                setStatus('Đã tìm thấy thư mục đồng bộ. Sẵn sàng hoạt động.');
+            } else {
+                setStatus('Chào mừng! Vui lòng chọn một thư mục để bắt đầu.');
             }
-        };
+        });
     }, []);
 
-    return <SimpleHtmlRenderer htmlContent={myHtml} />;
+    // --- Các hàm xử lý sự kiện ---
+
+    // 1. CHỌN THƯ MỤC
+    const handleChooseFolder = async () => {
+        try {
+            const handle = await (window as any).showDirectoryPicker();
+            await saveFolderHandle(handle);
+            setFolderHandle(handle);
+            setFileList([]);
+            setStatus('Đã chọn thư mục thành công!');
+        } catch (err) {
+            console.error('Người dùng đã hủy hoặc có lỗi:', err);
+            setStatus('Bạn đã hủy thao tác chọn thư mục.');
+        }
+    };
+
+    // 2. ĐỒNG BỘ FILE TỪ SERVER
+    const handleSyncFile = async () => {
+        if (!folderHandle) return;
+        setIsLoading(true);
+        setStatus('Đang xử lý...');
+        try {
+            const relativePath = serverResponse.data[0];
+            const downloadUrl = `${SERVER_BASE_URL}${relativePath}`;
+            const fileName = relativePath.split('/').pop();
+            if (!fileName) throw new Error('Không thể lấy tên file.');
+
+            setStatus(`Đang tải file: ${fileName}...`);
+            const response = await fetch(downloadUrl);
+            if (!response.ok) throw new Error(`Lỗi tải file: ${response.statusText}`);
+            const fileBlob = await response.blob();
+
+            setStatus(`Đang ghi file vào thư mục của bạn...`);
+            const fileHandle = await folderHandle.getFileHandle(fileName, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(fileBlob);
+            await writable.close();
+
+            setStatus(`Đồng bộ thành công file: ${fileName}`);
+            alert(`Đã đồng bộ thành công file "${fileName}"!`);
+        } catch (error: any) {
+            handleError(error, 'đồng bộ');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 3. QUÉT CÁC FILE TRONG THƯ MỤC
+    const handleListFiles = async () => {
+        if (!folderHandle) return;
+        setIsLoading(true);
+        setStatus('Đang quét các file...');
+        try {
+            const files: string[] = [];
+            for await (const entry of folderHandle.values()) {
+                if (
+                    entry.kind === 'file' &&
+                    (entry.name.endsWith('.docx') || entry.name.endsWith('.doc'))
+                ) {
+                    files.push(entry.name);
+                }
+            }
+            setFileList(files);
+            setStatus(`Tìm thấy ${files.length} file.`);
+        } catch (error: any) {
+            handleError(error, 'quét file');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 4. MỞ FILE TRONG EDITOR
+    const handleOpenFileInEditor = async (fileName: string) => {
+        if (!folderHandle) return;
+        setIsLoading(true);
+        setStatus(`Đang mở file: ${fileName}...`);
+        try {
+            const fileHandle = await folderHandle.getFileHandle(fileName);
+            const file = await fileHandle.getFile();
+
+            const formData = new FormData();
+            formData.append('file', file, file.name);
+
+            setStatus(`Đang chuyển đổi file...`);
+            const response = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
+                method: 'POST',
+                body: formData
+            });
+            if (!response.ok) throw new Error('Lỗi khi chuyển đổi file.');
+            const sfdtJson = await response.json();
+
+            setEditingFile(fileName);
+            sfContainerRef.current?.documentEditor.open(sfdtJson.sfdt);
+            setIsEditorOpen(true);
+            setStatus(`Đã mở file ${fileName}.`);
+        } catch (error: any) {
+            handleError(error, 'mở file');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 5. LƯU THAY ĐỔI TỪ EDITOR
+    const handleSaveChanges = async () => {
+        if (!sfContainerRef.current || !folderHandle || !editingFile) return;
+        setIsLoading(true);
+        setStatus(`Đang lưu thay đổi cho file: ${editingFile}...`);
+        try {
+            const blob: Blob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
+            const fileHandle = await folderHandle.getFileHandle(editingFile, { create: true });
+            const writable = await fileHandle.createWritable();
+            await writable.write(blob);
+            await writable.close();
+
+            setStatus(`Đã lưu thành công file: ${editingFile}`);
+            alert(`Đã lưu thành công file: ${editingFile}`);
+            handleCloseEditor();
+        } catch (error: any) {
+            handleError(error, 'lưu file');
+        } finally {
+            setIsLoading(false);
+        }
+    };
+
+    // 6. ĐÓNG EDITOR
+    const handleCloseEditor = () => {
+        setIsEditorOpen(false);
+        setEditingFile(null);
+    };
+
+    // 7. HÀM XỬ LÝ LỖI CHUNG
+    const handleError = (error: any, action: string) => {
+        console.error(`Lỗi trong quá trình ${action}:`, error);
+        const message = `Thao tác ${action} thất bại: ${error.message}`;
+        setStatus(message);
+        alert(message);
+    };
+
+    return (
+        <Box sx={{ p: 4, bgcolor: '#f0f2f5', minHeight: '100vh' }}>
+            <Card sx={{ maxWidth: 800, margin: 'auto', boxShadow: 3 }}>
+                <CardContent>
+                    <Typography variant="h5" component="div" gutterBottom>
+                        Trình Quản lý & Đồng bộ File
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ minHeight: 20 }}>
+                        Trạng thái: {status}
+                    </Typography>
+                </CardContent>
+                <CardActions
+                    sx={{ justifyContent: 'center', p: 2, gap: 1, borderTop: '1px solid #eee' }}
+                >
+                    {isLoading ? (
+                        <CircularProgress />
+                    ) : !folderHandle ? (
+                        <Button variant="contained" onClick={handleChooseFolder}>
+                            Chọn thư mục làm việc
+                        </Button>
+                    ) : (
+                        <>
+                            <Button variant="contained" color="primary" onClick={handleSyncFile}>
+                                Đồng bộ File Test
+                            </Button>
+                            <Button variant="outlined" color="secondary" onClick={handleListFiles}>
+                                Quét các file
+                            </Button>
+                        </>
+                    )}
+                </CardActions>
+
+                {fileList.length > 0 && (
+                    <>
+                        <Divider sx={{ my: 1 }} />
+                        <CardContent>
+                            <Typography variant="h6">Các file trong thư mục</Typography>
+                            <List>
+                                {fileList.map(fileName => (
+                                    <ListItem
+                                        key={fileName}
+                                        secondaryAction={
+                                            <Button
+                                                edge="end"
+                                                onClick={() => handleOpenFileInEditor(fileName)}
+                                                disabled={isLoading}
+                                            >
+                                                Xem / Sửa
+                                            </Button>
+                                        }
+                                    >
+                                        <IconButton edge="start" color="primary">
+                                            <DescriptionIcon />
+                                        </IconButton>
+                                        <ListItemText primary={fileName} />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        </CardContent>
+                    </>
+                )}
+            </Card>
+
+            <Modal open={isEditorOpen} onClose={handleCloseEditor}>
+                <Paper
+                    sx={{
+                        position: 'absolute',
+                        top: '50%',
+                        left: '50%',
+                        transform: 'translate(-50%, -50%)',
+                        width: '95vw',
+                        height: '95vh',
+                        boxShadow: 24,
+                        display: 'flex',
+                        flexDirection: 'column'
+                    }}
+                >
+                    <Box
+                        sx={{
+                            p: 1,
+                            display: 'flex',
+                            justifyContent: 'space-between',
+                            alignItems: 'center',
+                            bgcolor: '#f5f5f5',
+                            borderBottom: '1px solid #ddd'
+                        }}
+                    >
+                        <Typography variant="subtitle1" sx={{ ml: 2 }}>
+                            Đang chỉnh sửa: <strong>{editingFile}</strong>
+                        </Typography>
+                        <Box>
+                            <Button
+                                variant="contained"
+                                color="primary"
+                                onClick={handleSaveChanges}
+                                disabled={isLoading}
+                                sx={{ mr: 1 }}
+                            >
+                                {isLoading ? (
+                                    <CircularProgress size={24} color="inherit" />
+                                ) : (
+                                    'Lưu thay đổi'
+                                )}
+                            </Button>
+                            <IconButton onClick={handleCloseEditor}>
+                                <CloseIcon />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                    <Box sx={{ flexGrow: 1, position: 'relative' }}>
+                        <DocumentEditorContainerComponent
+                            id="sf-docx-editor-modal"
+                            ref={sfContainerRef}
+                            serviceUrl={SYNCFUSION_SERVICE_URL}
+                            enableToolbar={true}
+                            height={'100%'}
+                        />
+                    </Box>
+                </Paper>
+            </Modal>
+        </Box>
+    );
 }
+
+// --- Định nghĩa Route của TanStack ---
+export const Route = createLazyFileRoute('/forms/')({
+    component: SyncPage
+});

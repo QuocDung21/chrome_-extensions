@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+
 // --- THƯ VIỆN ---
 import { Socket, io } from 'socket.io-client';
-import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
+
 // --- ICON ---
 import {
     AddCircleOutline as AddCircleOutlineIcon,
@@ -16,15 +17,16 @@ import {
     Event as EventIcon,
     Home as HomeIcon,
     Info as InfoIcon,
+    MoreHoriz,
     Person as PersonIcon,
     Print as PrintIcon,
     RestartAlt as RestartAltIcon,
     Star,
     Wc as WcIcon,
     Wifi as WifiIcon
-    , MoreHoriz
 } from '@mui/icons-material';
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
+import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import {
     Alert,
@@ -1357,14 +1359,20 @@ function TemplateFillerComponent() {
                         // Remove target from available list if it was used
                         const usedTarget = targetState.selectedTarget;
                         if (usedTarget) {
-                            setTargetState(prev => ({
-                                ...prev,
-                                availableTargets: prev.availableTargets.filter(
+                            setTargetState(prev => {
+                                const remainingTargets = prev.availableTargets.filter(
                                     t => t !== usedTarget
-                                ),
-                                usedTargets: [...prev.usedTargets, usedTarget],
-                                selectedTarget: ''
-                            }));
+                                );
+                                // Tự động chọn target tiếp theo nếu có sẵn
+                                const nextTarget =
+                                    remainingTargets.length > 0 ? remainingTargets[0] : '';
+                                return {
+                                    ...prev,
+                                    availableTargets: remainingTargets,
+                                    usedTargets: [...prev.usedTargets, usedTarget],
+                                    selectedTarget: nextTarget
+                                };
+                            });
 
                             setSnackbar({
                                 open: true,
@@ -1408,6 +1416,57 @@ function TemplateFillerComponent() {
         editorState.syncfusionDocumentReady,
         targetState.selectedTarget
     ]);
+
+    // Handle target change with auto-reset when switching to default after using specific targets
+    const handleTargetChange = useCallback(
+        async (newTarget: string) => {
+            const currentTarget = targetState.selectedTarget;
+            const hasUsedTargets = targetState.usedTargets.length > 0;
+
+            // If switching to default ('') after using specific targets, reset document first
+            if (newTarget === '' && currentTarget !== '' && hasUsedTargets) {
+                console.log(
+                    '🔄 Switching to default after using specific targets, resetting document...'
+                );
+                const resetSuccess = await resetDocumentToOriginal(
+                    sfContainerRef.current,
+                    targetState.originalSfdt
+                );
+
+                if (resetSuccess) {
+                    // Re-scan document to get fresh available targets
+                    const availableSuffixes = scanDocumentForSuffixes(sfContainerRef.current);
+                    setTargetState(prev => ({
+                        ...prev,
+                        availableTargets: availableSuffixes,
+                        selectedTarget: newTarget,
+                        usedTargets: [] // Reset used targets since we reset the document
+                    }));
+
+                    setSnackbar({
+                        open: true,
+                        message: 'Đã đặt lại mẫu để chọn mặc định',
+                        severity: 'info'
+                    });
+                } else {
+                    setSnackbar({
+                        open: true,
+                        message: 'Không thể đặt lại mẫu, vui lòng thử lại',
+                        severity: 'error'
+                    });
+                    return; // Don't change target if reset failed
+                }
+            } else {
+                // Normal target change
+                setTargetState(prev => ({
+                    ...prev,
+                    selectedTarget: newTarget
+                }));
+            }
+        },
+        [targetState.selectedTarget, targetState.usedTargets, targetState.originalSfdt]
+    );
+
     const handleSnackbarClose = useCallback(() => {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
@@ -1467,12 +1526,19 @@ function TemplateFillerComponent() {
                 // Remove target from available list if it was used
                 const usedTarget = targetState.selectedTarget;
                 if (usedTarget) {
-                    setTargetState(prev => ({
-                        ...prev,
-                        availableTargets: prev.availableTargets.filter(t => t !== usedTarget),
-                        usedTargets: [...prev.usedTargets, usedTarget],
-                        selectedTarget: ''
-                    }));
+                    setTargetState(prev => {
+                        const remainingTargets = prev.availableTargets.filter(
+                            t => t !== usedTarget
+                        );
+                        // Tự động chọn target tiếp theo nếu có sẵn
+                        const nextTarget = remainingTargets.length > 0 ? remainingTargets[0] : '';
+                        return {
+                            ...prev,
+                            availableTargets: remainingTargets,
+                            usedTargets: [...prev.usedTargets, usedTarget],
+                            selectedTarget: nextTarget
+                        };
+                    });
 
                     setSnackbar({
                         open: true,
@@ -1502,7 +1568,12 @@ function TemplateFillerComponent() {
                 severity: 'error'
             });
         }
-    }, [scanState.inputText, editorState.selectedRecord, editorState.syncfusionDocumentReady]);
+    }, [
+        scanState.inputText,
+        editorState.selectedRecord,
+        editorState.syncfusionDocumentReady,
+        targetState.selectedTarget
+    ]);
     console.log('🎨 TemplateFillerComponent render:', {
         csvRecordsCount: csvRecords.length,
         filteredRecordsCount: filteredRecords.length,
@@ -1511,12 +1582,15 @@ function TemplateFillerComponent() {
         syncfusionLoading: editorState.syncfusionLoading,
         syncfusionReady: editorState.syncfusionDocumentReady
     });
-    const handleKeyDown = async (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') {
-            e.preventDefault();
-            await handleAnalyzeAndFill();
-        }
-    };
+    const handleKeyDown = useCallback(
+        async (e: React.KeyboardEvent) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                await handleAnalyzeAndFill();
+            }
+        },
+        [handleAnalyzeAndFill]
+    );
 
     const customToolbarItems = ['Print'];
 
@@ -1778,7 +1852,7 @@ function TemplateFillerComponent() {
                         background: 'rgba(255,255,255,0.95)',
                         border: '1px solid rgba(255,255,255,0.2)',
                         transition: 'all 0.3s ease',
-                        height: '90vh',
+                        height: '90vh'
                     }}
                 >
                     <CardHeader
@@ -1790,66 +1864,66 @@ function TemplateFillerComponent() {
                                 fontWeight: 600
                             }
                         }}
-                    // action={
-                    //     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                    //         <Button
-                    //             variant="outlined"
-                    //             size="small"
-                    //             onClick={refreshWorkingDocuments}
-                    //             disabled={workingDocsState.isLoading}
-                    //             startIcon={<RestartAltIcon />}
-                    //             sx={{
-                    //                 borderRadius: 1,
-                    //                 textTransform: 'none',
-                    //                 fontWeight: 600,
-                    //                 borderColor: 'success.main',
-                    //                 color: 'success.main',
-                    //                 '&:hover': {
-                    //                     borderColor: 'success.dark',
-                    //                     backgroundColor: 'success.light',
-                    //                     color: 'success.dark'
-                    //                 }
-                    //             }}
-                    //         >
-                    //             {workingDocsState.isLoading ? 'Đang tải...' : '🔄 Làm mới IndexedDB'}
-                    //         </Button>
-                    //         <Chip
-                    //             icon={<CheckCircleIcon />}
-                    //             label={`${availableTemplates.length} có sẵn`}
-                    //             color="success"
-                    //             size="small"
-                    //             variant="filled"
-                    //             sx={{
-                    //                 fontWeight: 600,
-                    //                 '& .MuiChip-icon': {
-                    //                     color: 'inherit'
-                    //                 }
-                    //             }}
-                    //         />
-                    //         <Chip
-                    //             label={`${filteredRecords.length} tổng cộng`}
-                    //             color="primary"
-                    //             size="small"
-                    //             variant="outlined"
-                    //             sx={{ fontWeight: 500 }}
-                    //         />
-                    //         {/* IndexedDB working documents count */}
-                    //         {Object.keys(workingDocsState.workingDocsListByCode).length > 0 && (
-                    //             <Chip
-                    //                 icon={<Star />}
-                    //                 label={`${Object.keys(workingDocsState.workingDocsListByCode).length} từ IndexedDB`}
-                    //                 color="success"
-                    //                 size="small"
-                    //                 variant="outlined"
-                    //                 sx={{
-                    //                     fontWeight: 500,
-                    //                     borderColor: 'success.main',
-                    //                     color: 'success.main'
-                    //                 }}
-                    //             />
-                    //         )}
-                    //     </Box>
-                    // }
+                        // action={
+                        //     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                        //         <Button
+                        //             variant="outlined"
+                        //             size="small"
+                        //             onClick={refreshWorkingDocuments}
+                        //             disabled={workingDocsState.isLoading}
+                        //             startIcon={<RestartAltIcon />}
+                        //             sx={{
+                        //                 borderRadius: 1,
+                        //                 textTransform: 'none',
+                        //                 fontWeight: 600,
+                        //                 borderColor: 'success.main',
+                        //                 color: 'success.main',
+                        //                 '&:hover': {
+                        //                     borderColor: 'success.dark',
+                        //                     backgroundColor: 'success.light',
+                        //                     color: 'success.dark'
+                        //                 }
+                        //             }}
+                        //         >
+                        //             {workingDocsState.isLoading ? 'Đang tải...' : '🔄 Làm mới IndexedDB'}
+                        //         </Button>
+                        //         <Chip
+                        //             icon={<CheckCircleIcon />}
+                        //             label={`${availableTemplates.length} có sẵn`}
+                        //             color="success"
+                        //             size="small"
+                        //             variant="filled"
+                        //             sx={{
+                        //                 fontWeight: 600,
+                        //                 '& .MuiChip-icon': {
+                        //                     color: 'inherit'
+                        //                 }
+                        //             }}
+                        //         />
+                        //         <Chip
+                        //             label={`${filteredRecords.length} tổng cộng`}
+                        //             color="primary"
+                        //             size="small"
+                        //             variant="outlined"
+                        //             sx={{ fontWeight: 500 }}
+                        //         />
+                        //         {/* IndexedDB working documents count */}
+                        //         {Object.keys(workingDocsState.workingDocsListByCode).length > 0 && (
+                        //             <Chip
+                        //                 icon={<Star />}
+                        //                 label={`${Object.keys(workingDocsState.workingDocsListByCode).length} từ IndexedDB`}
+                        //                 color="success"
+                        //                 size="small"
+                        //                 variant="outlined"
+                        //                 sx={{
+                        //                     fontWeight: 500,
+                        //                     borderColor: 'success.main',
+                        //                     color: 'success.main'
+                        //                 }}
+                        //             />
+                        //         )}
+                        //     </Box>
+                        // }
                     />
                     <CardContent>
                         {csvLoading ? (
@@ -1976,7 +2050,6 @@ function TemplateFillerComponent() {
                                             getWorkingDocumentsForMaTTHC(record.maTTHC).length
                                         }
                                     />
-
                                 ))}
                                 {availableTemplates.length === 0 && (
                                     <Paper
@@ -2106,8 +2179,8 @@ function TemplateFillerComponent() {
                                 flexDirection: { xs: 'column', lg: 'row' },
                                 width: '100%',
                                 height: '100%',
-                                gap: { xs: .5, sm: .5 },
-                                p: { xs: .5, sm: .5 }
+                                gap: { xs: 0.5, sm: 0.5 },
+                                p: { xs: 0.5, sm: 0.5 }
                             }}
                         >
                             <Card
@@ -2169,8 +2242,7 @@ function TemplateFillerComponent() {
 
                                                             setSnackbar({
                                                                 open: true,
-                                                                message:
-                                                                    'Đã làm mới mẫu',
+                                                                message: 'Đã làm mới mẫu',
                                                                 severity: 'success'
                                                             });
                                                         } else {
@@ -2259,46 +2331,30 @@ function TemplateFillerComponent() {
                                             In
                                         </Button>
                                         {/* Chọn đối tượng */}
-                                        <Tooltip title="Chọn đối tượng _1 _2 _3 để chèn dữ liệu vào tài liệu nếu không có sẽ tự động chọn mặc định">
-                                            <FormControl
+                                        <FormControl
+                                            size="small"
+                                            sx={{ maxWidth: 120, minWidth: 120 }}
+                                        >
+                                            <InputLabel>Đối tượng</InputLabel>
+                                            <Select
                                                 size="small"
-                                                sx={{ maxWidth: 120, minWidth: 120, }}
+                                                value={targetState.selectedTarget}
+                                                label="Đối tượng"
+                                                variant="outlined"
+                                                color="primary"
+                                                onChange={e => handleTargetChange(e.target.value)}
+                                                disabled={targetState.availableTargets.length === 0}
                                             >
-                                                <InputLabel>Đối tượng</InputLabel>
-                                                <Select
-                                                    size="small"
-                                                    value={targetState.selectedTarget}
-                                                    label="Đối tượng"
-                                                    variant='outlined'
-                                                    color='primary'
-                                                    onChange={e =>
-                                                        setTargetState(prev => ({
-                                                            ...prev,
-                                                            selectedTarget: e.target.value
-                                                        }))
-                                                    }
-                                                    disabled={
-                                                        targetState.availableTargets.length ===
-                                                        0
-                                                    }
-                                                >
-                                                    <MenuItem value="">
-                                                        <em>Mặc định</em>
+                                                <MenuItem value="">
+                                                    <em>Mặc định</em>
+                                                </MenuItem>
+                                                {targetState.availableTargets.map(target => (
+                                                    <MenuItem key={target} value={target}>
+                                                        Đối tượng {target} (_{target})
                                                     </MenuItem>
-                                                    {targetState.availableTargets.map(
-                                                        target => (
-                                                            <MenuItem
-                                                                key={target}
-                                                                value={target}
-                                                            >
-                                                                Đối tượng {target} (_{target})
-                                                            </MenuItem>
-                                                        )
-                                                    )}
-                                                </Select>
-                                            </FormControl>
-                                        </Tooltip>
-
+                                                ))}
+                                            </Select>
+                                        </FormControl>
                                         {/* <IconButton>
                                             <PriorityHighIcon />
                                         </IconButton> */}
@@ -2425,10 +2481,7 @@ function TemplateFillerComponent() {
                                                         value={targetState.selectedTarget}
                                                         label="Đối tượng"
                                                         onChange={e =>
-                                                            setTargetState(prev => ({
-                                                                ...prev,
-                                                                selectedTarget: e.target.value
-                                                            }))
+                                                            handleTargetChange(e.target.value)
                                                         }
                                                         disabled={
                                                             targetState.availableTargets.length ===
@@ -2770,12 +2823,12 @@ function TemplateFillerComponent() {
                                                         sx={{
                                                             color:
                                                                 field.value &&
-                                                                    field.value !== '— Chưa chọn mẫu —'
+                                                                field.value !== '— Chưa chọn mẫu —'
                                                                     ? 'text.primary'
                                                                     : 'text.disabled',
                                                             fontStyle:
                                                                 field.value &&
-                                                                    field.value !== '— Chưa chọn mẫu —'
+                                                                field.value !== '— Chưa chọn mẫu —'
                                                                     ? 'normal'
                                                                     : 'italic'
                                                         }}
@@ -2857,8 +2910,7 @@ function TemplateFillerComponent() {
                                             display: 'flex',
                                             flexDirection: 'column',
                                             gap: 1,
-                                            mb: 1,
-
+                                            mb: 1
                                         }}
                                     >
                                         {templateSelectionModal.record.danhSachMauDon.map(
@@ -2978,7 +3030,12 @@ function TemplateFillerComponent() {
                                 <>
                                     <Typography
                                         variant="body2"
-                                        sx={{ mb: 1, color: 'primary.main', fontWeight: 600, textTransform: 'underline' }}
+                                        sx={{
+                                            mb: 1,
+                                            color: 'primary.main',
+                                            fontWeight: 600,
+                                            textTransform: 'underline'
+                                        }}
                                     >
                                         2. Mẫu đơn đã thiết lập
                                     </Typography>
