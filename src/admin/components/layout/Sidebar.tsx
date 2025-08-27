@@ -5,6 +5,7 @@ import {
     ArticleOutlined as ArticleIcon,
     Description as DocumentIcon,
     TrendingUp as EconomicIcon,
+    FolderOpen as FolderIcon,
     Assignment as FormIcon,
     Info as InfoIcon,
     Gavel as LegalIcon,
@@ -81,6 +82,13 @@ const scanningItems: NavigationItem[] = [
         label: 'Soạn thảo mẫu',
         icon: <TemplateFillerIcon />,
         path: '/template-filler'
+    },
+    {
+        id: 'local-template-loader',
+        label: 'Tải mẫu từ máy tính',
+        icon: <FolderIcon />,
+        path: '/local-template-loader',
+        badge: 'NEW'
     }
     // {
     //     id: 'word-viewer',

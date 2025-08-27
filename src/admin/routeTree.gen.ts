@@ -21,6 +21,9 @@ const ServicesIndexLazyRouteImport = createFileRoute('/services/')()
 const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
 const ProceduresIndexLazyRouteImport = createFileRoute('/procedures/')()
 const OcrIndexLazyRouteImport = createFileRoute('/ocr/')()
+const LocalTemplateLoaderIndexLazyRouteImport = createFileRoute(
+  '/local-template-loader/',
+)()
 const InfoIndexLazyRouteImport = createFileRoute('/info/')()
 const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
 const ExtensionIndexLazyRouteImport = createFileRoute('/extension/')()
@@ -87,6 +90,14 @@ const OcrIndexLazyRoute = OcrIndexLazyRouteImport.update({
   path: '/ocr/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/ocr/index.lazy').then((d) => d.Route))
+const LocalTemplateLoaderIndexLazyRoute =
+  LocalTemplateLoaderIndexLazyRouteImport.update({
+    id: '/local-template-loader/',
+    path: '/local-template-loader/',
+    getParentRoute: () => rootRouteImport,
+  } as any).lazy(() =>
+    import('./routes/local-template-loader/index.lazy').then((d) => d.Route),
+  )
 const InfoIndexLazyRoute = InfoIndexLazyRouteImport.update({
   id: '/info/',
   path: '/info/',
@@ -151,6 +162,7 @@ export interface FileRoutesByFullPath {
   '/extension': typeof ExtensionIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
+  '/local-template-loader': typeof LocalTemplateLoaderIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/procedures': typeof ProceduresIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
@@ -169,6 +181,7 @@ export interface FileRoutesByTo {
   '/extension': typeof ExtensionIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
+  '/local-template-loader': typeof LocalTemplateLoaderIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/procedures': typeof ProceduresIndexLazyRoute
   '/products': typeof ProductsIndexLazyRoute
@@ -188,6 +201,7 @@ export interface FileRoutesById {
   '/extension/': typeof ExtensionIndexLazyRoute
   '/forms/': typeof FormsIndexLazyRoute
   '/info/': typeof InfoIndexLazyRoute
+  '/local-template-loader/': typeof LocalTemplateLoaderIndexLazyRoute
   '/ocr/': typeof OcrIndexLazyRoute
   '/procedures/': typeof ProceduresIndexLazyRoute
   '/products/': typeof ProductsIndexLazyRoute
@@ -208,6 +222,7 @@ export interface FileRouteTypes {
     | '/extension'
     | '/forms'
     | '/info'
+    | '/local-template-loader'
     | '/ocr'
     | '/procedures'
     | '/products'
@@ -226,6 +241,7 @@ export interface FileRouteTypes {
     | '/extension'
     | '/forms'
     | '/info'
+    | '/local-template-loader'
     | '/ocr'
     | '/procedures'
     | '/products'
@@ -244,6 +260,7 @@ export interface FileRouteTypes {
     | '/extension/'
     | '/forms/'
     | '/info/'
+    | '/local-template-loader/'
     | '/ocr/'
     | '/procedures/'
     | '/products/'
@@ -263,6 +280,7 @@ export interface RootRouteChildren {
   ExtensionIndexLazyRoute: typeof ExtensionIndexLazyRoute
   FormsIndexLazyRoute: typeof FormsIndexLazyRoute
   InfoIndexLazyRoute: typeof InfoIndexLazyRoute
+  LocalTemplateLoaderIndexLazyRoute: typeof LocalTemplateLoaderIndexLazyRoute
   OcrIndexLazyRoute: typeof OcrIndexLazyRoute
   ProceduresIndexLazyRoute: typeof ProceduresIndexLazyRoute
   ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
@@ -329,6 +347,13 @@ declare module '@tanstack/react-router' {
       path: '/ocr'
       fullPath: '/ocr'
       preLoaderRoute: typeof OcrIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/local-template-loader/': {
+      id: '/local-template-loader/'
+      path: '/local-template-loader'
+      fullPath: '/local-template-loader'
+      preLoaderRoute: typeof LocalTemplateLoaderIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/info/': {
@@ -399,6 +424,7 @@ const rootRouteChildren: RootRouteChildren = {
   ExtensionIndexLazyRoute: ExtensionIndexLazyRoute,
   FormsIndexLazyRoute: FormsIndexLazyRoute,
   InfoIndexLazyRoute: InfoIndexLazyRoute,
+  LocalTemplateLoaderIndexLazyRoute: LocalTemplateLoaderIndexLazyRoute,
   OcrIndexLazyRoute: OcrIndexLazyRoute,
   ProceduresIndexLazyRoute: ProceduresIndexLazyRoute,
   ProductsIndexLazyRoute: ProductsIndexLazyRoute,

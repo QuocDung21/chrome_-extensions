@@ -21,7 +21,6 @@ import {
     Wifi as WifiIcon
 } from '@mui/icons-material';
 import SaveIcon from '@mui/icons-material/Save';
-import { useNavigate } from '@tanstack/react-router';
 import {
     Box,
     Button,
@@ -49,6 +48,7 @@ import {
     Ribbon,
     Toolbar
 } from '@syncfusion/ej2-react-documenteditor';
+import { useNavigate } from '@tanstack/react-router';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
 import templateStorageService, {
