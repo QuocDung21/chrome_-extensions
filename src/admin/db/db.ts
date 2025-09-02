@@ -85,3 +85,4 @@ export class AppDatabase extends Dexie {
 
 // Khởi tạo và export một instance của database để dùng trong toàn bộ ứng dụng
 export const db = new AppDatabase();
+// 

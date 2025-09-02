@@ -9,7 +9,8 @@ import {
     Folder as FolderIcon,
     FolderOpen as FolderOpenIcon,
     Print as PrintIcon,
-    Refresh as RefreshIcon
+    Refresh as RefreshIcon,
+    Save as SaveIcon
 } from '@mui/icons-material';
 import {
     Alert,
@@ -45,12 +46,19 @@ import {
     DocumentEditorContainerComponent,
     Print,
     Ribbon,
-    SfdtExport,
     Toolbar
 } from '@syncfusion/ej2-react-documenteditor';
 import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
+
+// --- IDB UTILS ---
+import {
+    clearDirectoryHandle,
+    getDirectoryHandle,
+    storeDirectoryHandle,
+    verifyAndRequestPermission
+} from '../../db/db_local';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
 
@@ -64,6 +72,7 @@ interface WordFile {
     file: File;
     size: number;
     lastModified: number;
+    handle: FileSystemFileHandle;
 }
 
 interface EditorState {
@@ -78,6 +87,8 @@ function LocalTemplateLoaderComponent() {
     const [folderPath, setFolderPath] = useState<string>('');
     const [wordFiles, setWordFiles] = useState<WordFile[]>([]);
     const [loading, setLoading] = useState(false);
+    const [dirHandle, setDirHandle] = useState<FileSystemDirectoryHandle | null>(null);
+    const [isRestoring, setIsRestoring] = useState(true);
     const [editorState, setEditorState] = useState<EditorState>({
         selectedFile: null,
         showEditorModal: false,
@@ -85,7 +96,6 @@ function LocalTemplateLoaderComponent() {
         syncfusionDocumentReady: false
     });
 
-    // Snackbar state
     const [snackbar, setSnackbar] = useState<{
         open: boolean;
         message: string;
@@ -100,50 +110,94 @@ function LocalTemplateLoaderComponent() {
     const { history } = useRouter();
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
 
-    // Handle folder selection
+    const loadFilesFromHandle = useCallback(async (handle: FileSystemDirectoryHandle) => {
+        setLoading(true);
+        try {
+            const files: WordFile[] = [];
+            // @ts-expect-error
+            for await (const procedureHandle of handle.values()) {
+                if (procedureHandle.kind === 'directory') {
+                    try {
+                        const docxFolderHandle = await procedureHandle.getDirectoryHandle('docx');
+                        for await (const fileHandle of docxFolderHandle.values()) {
+                            if (fileHandle.kind === 'file') {
+                                const file = await fileHandle.getFile();
+                                const fileNameLower = file.name.toLowerCase();
+                                if (
+                                    fileNameLower.endsWith('.docx') ||
+                                    fileNameLower.endsWith('.doc')
+                                ) {
+                                    files.push({
+                                        name: `${procedureHandle.name}/${file.name}`,
+                                        file: file,
+                                        size: file.size,
+                                        lastModified: file.lastModified,
+                                        handle: fileHandle
+                                    });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(
+                            `Thư mục 'docx' không tồn tại trong '${procedureHandle.name}', đang bỏ qua.`
+                        );
+                    }
+                }
+            }
+            setWordFiles(files.sort((a, b) => a.name.localeCompare(b.name)));
+            setFolderPath(handle.name || 'Selected Folder');
+            setDirHandle(handle);
+            setSnackbar({
+                open: true,
+                message: `Đã tìm thấy ${files.length} file Word hợp lệ.`,
+                severity: 'success'
+            });
+        } catch (error) {
+            console.error('Lỗi khi tải file từ thư mục:', error);
+            setSnackbar({
+                open: true,
+                message: 'Không thể tải file từ thư mục đã lưu.',
+                severity: 'error'
+            });
+            await clearDirectoryHandle();
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        const restoreDirectory = async () => {
+            console.log('🔄 Đang cố gắng khôi phục thư mục từ IndexedDB...');
+            const savedHandle = await getDirectoryHandle();
+            if (savedHandle) {
+                console.log('✅ Tìm thấy thư mục đã lưu. Đang xác minh quyền...');
+                const hasPermission = await verifyAndRequestPermission(savedHandle);
+                if (hasPermission) {
+                    await loadFilesFromHandle(savedHandle);
+                } else {
+                    setSnackbar({
+                        open: true,
+                        message: 'Bạn đã từ chối quyền truy cập thư mục đã lưu.',
+                        severity: 'warning'
+                    });
+                    await clearDirectoryHandle();
+                }
+            } else {
+                console.log('ℹ️ Không tìm thấy thư mục nào đã lưu.');
+            }
+            setIsRestoring(false);
+        };
+        restoreDirectory();
+    }, [loadFilesFromHandle]);
+
     const handleSelectFolder = useCallback(async () => {
         try {
             setLoading(true);
-
-            // Check if the browser supports the File System Access API
             if ('showDirectoryPicker' in window) {
-                // Use File System Access API for modern browsers
-                const dirHandle = await (window as any).showDirectoryPicker({
-                    mode: 'read'
-                });
-
-                const files: WordFile[] = [];
-
-                // Iterate through all files in the directory
-                for await (const [name, handle] of dirHandle.entries()) {
-                    if (handle.kind === 'file') {
-                        const file = await handle.getFile();
-
-                        // Check if it's a Word document
-                        if (
-                            file.name.toLowerCase().endsWith('.docx') ||
-                            file.name.toLowerCase().endsWith('.doc')
-                        ) {
-                            files.push({
-                                name: file.name,
-                                file: file,
-                                size: file.size,
-                                lastModified: file.lastModified
-                            });
-                        }
-                    }
-                }
-
-                setWordFiles(files.sort((a, b) => a.name.localeCompare(b.name)));
-                setFolderPath(dirHandle.name || 'Selected Folder');
-
-                setSnackbar({
-                    open: true,
-                    message: `Đã tìm thấy ${files.length} file Word trong thư mục`,
-                    severity: 'success'
-                });
+                const dirHandle = await (window as any).showDirectoryPicker({ mode: 'readwrite' });
+                await loadFilesFromHandle(dirHandle);
+                await storeDirectoryHandle(dirHandle);
             } else {
-                // Fallback for browsers that don't support File System Access API
                 setSnackbar({
                     open: true,
                     message:
@@ -152,7 +206,7 @@ function LocalTemplateLoaderComponent() {
                 });
             }
         } catch (error: any) {
-            console.error('Error selecting folder:', error);
+            console.error('Lỗi khi chọn thư mục:', error);
             if (error.name !== 'AbortError') {
                 setSnackbar({
                     open: true,
@@ -163,59 +217,24 @@ function LocalTemplateLoaderComponent() {
         } finally {
             setLoading(false);
         }
-    }, []);
+    }, [loadFilesFromHandle]);
 
-    // Handle fallback folder selection using input
     const handleFallbackFolderSelect = useCallback(
         async (event: React.ChangeEvent<HTMLInputElement>) => {
             const files = event.target.files;
             if (!files || files.length === 0) return;
-
-            setLoading(true);
-            try {
-                const wordFiles: WordFile[] = [];
-
-                for (let i = 0; i < files.length; i++) {
-                    const file = files[i];
-                    if (
-                        file.name.toLowerCase().endsWith('.docx') ||
-                        file.name.toLowerCase().endsWith('.doc')
-                    ) {
-                        wordFiles.push({
-                            name: file.name,
-                            file: file,
-                            size: file.size,
-                            lastModified: file.lastModified
-                        });
-                    }
-                }
-
-                setWordFiles(wordFiles.sort((a, b) => a.name.localeCompare(b.name)));
-                setFolderPath('Selected Folder');
-
-                setSnackbar({
-                    open: true,
-                    message: `Đã tìm thấy ${wordFiles.length} file Word`,
-                    severity: 'success'
-                });
-            } catch (error) {
-                console.error('Error processing files:', error);
-                setSnackbar({
-                    open: true,
-                    message: 'Lỗi khi xử lý file. Vui lòng thử lại.',
-                    severity: 'error'
-                });
-            } finally {
-                setLoading(false);
-            }
+            setSnackbar({
+                open: true,
+                message:
+                    'Phương án 2 không hỗ trợ cấu trúc thư mục con. Vui lòng dùng "Chọn thư mục".',
+                severity: 'warning'
+            });
         },
         []
     );
 
-    // Handle file selection
     const handleSelectFile = useCallback(async (wordFile: WordFile) => {
-        console.log('🎯 File selected:', wordFile.name);
-
+        console.log('🎯 Đã chọn file:', wordFile.name);
         setEditorState(prev => ({
             ...prev,
             selectedFile: wordFile,
@@ -223,7 +242,6 @@ function LocalTemplateLoaderComponent() {
             syncfusionLoading: true,
             syncfusionDocumentReady: false
         }));
-
         setSnackbar({
             open: true,
             message: `Đang tải file: ${wordFile.name}`,
@@ -231,26 +249,22 @@ function LocalTemplateLoaderComponent() {
         });
     }, []);
 
-    // Load file into Syncfusion editor
     const loadFileIntoSyncfusion = useCallback(async (wordFile: WordFile) => {
-        console.log('🔄 Starting file load process for:', wordFile.name);
-
-        // Wait for Syncfusion to be ready
+        console.log('🔄 Bắt đầu quá trình tải file:', wordFile.name);
         const waitForSyncfusion = async (maxRetries = 10): Promise<boolean> => {
             for (let i = 0; i < maxRetries; i++) {
                 if (sfContainerRef.current?.documentEditor) {
-                    console.log('✅ Syncfusion editor found, proceeding...');
+                    console.log('✅ Syncfusion editor đã sẵn sàng.');
                     return true;
                 }
-                console.log(`⏳ Waiting for Syncfusion editor (attempt ${i + 1}/${maxRetries})...`);
+                console.log(`⏳ Đợi Syncfusion editor (lần ${i + 1}/${maxRetries})...`);
                 await new Promise(resolve => setTimeout(resolve, 500));
             }
             return false;
         };
-
         const isReady = await waitForSyncfusion();
         if (!isReady) {
-            console.error('❌ Syncfusion editor not ready after waiting');
+            console.error('❌ Syncfusion editor không sẵn sàng sau khi chờ.');
             setEditorState(prev => ({
                 ...prev,
                 syncfusionLoading: false,
@@ -263,44 +277,23 @@ function LocalTemplateLoaderComponent() {
             });
             return;
         }
-
         try {
-            console.log('🔄 Loading file into Syncfusion...');
-
+            console.log('🔄 Đang tải file vào Syncfusion...');
             const blob = wordFile.file;
-            console.log('📦 File blob size:', blob.size, 'bytes');
-
             const form = new FormData();
             form.append('files', blob, wordFile.name);
-
-            console.log('🔄 Converting DOCX to SFDT...');
-            console.log('🌐 Syncfusion service URL:', SYNCFUSION_SERVICE_URL + 'Import');
-
             const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
                 method: 'POST',
                 body: form
             });
-
             if (!importRes.ok) {
-                console.error(
-                    '❌ Syncfusion import failed:',
-                    importRes.status,
-                    importRes.statusText
-                );
                 throw new Error(`Lỗi khi import file: ${importRes.status} ${importRes.statusText}`);
             }
-
             const sfdtText = await importRes.text();
-            console.log('✅ SFDT conversion completed, length:', sfdtText.length);
-
             if (!sfdtText || sfdtText.length < 100) {
-                throw new Error('SFDT conversion returned invalid data');
+                throw new Error('Dữ liệu chuyển đổi (SFDT) không hợp lệ.');
             }
-
-            console.log('🔄 Opening document in Syncfusion editor...');
             sfContainerRef.current!.documentEditor.open(sfdtText);
-
-            // Wait for document to be fully loaded
             setTimeout(() => {
                 try {
                     const testSfdt = sfContainerRef.current?.documentEditor?.serialize();
@@ -310,19 +303,17 @@ function LocalTemplateLoaderComponent() {
                             syncfusionDocumentReady: true,
                             syncfusionLoading: false
                         }));
-                        console.log('✅ Syncfusion document ready');
-
+                        console.log('✅ Tài liệu Syncfusion đã sẵn sàng.');
                         setSnackbar({
                             open: true,
                             message: `Đã tải thành công: ${wordFile.name}`,
                             severity: 'success'
                         });
                     } else {
-                        throw new Error('Document not properly loaded');
+                        throw new Error('Tài liệu không được tải đúng cách.');
                     }
                 } catch (error) {
-                    console.warn('⚠️ Error checking document readiness:', error);
-                    // Still mark as ready to allow user interaction
+                    console.warn('⚠️ Lỗi khi kiểm tra tài liệu sẵn sàng:', error);
                     setEditorState(prev => ({
                         ...prev,
                         syncfusionDocumentReady: true,
@@ -331,7 +322,7 @@ function LocalTemplateLoaderComponent() {
                 }
             }, 2000);
         } catch (e: any) {
-            console.error('❌ Error loading Syncfusion document:', e);
+            console.error('❌ Lỗi khi tải tài liệu Syncfusion:', e);
             setEditorState(prev => ({
                 ...prev,
                 syncfusionLoading: false,
@@ -345,7 +336,6 @@ function LocalTemplateLoaderComponent() {
         }
     }, []);
 
-    // Handle editor close
     const handleCloseEditor = useCallback(() => {
         setEditorState({
             selectedFile: null,
@@ -355,36 +345,90 @@ function LocalTemplateLoaderComponent() {
         });
     }, []);
 
-    // Handle print
     const handlePrintClick = async () => {
-        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            await sfContainerRef.current.documentEditor.print(window);
-            await window.print();
-            await history.back();
-            await navigate({
-                to: '/local-template-loader'
-            });
-            window.location.reload();
+        if (sfContainerRef.current?.documentEditor) {
+            sfContainerRef.current.documentEditor.print();
         } else {
-            console.error('Document editor not ready to print.');
+            console.error('Trình soạn thảo chưa sẵn sàng để in.');
         }
     };
 
-    // Handle download
     const handleDownloadClick = () => {
-        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            const fileName = editorState.selectedFile?.name || 'Document.docx';
+        if (sfContainerRef.current?.documentEditor) {
+            const fileName = editorState.selectedFile?.name.split('/').pop() || 'Document.docx';
             sfContainerRef.current.documentEditor.save(fileName, 'Docx');
         } else {
-            console.error('Document editor not ready to download.');
+            console.error('Trình soạn thảo chưa sẵn sàng để tải xuống.');
         }
     };
+
+    // [THAY ĐỔI] Cập nhật logic lưu file để làm mới đối tượng File trong state
+    const handleSaveFile = async () => {
+        if (!sfContainerRef.current?.documentEditor || !editorState.selectedFile) {
+            setSnackbar({
+                open: true,
+                message: 'Trình soạn thảo chưa sẵn sàng để lưu.',
+                severity: 'error'
+            });
+            return;
+        }
+
+        const { handle: fileHandle, name: displayName } = editorState.selectedFile;
+
+        try {
+            setSnackbar({ open: true, message: 'Đang lưu file...', severity: 'info' });
+
+            const docxBlob = await sfContainerRef.current.documentEditor.saveAsBlob('Docx');
+            const writable = await fileHandle.createWritable();
+            await writable.write(docxBlob);
+            await writable.close();
+
+            setSnackbar({
+                open: true,
+                message: `Đã lưu file thành công: ${displayName}`,
+                severity: 'success'
+            });
+
+            // --- PHẦN SỬA LỖI ---
+            // Sau khi lưu thành công, đọc lại file từ đĩa để lấy phiên bản mới nhất
+            const updatedFileObject = await fileHandle.getFile();
+
+            // Cập nhật lại danh sách file trong state với đối tượng File mới
+            setWordFiles(prevFiles =>
+                prevFiles.map(wf =>
+                    wf.name === displayName
+                        ? {
+                              ...wf,
+                              file: updatedFileObject, // <-- CẬP NHẬT FILE MỚI
+                              size: updatedFileObject.size,
+                              lastModified: updatedFileObject.lastModified
+                          }
+                        : wf
+                )
+            );
+            // --- KẾT THÚC PHẦN SỬA LỖI ---
+        } catch (error) {
+            console.error('Lỗi khi lưu file:', error);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi lưu file. Vui lòng thử lại.',
+                severity: 'error'
+            });
+        }
+    };
+
+    const handleClearFolder = useCallback(async () => {
+        setWordFiles([]);
+        setFolderPath('');
+        setDirHandle(null);
+        await clearDirectoryHandle();
+        setSnackbar({ open: true, message: 'Đã xóa lựa chọn thư mục.', severity: 'info' });
+    }, []);
 
     const handleSnackbarClose = useCallback(() => {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
 
-    // Format file size
     const formatFileSize = (bytes: number): string => {
         if (bytes === 0) return '0 Bytes';
         const k = 1024;
@@ -393,7 +437,6 @@ function LocalTemplateLoaderComponent() {
         return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + ' ' + sizes[i];
     };
 
-    // Format last modified date
     const formatDate = (timestamp: number): string => {
         return new Date(timestamp).toLocaleDateString('vi-VN', {
             year: 'numeric',
@@ -404,13 +447,27 @@ function LocalTemplateLoaderComponent() {
         });
     };
 
-    // Load file when editor modal opens
     useEffect(() => {
         if (editorState.showEditorModal && editorState.selectedFile) {
-            console.log('🚀 Triggering file load for:', editorState.selectedFile.name);
             loadFileIntoSyncfusion(editorState.selectedFile);
         }
     }, [editorState.showEditorModal, editorState.selectedFile, loadFileIntoSyncfusion]);
+
+    if (isRestoring) {
+        return (
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    alignItems: 'center',
+                    height: '100vh'
+                }}
+            >
+                <CircularProgress />
+                <Typography sx={{ ml: 2 }}>Đang kiểm tra thư mục đã lưu...</Typography>
+            </Box>
+        );
+    }
 
     return (
         <>
@@ -422,7 +479,6 @@ function LocalTemplateLoaderComponent() {
                     p: { xs: 1, sm: 2, md: 3 }
                 }}
             >
-                {/* Header */}
                 <Card
                     sx={{
                         mb: 3,
@@ -434,8 +490,8 @@ function LocalTemplateLoaderComponent() {
                     }}
                 >
                     <CardHeader
-                        title="📁 Tải mẫu đơn từ thư mục"
-                        subheader="Chọn thư mục chứa file Word mẫu từ máy tính của bạn"
+                        title="Đồng bộ dữ liệu"
+                        subheader="Chọn thư mục chứa các mẫu theo cấu trúc [Mã TTHC]/docx/[Tên file]"
                         sx={{
                             '& .MuiCardHeader-title': {
                                 fontSize: '1.5rem',
@@ -470,18 +526,16 @@ function LocalTemplateLoaderComponent() {
                                     transition: 'all 0.3s ease'
                                 }}
                             >
-                                {loading ? 'Đang tải...' : 'Chọn thư mục'}
+                                {loading ? 'Đang quét...' : 'Chọn thư mục'}
                             </Button>
-
-                            {/* Fallback input for browsers that don't support File System Access API */}
                             <input
                                 type="file"
                                 multiple
-                                onChange={handleFallbackFolderSelect}
                                 style={{ display: 'none' }}
                                 id="fallback-folder-input"
+                                onChange={handleFallbackFolderSelect}
                             />
-                            <Button
+                            {/* <Button
                                 variant="outlined"
                                 size="large"
                                 onClick={() =>
@@ -489,15 +543,11 @@ function LocalTemplateLoaderComponent() {
                                 }
                                 startIcon={<FolderIcon />}
                                 disabled={loading}
-                                sx={{
-                                    borderRadius: 2,
-                                    textTransform: 'none',
-                                    fontWeight: 600
-                                }}
+                                sx={{ borderRadius: 2, textTransform: 'none', fontWeight: 600 }}
+                                title="Phương án 2 không hỗ trợ cấu trúc thư mục con"
                             >
                                 Chọn thư mục (Phương án 2)
-                            </Button>
-
+                            </Button> */}
                             {folderPath && (
                                 <Chip
                                     icon={<FolderIcon />}
@@ -511,7 +561,6 @@ function LocalTemplateLoaderComponent() {
                     </CardContent>
                 </Card>
 
-                {/* File List */}
                 <Card
                     sx={{
                         borderRadius: 2,
@@ -523,28 +572,20 @@ function LocalTemplateLoaderComponent() {
                     }}
                 >
                     <CardHeader
-                        title={`Danh sách file Word (${wordFiles.length})`}
+                        title={`Danh sách mẫu (${wordFiles.length})`}
                         action={
                             wordFiles.length > 0 && (
                                 <Button
                                     variant="outlined"
                                     size="small"
-                                    onClick={() => {
-                                        setWordFiles([]);
-                                        setFolderPath('');
-                                    }}
+                                    onClick={handleClearFolder}
                                     startIcon={<RefreshIcon />}
                                 >
-                                    Làm mới
+                                    Xóa lựa chọn
                                 </Button>
                             )
                         }
-                        sx={{
-                            '& .MuiCardHeader-title': {
-                                fontSize: '1.1rem',
-                                fontWeight: 600
-                            }
-                        }}
+                        sx={{ '& .MuiCardHeader-title': { fontSize: '1.1rem', fontWeight: 600 } }}
                     />
                     <CardContent sx={{ height: 'calc(100% - 80px)', overflow: 'auto' }}>
                         {loading ? (
@@ -588,8 +629,8 @@ function LocalTemplateLoaderComponent() {
                             </Paper>
                         ) : (
                             <List sx={{ width: '100%' }}>
-                                {wordFiles.map((wordFile, index) => (
-                                    <ListItem key={index} disablePadding>
+                                {wordFiles.map(wordFile => (
+                                    <ListItem key={wordFile.name} disablePadding>
                                         <ListItemButton
                                             onClick={() => handleSelectFile(wordFile)}
                                             sx={{
@@ -655,7 +696,6 @@ function LocalTemplateLoaderComponent() {
                     </CardContent>
                 </Card>
 
-                {/* Syncfusion Editor Modal */}
                 <Dialog
                     open={editorState.showEditorModal}
                     onClose={handleCloseEditor}
@@ -687,20 +727,33 @@ function LocalTemplateLoaderComponent() {
                                 paddingLeft: 2
                             }}
                         >
-                            <Typography sx={{ paddingLeft: 2 }} fontWeight={'bold'}>
+                            <Typography sx={{ paddingLeft: 2, fontWeight: 'bold' }}>
                                 📄 {editorState.selectedFile?.name || 'Word Editor'}
                             </Typography>
                             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                <Button
+                                    variant="contained"
+                                    onClick={handleSaveFile}
+                                    startIcon={<SaveIcon />}
+                                    disabled={!editorState.syncfusionDocumentReady}
+                                    sx={{
+                                        borderRadius: 1,
+                                        textTransform: 'none',
+                                        fontWeight: 600,
+                                        background: 'linear-gradient(45deg, #2e7d32, #4caf50)',
+                                        '&:hover': {
+                                            background: 'linear-gradient(45deg, #1b5e20, #2e7d32)'
+                                        }
+                                    }}
+                                >
+                                    Lưu file
+                                </Button>
                                 <Button
                                     variant="outlined"
                                     onClick={handleDownloadClick}
                                     startIcon={<Download />}
                                     disabled={!editorState.syncfusionDocumentReady}
-                                    sx={{
-                                        borderRadius: 1,
-                                        textTransform: 'none',
-                                        fontWeight: 600
-                                    }}
+                                    sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
                                 >
                                     Tải xuống
                                 </Button>
@@ -709,11 +762,7 @@ function LocalTemplateLoaderComponent() {
                                     onClick={handlePrintClick}
                                     startIcon={<PrintIcon />}
                                     disabled={!editorState.syncfusionDocumentReady}
-                                    sx={{
-                                        borderRadius: 1,
-                                        textTransform: 'none',
-                                        fontWeight: 600
-                                    }}
+                                    sx={{ borderRadius: 1, textTransform: 'none', fontWeight: 600 }}
                                 >
                                     In
                                 </Button>
@@ -759,7 +808,6 @@ function LocalTemplateLoaderComponent() {
                                         </Typography>
                                     </Box>
                                 )}
-
                                 <DocumentEditorContainerComponent
                                     id="sf-docx-editor-local"
                                     ref={sfContainerRef}
@@ -775,7 +823,6 @@ function LocalTemplateLoaderComponent() {
                     </DialogContent>
                 </Dialog>
 
-                {/* Snackbar for notifications */}
                 <Snackbar
                     open={snackbar.open}
                     autoHideDuration={4000}
