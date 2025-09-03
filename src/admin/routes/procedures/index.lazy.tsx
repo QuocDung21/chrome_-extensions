@@ -85,19 +85,20 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
-import { ProcessingModal } from '../../components/word-mapper/ProcessingModal';
-import { db } from '../../db/db';
-import type { WorkingDocument } from '../../db/db';
-import { thuTucHCRepository } from '../../repository/ThuTucHCRepository';
 // --- COMPONENTS ---
 import {
     type EnhancedTTHCRecord,
     type FilterOptions,
     type FilterState,
     TemplateSelectorModal
-} from '../procedures/TemplateSelectorModal';
+} from '@/admin/components/procedures/TemplateSelectorModal';
+
 // eslint-disable-next-line
 import TemplateFillerComponent from '../../components/TemplateFillerWrapper';
+import { ProcessingModal } from '../../components/word-mapper/ProcessingModal';
+import { db } from '../../db/db';
+import type { WorkingDocument } from '../../db/db';
+import { thuTucHCRepository } from '../../repository/ThuTucHCRepository';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
 
@@ -1216,10 +1217,11 @@ function ProceduresComponent() {
         const base = filteredRecords.filter(r => r.isTemplateAvailable);
         if (!quickSearchText.trim()) return base;
         const t = quickSearchText.trim().toLowerCase();
-        return base.filter(r =>
-            (r.tenTTHC || '').toLowerCase().includes(t) ||
-            (r.maTTHC || '').toLowerCase().includes(t) ||
-            (r.linhVuc || '').toLowerCase().includes(t)
+        return base.filter(
+            r =>
+                (r.tenTTHC || '').toLowerCase().includes(t) ||
+                (r.maTTHC || '').toLowerCase().includes(t) ||
+                (r.linhVuc || '').toLowerCase().includes(t)
         );
     }, [filteredRecords, quickSearchText]);
 
@@ -4014,10 +4016,10 @@ function ProceduresComponent() {
             if (!res.ok) throw new Error('Không thể tải file mẫu');
             const blob = await res.blob();
             const baseName = decodeFileName(
-                state.uploadedTemplateName || 
-                selectedTemplateNameFromPath || 
-                'mau'
-            ).replace(/\s/g, '_').replace(/\.(docx?|DOCX?)$/, '');
+                state.uploadedTemplateName || selectedTemplateNameFromPath || 'mau'
+            )
+                .replace(/\s/g, '_')
+                .replace(/\.(docx?|DOCX?)$/, '');
             saveAs(blob, `${baseName}.docx`);
         } catch (e) {
             setSnackbar({ open: true, message: 'Không thể tải mẫu gốc', severity: 'error' });
@@ -4251,7 +4253,7 @@ function ProceduresComponent() {
             if (shouldCreateNew) {
                 const baseName = decodeFileName(
                     state.uploadedTemplateName ||
-                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx')
+                        (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx')
                 );
                 const safeBase = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
                 // make name unique by appending timestamp to avoid collisions
@@ -4269,7 +4271,7 @@ function ProceduresComponent() {
                 // Update currently opened working doc (latest for this code)
                 const baseName = decodeFileName(
                     existingDoc?.fileName ||
-                    (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx')
+                        (displayTemplateName ? `${displayTemplateName}.docx` : 'file.docx')
                 );
                 fileNameToSave = /\.docx$/i.test(baseName) ? baseName : `${baseName}.docx`;
                 const updatedRecord: WorkingDocument = {
@@ -4649,7 +4651,11 @@ function ProceduresComponent() {
                             }));
                             resetProcessing();
                             setShowTemplateModal(false);
-                            setSnackbar({ open: true, message: 'Đã thiết lập mẫu từ danh sách nhanh', severity: 'success' });
+                            setSnackbar({
+                                open: true,
+                                message: 'Đã thiết lập mẫu từ danh sách nhanh',
+                                severity: 'success'
+                            });
                         } catch {}
                     }}
                 />

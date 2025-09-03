@@ -70,38 +70,12 @@ const scanningItems: NavigationItem[] = [
         path: '/forms'
         // badge: 'NEW'
     },
-    // {
-    //     id: 'word-mapper',
-    //     label: 'Mẫu đơn, tờ khai',
-    //     icon: <WordMapperIcon />,
-    //     path: '/word-mapper',
-    //     badge: 'NEW'
-    // },
     {
         id: 'template-filler',
         label: 'Soạn thảo mẫu',
         icon: <TemplateFillerIcon />,
         path: '/template-filler'
-    },
-    {
-        id: 'local-template-loader',
-        label: 'Tải mẫu từ máy tính',
-        icon: <FolderIcon />,
-        path: '/local-template-loader',
-        badge: 'NEW'
     }
-    // {
-    //     id: 'word-viewer',
-    //     label: 'Xem Word',
-    //     icon: <WordViewerIcon />,
-    //     path: '/word-viewer'
-    // }
-    // {
-    //     id: 'procedures',
-    //     label: 'Thủ tục hành chính',
-    //     icon: <ArticleIcon />,
-    //     path: '/procedures'
-    // }
 ];
 
 const documentsItems: NavigationItem[] = [

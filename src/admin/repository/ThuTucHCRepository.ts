@@ -1,7 +1,8 @@
-import { db, ThuTucHC } from '../db/db';
+import { ThuTucHC as ThuTucHCLocal, db } from '../db/db';
+import { ThuTucHanhChinh, thuTucHanhChinhApiService } from '../services/thuTucHanhChinh';
 
 class ThuTucHCRepository {
-    async getAllThuTucHC(): Promise<ThuTucHC[]> {
+    async getAllThuTucHC(): Promise<ThuTucHCLocal[]> {
         const cachedCount = await db.thuTucHC.count();
 
         if (cachedCount > 0) {
@@ -18,7 +19,7 @@ class ThuTucHCRepository {
             const jsonArray = await response.json();
 
             // Map dữ liệu JSON (theo cấu trúc hiện có trong routes) sang ThuTucHC
-            const mapped: ThuTucHC[] = Array.isArray(jsonArray)
+            const mapped: ThuTucHCLocal[] = Array.isArray(jsonArray)
                 ? jsonArray.map((item: any) => ({
                       maTTHC: item['Mã TTHC'] ?? '',
                       tenTTHC: item['Tên TTHC'] ?? '',
@@ -50,8 +51,25 @@ class ThuTucHCRepository {
             throw error;
         }
     }
+    async getAllThuTucHCApi(): Promise<ThuTucHanhChinh[]> {
+        const cachedCount = await db.thuTucHanhChinh.count();
+        if (cachedCount > 0) {
+            return db.thuTucHanhChinh.toArray();
+        }
+        const apiResponse = await thuTucHanhChinhApiService.getAllThuTucHanhChinh(1, 300);
+        if (apiResponse.success && apiResponse.data && apiResponse.data.items.length > 0) {
+            const thuTucItems = apiResponse.data.items;
+            try {
+                await db.thuTucHanhChinh.bulkAdd(thuTucItems);
+                return thuTucItems;
+            } catch (error) {
+                return thuTucItems;
+            }
+        } else {
+            const errorMessage = apiResponse.error?.message || 'Lỗi không xác định từ API';
+            throw new Error(errorMessage);
+        }
+    }
 }
 
 export const thuTucHCRepository = new ThuTucHCRepository();
-
-

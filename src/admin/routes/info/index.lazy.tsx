@@ -51,9 +51,6 @@ import {
 import { useNavigate } from '@tanstack/react-router';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
-import templateStorageService, {
-    type StoredTemplate
-} from '@/admin/services/templateStorageService';
 import checkUrlExists from '@/utils/checkUrlExists';
 import { getXPath } from '@/utils/getXPath';
 
@@ -412,7 +409,7 @@ function InfoPage() {
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
 
     // Template setup state
-    const [templates, setTemplates] = useState<StoredTemplate[]>([]);
+    // const [templates, setTemplates] = useState<StoredTemplate[]>([]);
     const [isUploading, setIsUploading] = useState(false);
     const [storageInfo, setStorageInfo] = useState<{
         used: number;
@@ -448,7 +445,7 @@ function InfoPage() {
             }
         } catch {}
         // Load templates and storage usage
-        void loadTemplatesAndUsage();
+        // void loadTemplatesAndUsage();
     }, []);
 
     // Hàm kiểm tra định dạng URL
@@ -474,83 +471,83 @@ function InfoPage() {
         return 'tpl_' + Math.random().toString(36).slice(2, 9) + Date.now().toString(36);
     };
 
-    const loadTemplatesAndUsage = async (): Promise<void> => {
-        try {
-            const [list, usage] = await Promise.all([
-                templateStorageService.getTemplates(),
-                templateStorageService.getStorageInfo()
-            ]);
-            setTemplates(list);
-            setStorageInfo(usage);
-        } catch (e) {
-            console.warn('Không thể tải danh sách mẫu:', e);
-        }
-    };
+    // const loadTemplatesAndUsage = async (): Promise<void> => {
+    //     try {
+    //         const [list, usage] = await Promise.all([
+    //             templateStorageService.getTemplates(),
+    //             templateStorageService.getStorageInfo()
+    //         ]);
+    //         setTemplates(list);
+    //         setStorageInfo(usage);
+    //     } catch (e) {
+    //         console.warn('Không thể tải danh sách mẫu:', e);
+    //     }
+    // };
 
-    const handleUploadTemplates = async (files: FileList | null): Promise<void> => {
-        if (!files || files.length === 0) return;
-        setIsUploading(true);
-        try {
-            for (const file of Array.from(files)) {
-                const id = generateId();
-                const name = file.name.replace(/\.[^.]+$/, '');
-                const sizeLabel = formatBytes(file.size);
-                const template: Omit<StoredTemplate, 'templateData'> = {
-                    id,
-                    name,
-                    description: '',
-                    fileName: file.name,
-                    fileSize: sizeLabel,
-                    uploadDate: new Date().toISOString(),
-                    status: 'active',
-                    category: 'default'
-                };
-                await templateStorageService.saveTemplateWithFile(template, file);
-            }
-            await loadTemplatesAndUsage();
-        } catch (e) {
-            alert('Lỗi khi tải lên mẫu. Vui lòng thử lại.');
-        } finally {
-            setIsUploading(false);
-        }
-    };
+    // const handleUploadTemplates = async (files: FileList | null): Promise<void> => {
+    //     if (!files || files.length === 0) return;
+    //     setIsUploading(true);
+    //     try {
+    //         for (const file of Array.from(files)) {
+    //             const id = generateId();
+    //             const name = file.name.replace(/\.[^.]+$/, '');
+    //             const sizeLabel = formatBytes(file.size);
+    //             const template: Omit<StoredTemplate, 'templateData'> = {
+    //                 id,
+    //                 name,
+    //                 description: '',
+    //                 fileName: file.name,
+    //                 fileSize: sizeLabel,
+    //                 uploadDate: new Date().toISOString(),
+    //                 status: 'active',
+    //                 category: 'default'
+    //             };
+    //             await templateStorageService.saveTemplateWithFile(template, file);
+    //         }
+    //         await loadTemplatesAndUsage();
+    //     } catch (e) {
+    //         alert('Lỗi khi tải lên mẫu. Vui lòng thử lại.');
+    //     } finally {
+    //         setIsUploading(false);
+    //     }
+    // };
 
-    const handleDeleteTemplate = async (templateId: string): Promise<void> => {
-        if (!confirm('Xóa mẫu này?')) return;
-        await templateStorageService.deleteTemplate(templateId);
-        await loadTemplatesAndUsage();
-    };
+    // const handleDeleteTemplate = async (templateId: string): Promise<void> => {
+    //     if (!confirm('Xóa mẫu này?')) return;
+    //     await templateStorageService.deleteTemplate(templateId);
+    //     await loadTemplatesAndUsage();
+    // };
 
-    const handleToggleStatus = async (
-        templateId: string,
-        current: 'active' | 'inactive'
-    ): Promise<void> => {
-        const next = current === 'active' ? 'inactive' : 'active';
-        await templateStorageService.updateTemplateStatus(templateId, next);
-        await loadTemplatesAndUsage();
-    };
+    // const handleToggleStatus = async (
+    //     templateId: string,
+    //     current: 'active' | 'inactive'
+    // ): Promise<void> => {
+    //     const next = current === 'active' ? 'inactive' : 'active';
+    //     await templateStorageService.updateTemplateStatus(templateId, next);
+    //     await loadTemplatesAndUsage();
+    // };
 
-    const handleExportTemplate = async (tpl: StoredTemplate): Promise<void> => {
-        const data = await templateStorageService.getTemplateFileData(tpl.id);
-        if (!data) return;
-        const blob = new Blob([data], {
-            type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        });
-        saveAs(blob, tpl.fileName);
-    };
+    // const handleExportTemplate = async (tpl: StoredTemplate): Promise<void> => {
+    //     const data = await templateStorageService.getTemplateFileData(tpl.id);
+    //     if (!data) return;
+    //     const blob = new Blob([data], {
+    //         type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+    //     });
+    //     saveAs(blob, tpl.fileName);
+    // };
 
-    const handleClearAllTemplates = async (): Promise<void> => {
-        if (!confirm('Xóa tất cả mẫu đã lưu?')) return;
-        await templateStorageService.clearAllTemplates();
-        await loadTemplatesAndUsage();
-    };
+    // const handleClearAllTemplates = async (): Promise<void> => {
+    //     if (!confirm('Xóa tất cả mẫu đã lưu?')) return;
+    //     await templateStorageService.clearAllTemplates();
+    //     await loadTemplatesAndUsage();
+    // };
 
-    const handleStartEditTemplateName = (tpl: StoredTemplate): void => {
-        setEditingTemplateId(tpl.id);
-        setEditingTemplateName(tpl.name || '');
-        setEditingTemplateCategory(tpl.category || '');
-        setEditingTemplateDescription(tpl.description || '');
-    };
+    // const handleStartEditTemplateName = (tpl: StoredTemplate): void => {
+    //     setEditingTemplateId(tpl.id);
+    //     setEditingTemplateName(tpl.name || '');
+    //     setEditingTemplateCategory(tpl.category || '');
+    //     setEditingTemplateDescription(tpl.description || '');
+    // };
 
     const handleCancelEditTemplateName = (): void => {
         setEditingTemplateId(null);
@@ -559,55 +556,55 @@ function InfoPage() {
         setEditingTemplateDescription('');
     };
 
-    const handleSaveEditTemplateName = async (): Promise<void> => {
-        const id = editingTemplateId;
-        const newName = editingTemplateName.trim();
-        if (!id) return;
-        if (!newName) {
-            alert('Tên mẫu không được để trống');
-            return;
-        }
-        try {
-            const existing = await templateStorageService.getTemplate(id);
-            if (!existing) return;
-            await templateStorageService.saveTemplate({
-                ...existing,
-                name: newName,
-                category: editingTemplateCategory,
-                description: editingTemplateDescription
-            });
-            await loadTemplatesAndUsage();
-            handleCancelEditTemplateName();
-        } catch (e) {
-            alert('Không thể lưu tên mẫu. Vui lòng thử lại.');
-        }
-    };
+    // const handleSaveEditTemplateName = async (): Promise<void> => {
+    //     const id = editingTemplateId;
+    //     const newName = editingTemplateName.trim();
+    //     if (!id) return;
+    //     if (!newName) {
+    //         alert('Tên mẫu không được để trống');
+    //         return;
+    //     }
+    //     try {
+    //         const existing = await templateStorageService.getTemplate(id);
+    //         if (!existing) return;
+    //         await templateStorageService.saveTemplate({
+    //             ...existing,
+    //             name: newName,
+    //             category: editingTemplateCategory,
+    //             description: editingTemplateDescription
+    //         });
+    //         await loadTemplatesAndUsage();
+    //         handleCancelEditTemplateName();
+    //     } catch (e) {
+    //         alert('Không thể lưu tên mẫu. Vui lòng thử lại.');
+    //     }
+    // };
 
     // Helpers: filter, sort, selection, bulk, import/export
-    const getFilteredSortedTemplates = (): StoredTemplate[] => {
-        const query = templateSearch.trim().toLowerCase();
-        let list = templates.filter(tpl => {
-            const matchQuery =
-                !query ||
-                tpl.name.toLowerCase().includes(query) ||
-                tpl.fileName.toLowerCase().includes(query) ||
-                (tpl.category || '').toLowerCase().includes(query) ||
-                (tpl.description || '').toLowerCase().includes(query);
-            const matchStatus =
-                templateStatusFilter === 'all' || tpl.status === templateStatusFilter;
-            return matchQuery && matchStatus;
-        });
+    // const getFilteredSortedTemplates = (): StoredTemplate[] => {
+    //     const query = templateSearch.trim().toLowerCase();
+    //     let list = templates.filter(tpl => {
+    //         const matchQuery =
+    //             !query ||
+    //             tpl.name.toLowerCase().includes(query) ||
+    //             tpl.fileName.toLowerCase().includes(query) ||
+    //             (tpl.category || '').toLowerCase().includes(query) ||
+    //             (tpl.description || '').toLowerCase().includes(query);
+    //         const matchStatus =
+    //             templateStatusFilter === 'all' || tpl.status === templateStatusFilter;
+    //         return matchQuery && matchStatus;
+    //     });
 
-        list = list.sort((a, b) => {
-            if (templateSort === 'name_asc') return a.name.localeCompare(b.name);
-            if (templateSort === 'name_desc') return b.name.localeCompare(a.name);
-            const da = new Date(a.uploadDate).getTime();
-            const db = new Date(b.uploadDate).getTime();
-            if (templateSort === 'date_asc') return da - db;
-            return db - da; // date_desc
-        });
-        return list;
-    };
+    //     list = list.sort((a, b) => {
+    //         if (templateSort === 'name_asc') return a.name.localeCompare(b.name);
+    //         if (templateSort === 'name_desc') return b.name.localeCompare(a.name);
+    //         const da = new Date(a.uploadDate).getTime();
+    //         const db = new Date(b.uploadDate).getTime();
+    //         if (templateSort === 'date_asc') return da - db;
+    //         return db - da; // date_desc
+    //     });
+    //     return list;
+    // };
 
     const toggleSelected = (id: string): void => {
         setSelectedTemplateIds(prev => {
@@ -618,63 +615,63 @@ function InfoPage() {
         });
     };
 
-    const selectAllCurrent = (): void => {
-        const ids = getFilteredSortedTemplates().map(t => t.id);
-        setSelectedTemplateIds(new Set(ids));
-    };
+    // const selectAllCurrent = (): void => {
+    //     const ids = getFilteredSortedTemplates().map(t => t.id);
+    //     setSelectedTemplateIds(new Set(ids));
+    // };
 
     const clearSelection = (): void => setSelectedTemplateIds(new Set());
 
-    const bulkSetStatus = async (status: 'active' | 'inactive'): Promise<void> => {
-        for (const id of selectedTemplateIds) {
-            await templateStorageService.updateTemplateStatus(id, status);
-        }
-        await loadTemplatesAndUsage();
-        clearSelection();
-    };
+    // const bulkSetStatus = async (status: 'active' | 'inactive'): Promise<void> => {
+    //     for (const id of selectedTemplateIds) {
+    //         await templateStorageService.updateTemplateStatus(id, status);
+    //     }
+    //     await loadTemplatesAndUsage();
+    //     clearSelection();
+    // };
 
-    const bulkDelete = async (): Promise<void> => {
-        if (!confirm('Xóa các mẫu đã chọn?')) return;
-        for (const id of selectedTemplateIds) {
-            await templateStorageService.deleteTemplate(id);
-        }
-        await loadTemplatesAndUsage();
-        clearSelection();
-    };
+    // const bulkDelete = async (): Promise<void> => {
+    //     if (!confirm('Xóa các mẫu đã chọn?')) return;
+    //     for (const id of selectedTemplateIds) {
+    //         await templateStorageService.deleteTemplate(id);
+    //     }
+    //     await loadTemplatesAndUsage();
+    //     clearSelection();
+    // };
 
-    const handleExportAllTemplates = async (): Promise<void> => {
-        const all = await templateStorageService.getTemplates();
-        const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
-        saveAs(blob, 'templates-export.json');
-    };
+    // const handleExportAllTemplates = async (): Promise<void> => {
+    //     const all = await templateStorageService.getTemplates();
+    //     const blob = new Blob([JSON.stringify(all, null, 2)], { type: 'application/json' });
+    //     saveAs(blob, 'templates-export.json');
+    // };
 
-    const handleExportSelectedTemplates = async (): Promise<void> => {
-        const all = await templateStorageService.getTemplates();
-        const selected = all.filter(t => selectedTemplateIds.has(t.id));
-        if (selected.length === 0) return;
-        const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
-        saveAs(blob, 'templates-selected.json');
-    };
+    // const handleExportSelectedTemplates = async (): Promise<void> => {
+    //     const all = await templateStorageService.getTemplates();
+    //     const selected = all.filter(t => selectedTemplateIds.has(t.id));
+    //     if (selected.length === 0) return;
+    //     const blob = new Blob([JSON.stringify(selected, null, 2)], { type: 'application/json' });
+    //     saveAs(blob, 'templates-selected.json');
+    // };
 
-    const handleImportTemplatesFromJson = async (files: FileList | null): Promise<void> => {
-        if (!files || files.length === 0) return;
-        const file = files[0];
-        setIsImporting(true);
-        try {
-            const text = await file.text();
-            const data = JSON.parse(text) as StoredTemplate[];
-            if (!Array.isArray(data)) throw new Error('File không hợp lệ');
-            for (const tpl of data) {
-                if (!tpl || typeof tpl !== 'object' || !tpl.id) continue;
-                await templateStorageService.saveTemplate(tpl);
-            }
-            await loadTemplatesAndUsage();
-        } catch {
-            alert('Không thể import file JSON. Vui lòng kiểm tra định dạng.');
-        } finally {
-            setIsImporting(false);
-        }
-    };
+    // const handleImportTemplatesFromJson = async (files: FileList | null): Promise<void> => {
+    //     if (!files || files.length === 0) return;
+    //     const file = files[0];
+    //     setIsImporting(true);
+    //     try {
+    //         const text = await file.text();
+    //         const data = JSON.parse(text) as StoredTemplate[];
+    //         if (!Array.isArray(data)) throw new Error('File không hợp lệ');
+    //         for (const tpl of data) {
+    //             if (!tpl || typeof tpl !== 'object' || !tpl.id) continue;
+    //             await templateStorageService.saveTemplate(tpl);
+    //         }
+    //         await loadTemplatesAndUsage();
+    //     } catch {
+    //         alert('Không thể import file JSON. Vui lòng kiểm tra định dạng.');
+    //     } finally {
+    //         setIsImporting(false);
+    //     }
+    // };
 
     const handleAddAdminLink = async () => {
         if (linkCounter >= 6) return;
@@ -1071,39 +1068,6 @@ function InfoPage() {
                                     }}
                                 >
                                     Thiết mẫu mẫu
-                                </Button>
-                            </Box>
-                        </Box>
-
-                        <Box>
-                            <Typography
-                                variant="h6"
-                                sx={{ fontWeight: 600, mb: 2, color: 'primary.main' }}
-                            >
-                                Form nhập liệu
-                            </Typography>
-                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
-                                <Box sx={{ flex: 1 }}>
-                                    <Typography variant="body1">
-                                        Số lượng form nhập liệu phần mềm kế toán, quản lý chuyên
-                                        ngành và số hóa
-                                    </Typography>
-                                    <Chip
-                                        label={`${serviceInfo.softwareForms} chức năng`}
-                                        color="secondary"
-                                        size="small"
-                                        sx={{ mt: 1 }}
-                                    />
-                                </Box>
-                                <Button
-                                    variant="contained"
-                                    startIcon={<AddIcon />}
-                                    sx={{
-                                        bgcolor: 'success.main',
-                                        '&:hover': { bgcolor: 'success.dark' }
-                                    }}
-                                >
-                                    Tạo
                                 </Button>
                             </Box>
                         </Box>

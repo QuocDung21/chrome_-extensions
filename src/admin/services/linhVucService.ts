@@ -1,11 +1,5 @@
-import axios, { AxiosError, AxiosInstance } from 'axios';
+import apiService from './axios.cofig';
 
-// URL cơ sở của API
-const API_BASE_URL = 'http://laptrinhid.qlns.vn/api';
-
-/**
- * Định nghĩa cấu trúc cho một đối tượng Lĩnh Vực.
- */
 export interface LinhVuc {
     maLinhVuc: string;
     tenLinhVuc: string;
@@ -14,7 +8,7 @@ export interface LinhVuc {
 }
 
 /**
- * Định nghĩa cấu trúc cho phản hồi từ API getall của LinhVuc.
+ * Định nghĩa cấu trúc cho phản hồi từ API getall của LinhVuc (sử dụng camelCase).
  */
 export interface LinhVucApiResponse {
     items: LinhVuc[];
@@ -43,49 +37,11 @@ export interface ApiResponse<T> {
 }
 
 class LinhVucApiService {
-    private axiosInstance: AxiosInstance;
-
-    constructor() {
-        // Khởi tạo một instance của axios với cấu hình mặc định
-        this.axiosInstance = axios.create({
-            baseURL: API_BASE_URL,
-            timeout: 15000, // Timeout sau 15 giây
-            headers: {
-                'Content-Type': 'application/json'
-            }
-        });
-
-        // (Tùy chọn) Thêm interceptor để log request/response nếu cần
-        this.axiosInstance.interceptors.request.use(config => {
-            console.log(`🚀 Gửi yêu cầu API: ${config.method?.toUpperCase()} ${config.url}`);
-            return config;
-        });
-    }
-
     /**
      * Xử lý lỗi từ axios và chuyển đổi thành định dạng ApiError.
      * @param error Lỗi trả về từ Axios.
      * @returns Một đối tượng ApiError.
      */
-    private handleError(error: AxiosError): ApiError {
-        if (error.response) {
-            // Lỗi từ phía server (có response trả về)
-            return {
-                message: (error.response.data as any)?.message || error.message || 'Lỗi từ máy chủ',
-                status: error.response.status,
-                code: error.code
-            };
-        } else if (error.request) {
-            // Lỗi mạng (không nhận được response)
-            return {
-                message: 'Lỗi mạng, không nhận được phản hồi'
-            };
-        }
-        // Lỗi khác
-        return {
-            message: error.message || 'Có lỗi không xác định xảy ra'
-        };
-    }
 
     /**
      * Lấy danh sách Lĩnh Vực có phân trang.
@@ -98,29 +54,38 @@ class LinhVucApiService {
         pageSize: number
     ): Promise<ApiResponse<LinhVucApiResponse>> {
         try {
-            // Gọi API bằng phương thức GET
-            const response = await this.axiosInstance.get<LinhVucApiResponse>('/LinhVuc/getall', {
+            const response = await apiService.get<any>('/LinhVuc/getall', {
                 params: {
                     pageNumber,
                     pageSize
                 }
             });
 
-            // Trả về dữ liệu nếu thành công
+            const serverData = response.data;
+            const transformedData: LinhVucApiResponse = {
+                items: serverData.Items.map((item: any) => ({
+                    maLinhVuc: item.MaLinhVuc,
+                    tenLinhVuc: item.TenLinhVuc,
+                    maNganh: item.MaNganh,
+                    moTa: item.MoTa
+                })),
+                totalCount: serverData.TotalCount,
+                pageNumber: serverData.PageNumber,
+                pageSize: serverData.PageSize,
+                totalPages: serverData.TotalPages
+            };
             return {
                 success: true,
-                data: response.data
+                data: transformedData
             };
         } catch (error) {
-            // Trả về lỗi nếu thất bại
+            console.error('❌ Lỗi khi gọi API:', error);
             return {
                 success: false,
-                data: null,
-                error: this.handleError(error as AxiosError)
+                data: null
             };
         }
     }
 }
 
-// Xuất một instance duy nhất của service (singleton pattern)
 export const linhVucApiService = new LinhVucApiService();
