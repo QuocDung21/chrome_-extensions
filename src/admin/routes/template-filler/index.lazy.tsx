@@ -79,6 +79,7 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 
+import { ApiTemplateCard } from '@/admin/components/template-filler/ApiTemplateCard';
 import { ConfigConstant } from '@/admin/constant/config.constant';
 import { WorkingDocument, db } from '@/admin/db/db';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
@@ -1159,18 +1160,23 @@ function TemplateFillerComponent() {
     const loadThuTucHanhChinh = async () => {
         try {
             const data = await thuTucHCRepository.getAllThuTucHCApi();
-            const thanhPhanHS =
-                await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
-                    '1.000656.000.00.00.H12'
-                );
-            console.log('thanhPhanHS', thanhPhanHS);
-        } catch (error) {
-            console.error('Lỗi khi tải thủ tục hành chính:', error);
+            setThuTucHcList(data);
+        } catch (err) {
+            console.error('Lỗi khi tải thủ tục hành chính từ API:', err);
+        } finally {
         }
     };
     useEffect(() => {
         loadThuTucHanhChinh();
     }, []);
+
+    const handleSelectThuTucHanhChinh = (record: ThuTucHanhChinh) => {
+        // Mở rộng: Thêm logic xử lý khi người dùng nhấn "Chi tiết"
+        // Ví dụ: Mở một modal hiển thị đầy đủ thông tin hoặc điều hướng sang trang khác
+        alert(
+            `Bạn đã chọn thủ tục:\n\nID: ${record.thuTucHanhChinhID}\nTên: ${record.tenThuTucHanhChinh}`
+        );
+    };
     //#endregion
 
     //#region LOAD LINH VUC
@@ -1723,9 +1729,13 @@ function TemplateFillerComponent() {
                                 fontWeight: 600
                             }
                         }}
-
                     />
-                    <CardContent>
+                    <CardContent
+                        sx={{
+                            flex: 1,
+                            height: '100%'
+                        }}
+                    >
                         {csvLoading ? (
                             <Box sx={{ p: 2 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
@@ -1822,6 +1832,7 @@ function TemplateFillerComponent() {
                                     overflowY: 'auto',
                                     pr: 1,
                                     pt: 1,
+                                    flex: 1,
                                     '&::-webkit-scrollbar': {
                                         width: '8px'
                                     },
@@ -1838,7 +1849,7 @@ function TemplateFillerComponent() {
                                     }
                                 }}
                             >
-                                {availableTemplates.map((record, index) => (
+                                {/* {availableTemplates.map((record, index) => (
                                     <TemplateCard
                                         key={`${record.maTTHC}-${index}`}
                                         record={record}
@@ -1849,6 +1860,12 @@ function TemplateFillerComponent() {
                                         workingDocumentsCount={
                                             getWorkingDocumentsForMaTTHC(record.maTTHC).length
                                         }
+                                    />
+                                ))} */}
+                                {thuTucHcList.map(data => (
+                                    <ApiTemplateCard
+                                        record={data}
+                                        onSelect={handleSelectThuTucHanhChinh}
                                     />
                                 ))}
                                 {availableTemplates.length === 0 && (
