@@ -356,16 +356,24 @@ export const TemplateSelectorModal: React.FC<TemplateSelectorModalProps> = ({
                                                             >
                                                                 Chọn mẫu này
                                                             </Button>
-                                                            {savedDocsByCode && savedDocsByCode[record.maTTHC] && (
-                                                                <Button
-                                                                    variant="text"
-                                                                    color="secondary"
-                                                                    size="small"
-                                                                    onClick={() => onLoadSaved && onLoadSaved(record)}
-                                                                >
-                                                                    {savedDocsByCode[record.maTTHC]}
-                                                                </Button>
-                                                            )}
+                                                            {savedDocsByCode &&
+                                                                savedDocsByCode[record.maTTHC] && (
+                                                                    <Button
+                                                                        variant="text"
+                                                                        color="secondary"
+                                                                        size="small"
+                                                                        onClick={() =>
+                                                                            onLoadSaved &&
+                                                                            onLoadSaved(record)
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            savedDocsByCode[
+                                                                                record.maTTHC
+                                                                            ]
+                                                                        }
+                                                                    </Button>
+                                                                )}
                                                         </>
                                                     ) : (
                                                         <>

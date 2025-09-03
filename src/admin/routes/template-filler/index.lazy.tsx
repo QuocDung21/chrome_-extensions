@@ -79,19 +79,16 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 
+import { ConfigConstant } from '@/admin/constant/config.constant';
 import { WorkingDocument, db } from '@/admin/db/db';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
+import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
+import { thuTucHCRepository } from '@/admin/repository/ThuTucHCRepository';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
+import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
 import { formatDDMMYYYY, getCurrentDateParts } from '@/admin/utils/formatDate';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
-// --- CẤU HÌNH ---
-const SOCKET_URL = 'http://103.162.21.146:5003';
-const SYNCFUSION_SERVICE_URL =
-    'https://services.syncfusion.com/react/production/api/documenteditor/';
-const SOCKET_RECONNECT_ATTEMPTS = 5;
-const SOCKET_RECONNECT_DELAY = 3000;
-// --- TYPE DEFINITIONS ---
 interface ProcessingData {
     [key: string]: any;
 }
@@ -138,10 +135,7 @@ interface TemplateEditorState {
     syncfusionDocumentReady: boolean;
     socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
 }
-type Props = {
-    value?: LinhVuc | null; // cho phép control từ ngoài
-    onChange?: (value: LinhVuc | null) => void;
-};
+
 // --- CUSTOM HOOKS ---
 const useSocketConnection = (apiUrl: string) => {
     const [socketStatus, setSocketStatus] = useState<
@@ -156,8 +150,8 @@ const useSocketConnection = (apiUrl: string) => {
             transports: ['websocket'],
             timeout: 10000,
             reconnection: true,
-            reconnectionAttempts: SOCKET_RECONNECT_ATTEMPTS,
-            reconnectionDelay: SOCKET_RECONNECT_DELAY
+            reconnectionAttempts: ConfigConstant.SOCKET_RECONNECT_ATTEMPTS,
+            reconnectionDelay: ConfigConstant.SOCKET_RECONNECT_DELAY
         });
         socketRef.current.on('connect', () => {
             setSocketStatus('connected');
@@ -400,7 +394,7 @@ const processDataIntelligently = (data: string): any => {
         throw new Error('Định dạng dữ liệu không được hỗ trợ');
     }
 };
-// Chuyển đổi dữ liệu từ mobile/socket sang ProcessingData
+//#region  Chuyển đổi dữ liệu từ mobile/socket sang ProcessingData
 const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
     // Handle mobile socket data format
     if (data.so_cccd || data.so_cmnd || data.ho_ten) {
@@ -432,59 +426,9 @@ const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
     }
     return data;
 };
+//#endregion
 
-function LinhVucListComponent({ value = '', onChange }: any) {
-    const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [selectedLinhVuc, setSelectedLinhVuc] = useState<LinhVuc | null>(value);
-
-    useEffect(() => {
-        const loadLinhVuc = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const data = await linhVucRepository.getLinhVucList();
-                setLinhVucList(data);
-            } catch (err: any) {
-                setError(err.message || 'Đã có lỗi xảy ra.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadLinhVuc();
-    }, []);
-
-    // Nếu prop value thay đổi từ bên ngoài thì đồng bộ lại state
-    useEffect(() => {
-        setSelectedLinhVuc(value || null);
-    }, [value]);
-
-    const handleChange = (event: any, newValue: LinhVuc | null) => {
-        setSelectedLinhVuc(newValue);
-        onChange?.(newValue);
-    };
-
-    if (loading) return <CircularProgress />;
-    if (error) return <div style={{ color: 'red' }}>Lỗi: {error}</div>;
-
-    return (
-        <Autocomplete
-            size="small"
-            options={linhVucList}
-            value={selectedLinhVuc}
-            onChange={handleChange}
-            getOptionLabel={option => option.tenLinhVuc}
-            isOptionEqualToValue={(option, value) => option.maLinhVuc === value.maLinhVuc}
-            sx={{ minWidth: 200, maxWidth: 200 }}
-            renderInput={params => (
-                <TextField {...params} label="Lĩnh vực" placeholder="Chọn lĩnh vực" />
-            )}
-        />
-    );
-}
-
+//#region TemplateCard
 const TemplateCard = React.memo<{
     record: EnhancedTTHCRecord;
     index: number;
@@ -588,35 +532,6 @@ const TemplateCard = React.memo<{
                                             ? 'Chọn mẫu'
                                             : 'Chọn mẫu'}
                                     </Button>
-
-                                    {/* {hasTemplates && (
-                                        <Button
-                                            variant="outlined"
-                                            size="small"
-                                            onClick={e => {
-                                                e.stopPropagation();
-                                                const selected = record.danhSachMauDon[0];
-                                                const docUrl = buildDocxUrlForRecord(
-                                                    record,
-                                                    selected
-                                                );
-                                                const code = record.maTTHC;
-
-                                                // Persist payload in localStorage for the procedures route to pick up
-                                                localStorage.setItem(
-                                                    'pending_procedure_load',
-                                                    JSON.stringify({ docUrl, code })
-                                                );
-                                                // Navigate to procedures route (hash-based)
-                                                window.location.href =
-                                                    '/src/admin/index.html#/procedures/';
-                                            }}
-                                            startIcon={<EditIcon />}
-                                            sx={{ ml: 1, textTransform: 'none' }}
-                                        >
-                                            Thiết lập mẫu
-                                        </Button>
-                                    )} */}
                                 </>
                             )}
                         </Box>
@@ -662,45 +577,11 @@ const TemplateCard = React.memo<{
                         </Box>
                     </Stack>
                 </CardContent>
-                {/* <Box sx={{ px: 1, pb: 1 }}>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between'
-                    }}
-                >
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1.5, pl: 0.5 }}>
-                        Danh sách mẫu đơn / tờ khai
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                            variant="text"
-                            color="primary"
-                            size="small"
-                            startIcon={<Download />}
-                        >
-                            Tải
-                        </Button>
-                        <Button
-                            variant="text"
-                            size="small"
-                            color={hasTemplates ? 'primary' : 'success'}
-                            onClick={e => {
-                                e.stopPropagation();
-                                onSelectTemplate(record);
-                            }}
-                            startIcon={<Add />}
-                        >
-                            Tạo trực tuyến
-                        </Button>
-                    </Box>
-                </Box>
-            </Box> */}
             </Card>
         );
     }
 );
+//#endregion TemplateCard
 
 TemplateCard.displayName = 'TemplateCard';
 // Apply data to Syncfusion editor
@@ -738,7 +619,7 @@ const scanDocumentForSuffixes = (editor: DocumentEditorContainerComponent | null
     }
 };
 
-// Function to reset document to original state
+//#region  Function to reset document to original state
 const resetDocumentToOriginal = async (
     editor: DocumentEditorContainerComponent | null,
     originalSfdt: string | null
@@ -764,6 +645,7 @@ const resetDocumentToOriginal = async (
         return false;
     }
 };
+//#endregion
 
 const applyDataToSyncfusion = async (
     editor: DocumentEditorContainerComponent | null,
@@ -825,7 +707,7 @@ const applyDataToSyncfusion = async (
         return false;
     }
 };
-// --- COMPONENT CHÍNH ---
+// #region --- COMPONENT CHÍNH ---
 function TemplateFillerComponent() {
     const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
@@ -835,6 +717,7 @@ function TemplateFillerComponent() {
         thuTucByLinhVuc: {}
     });
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
+    const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
 
     const navigate = useNavigate();
@@ -964,7 +847,7 @@ function TemplateFillerComponent() {
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
 
     // Socket connection
-    const { socketStatus, on, off } = useSocketConnection(SOCKET_URL);
+    const { socketStatus, on, off } = useSocketConnection(ConfigConstant.SOCKET_URL);
     // Memoized values
     const availableThuTuc = useMemo(() => {
         if (!filters.linhVuc || !filterOptions.thuTucByLinhVuc[filters.linhVuc]) {
@@ -1143,8 +1026,11 @@ function TemplateFillerComponent() {
             const form = new FormData();
             form.append('files', blob, record.selectedMauDon.tenFile);
             console.log('🔄 Converting DOCX to SFDT...');
-            console.log('🌐 Syncfusion service URL:', SYNCFUSION_SERVICE_URL + 'Import');
-            const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
+            console.log(
+                '🌐 Syncfusion service URL:',
+                ConfigConstant.SYNCFUSION_SERVICE_URL + 'Import'
+            );
+            const importRes = await fetch(`${ConfigConstant.SYNCFUSION_SERVICE_URL}Import`, {
                 method: 'POST',
                 body: form
             });
@@ -1269,7 +1155,25 @@ function TemplateFillerComponent() {
         loadData();
     }, []);
 
-    // Load lĩnh vực data from repository
+    //#region LOAD TTHC
+    const loadThuTucHanhChinh = async () => {
+        try {
+            const data = await thuTucHCRepository.getAllThuTucHCApi();
+            const thanhPhanHS =
+                await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
+                    '1.000656.000.00.00.H12'
+                );
+            console.log('thanhPhanHS', thanhPhanHS);
+        } catch (error) {
+            console.error('Lỗi khi tải thủ tục hành chính:', error);
+        }
+    };
+    useEffect(() => {
+        loadThuTucHanhChinh();
+    }, []);
+    //#endregion
+
+    //#region LOAD LINH VUC
     useEffect(() => {
         const loadLinhVuc = async () => {
             setLinhVucLoading(true);
@@ -1300,9 +1204,9 @@ function TemplateFillerComponent() {
                 setLinhVucLoading(false);
             }
         };
-
         loadLinhVuc();
     }, [filterOptions.linhVuc]);
+    //#endregion
 
     // Load working documents from IndexedDB on component mount
     useEffect(() => {
@@ -1604,50 +1508,6 @@ function TemplateFillerComponent() {
                     p: { xs: 1, sm: 1, md: 1 }
                 }}
             >
-                {/* <Card
-                    sx={{
-                        mb: 4,
-                        borderRadius: 1,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                        backdropFilter: 'blur(10px)',
-                        background: 'rgba(255,255,255,0.9)',
-                        border: '1px solid rgba(255,255,255,0.2)'
-                    }}
-                >
-                    <CardHeader
-                        title="🔍 Tìm kiếm nhanh"
-                        sx={{
-                            pb: 1,
-                            '& .MuiCardHeader-title': {
-                                fontSize: '1.1rem',
-                                fontWeight: 600
-                            }
-                        }}
-                    />
-                    <CardContent sx={{ pt: 0 }}>
-                        <TextField
-                            fullWidth
-                            size="medium"
-                            value={filters.searchText}
-                            onChange={e => handleFilterChange('searchText', e.target.value)}
-                            placeholder="🔍 Tìm kiếm thủ tục, mã, lĩnh vực, đối tượng, quyết định công bố..."
-                            variant="outlined"
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 1,
-                                    transition: 'all 0.3s ease',
-                                    '&:hover': {
-                                        boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                    },
-                                    '&.Mui-focused': {
-                                        boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                    }
-                                }
-                            }}
-                        />
-                    </CardContent>
-                </Card> */}
-
                 <Box
                     sx={{
                         display: 'flex',
@@ -1690,7 +1550,6 @@ function TemplateFillerComponent() {
                         value={filters.linhVuc}
                         onChange={(event, newValue) => {
                             handleFilterChange('linhVuc', newValue || '');
-
                             // Debug: Log thông tin lĩnh vực được chọn
                             if (newValue) {
                                 const selectedLinhVuc = linhVucList.find(
@@ -1864,66 +1723,7 @@ function TemplateFillerComponent() {
                                 fontWeight: 600
                             }
                         }}
-                        // action={
-                        //     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        //         <Button
-                        //             variant="outlined"
-                        //             size="small"
-                        //             onClick={refreshWorkingDocuments}
-                        //             disabled={workingDocsState.isLoading}
-                        //             startIcon={<RestartAltIcon />}
-                        //             sx={{
-                        //                 borderRadius: 1,
-                        //                 textTransform: 'none',
-                        //                 fontWeight: 600,
-                        //                 borderColor: 'success.main',
-                        //                 color: 'success.main',
-                        //                 '&:hover': {
-                        //                     borderColor: 'success.dark',
-                        //                     backgroundColor: 'success.light',
-                        //                     color: 'success.dark'
-                        //                 }
-                        //             }}
-                        //         >
-                        //             {workingDocsState.isLoading ? 'Đang tải...' : '🔄 Làm mới IndexedDB'}
-                        //         </Button>
-                        //         <Chip
-                        //             icon={<CheckCircleIcon />}
-                        //             label={`${availableTemplates.length} có sẵn`}
-                        //             color="success"
-                        //             size="small"
-                        //             variant="filled"
-                        //             sx={{
-                        //                 fontWeight: 600,
-                        //                 '& .MuiChip-icon': {
-                        //                     color: 'inherit'
-                        //                 }
-                        //             }}
-                        //         />
-                        //         <Chip
-                        //             label={`${filteredRecords.length} tổng cộng`}
-                        //             color="primary"
-                        //             size="small"
-                        //             variant="outlined"
-                        //             sx={{ fontWeight: 500 }}
-                        //         />
-                        //         {/* IndexedDB working documents count */}
-                        //         {Object.keys(workingDocsState.workingDocsListByCode).length > 0 && (
-                        //             <Chip
-                        //                 icon={<Star />}
-                        //                 label={`${Object.keys(workingDocsState.workingDocsListByCode).length} từ IndexedDB`}
-                        //                 color="success"
-                        //                 size="small"
-                        //                 variant="outlined"
-                        //                 sx={{
-                        //                     fontWeight: 500,
-                        //                     borderColor: 'success.main',
-                        //                     color: 'success.main'
-                        //                 }}
-                        //             />
-                        //         )}
-                        //     </Box>
-                        // }
+
                     />
                     <CardContent>
                         {csvLoading ? (
@@ -2415,30 +2215,13 @@ function TemplateFillerComponent() {
                                     <DocumentEditorContainerComponent
                                         id="sf-docx-editor-modal"
                                         ref={sfContainerRef}
-                                        serviceUrl={SYNCFUSION_SERVICE_URL}
+                                        serviceUrl={ConfigConstant.SYNCFUSION_SERVICE_URL}
                                         enableToolbar={false}
                                         showPropertiesPane={false}
                                         height={'100%'}
                                         fileMenuItems={['Print']}
                                         enableLocalPaste={true}
                                     />
-                                    {/* <DocumentEditorContainerComponent
-                                        id="sf-docx-editor-modal"
-                                        ref={sfContainerRef}
-                                        serviceUrl={SYNCFUSION_SERVICE_URL}
-                                        enableToolbar={true}
-                                        showPropertiesPane={false}
-                                        height={'100%'}
-                                        style={{
-                                            display: 'block',
-                                            borderWidth: '0',
-                                            borderColor: '0'
-                                        }}
-                                        toolbarMode={'Ribbon'}
-                                        ribbonLayout={'Classic'}
-                                        locale="vi-VN"
-                                        fileMenuItems={['Print']}
-                                    /> */}
                                 </CardContent>
                             </Card>
                             <Card
@@ -3204,6 +2987,7 @@ function TemplateFillerComponent() {
         </>
     );
 }
+// //#endregion
 export const Route = createLazyFileRoute('/template-filler/')({
     component: TemplateFillerComponent
 });

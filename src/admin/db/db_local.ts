@@ -1,12 +1,12 @@
-import { openDB, DBSchema, IDBPDatabase } from 'idb';
+import { DBSchema, IDBPDatabase, openDB } from 'idb';
 
 const DB_NAME = 'TemplateLoaderDB';
 const DB_VERSION = 1;
 const STORE_NAME = 'directoryHandles';
 
 // --- CÁC KEY ĐỂ LƯU TRỮ HANDLE ---
-const MANUAL_LOADER_KEY = 'lastDirectoryHandle'; // Key cho chức năng cũ (nếu bạn vẫn dùng)
-const SYNC_DIR_KEY = 'syncDirectoryHandle';      // Key cho chức năng đồng bộ mới
+const MANUAL_LOADER_KEY = 'lastDirectoryHandle';
+const SYNC_DIR_KEY = 'syncDirectoryHandle';
 
 interface MyAppDB extends DBSchema {
     [STORE_NAME]: {
@@ -46,9 +46,10 @@ export const clearDirectoryHandle = async (): Promise<void> => {
     await db.delete(STORE_NAME, MANUAL_LOADER_KEY);
 };
 
-
 // --- HÀM MỚI CẦN THIẾT CHO CHỨC NĂNG ĐỒNG BỘ ---
-export const storeSyncDirectoryHandle = async (handle: FileSystemDirectoryHandle): Promise<void> => {
+export const storeSyncDirectoryHandle = async (
+    handle: FileSystemDirectoryHandle
+): Promise<void> => {
     const db = await getDb();
     await db.put(STORE_NAME, handle, SYNC_DIR_KEY);
     console.log('✅ Sync directory handle stored.');
@@ -68,7 +69,6 @@ export const clearSyncDirectoryHandle = async (): Promise<void> => {
     await db.delete(STORE_NAME, SYNC_DIR_KEY);
     console.log('✅ Sync directory handle cleared.');
 };
-
 
 // --- HÀM XÁC MINH QUYỀN (DÙNG CHUNG) ---
 export const verifyAndRequestPermission = async (

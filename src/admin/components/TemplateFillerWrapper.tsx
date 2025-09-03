@@ -826,41 +826,6 @@ const TemplateCard = React.memo<{
                         </Box>
                     </Stack>
                 </CardContent>
-                {/* <Box sx={{ px: 1, pb: 1 }}>
-                <Box
-                    sx={{
-                        display: 'flex',
-                        flexDirection: 'row',
-                        justifyContent: 'space-between'
-                    }}
-                >
-                    <Typography variant="subtitle1" sx={{ fontWeight: 'bold', mb: 1.5, pl: 0.5 }}>
-                        Danh sách mẫu đơn / tờ khai
-                    </Typography>
-                    <Box sx={{ display: 'flex', gap: 1 }}>
-                        <Button
-                            variant="text"
-                            color="primary"
-                            size="small"
-                            startIcon={<Download />}
-                        >
-                            Tải
-                        </Button>
-                        <Button
-                            variant="text"
-                            size="small"
-                            color={hasTemplates ? 'primary' : 'success'}
-                            onClick={e => {
-                                e.stopPropagation();
-                                onSelectTemplate(record);
-                            }}
-                            startIcon={<Add />}
-                        >
-                            Tạo trực tuyến
-                        </Button>
-                    </Box>
-                </Box>
-            </Box> */}
             </Card>
         );
     }
@@ -3206,66 +3171,6 @@ function TemplateFillerComponent({
                                 fontWeight: 600
                             }
                         }}
-                        // action={
-                        //     <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                        //         <Button
-                        //             variant="outlined"
-                        //             size="small"
-                        //             onClick={refreshWorkingDocuments}
-                        //             disabled={workingDocsState.isLoading}
-                        //             startIcon={<RestartAltIcon />}
-                        //             sx={{
-                        //                 borderRadius: 1,
-                        //                 textTransform: 'none',
-                        //                 fontWeight: 600,
-                        //                 borderColor: 'success.main',
-                        //                 color: 'success.main',
-                        //                 '&:hover': {
-                        //                     borderColor: 'success.dark',
-                        //                     backgroundColor: 'success.light',
-                        //                     color: 'success.dark'
-                        //                 }
-                        //             }}
-                        //         >
-                        //             {workingDocsState.isLoading ? 'Đang tải...' : '🔄 Làm mới IndexedDB'}
-                        //         </Button>
-                        //         <Chip
-                        //             icon={<CheckCircleIcon />}
-                        //             label={`${availableTemplates.length} có sẵn`}
-                        //             color="success"
-                        //             size="small"
-                        //             variant="filled"
-                        //             sx={{
-                        //                 fontWeight: 600,
-                        //                 '& .MuiChip-icon': {
-                        //                     color: 'inherit'
-                        //                 }
-                        //             }}
-                        //         />
-                        //         <Chip
-                        //             label={`${filteredRecords.length} tổng cộng`}
-                        //             color="primary"
-                        //             size="small"
-                        //             variant="outlined"
-                        //             sx={{ fontWeight: 500 }}
-                        //         />
-                        //         {/* IndexedDB working documents count */}
-                        //         {Object.keys(workingDocsState.workingDocsListByCode).length > 0 && (
-                        //             <Chip
-                        //                 icon={<Star />}
-                        //                 label={`${Object.keys(workingDocsState.workingDocsListByCode).length} từ IndexedDB`}
-                        //                 color="success"
-                        //                 size="small"
-                        //                 variant="outlined"
-                        //                 sx={{
-                        //                     fontWeight: 500,
-                        //                     borderColor: 'success.main',
-                        //                     color: 'success.main'
-                        //                 }}
-                        //             />
-                        //         )}
-                        //     </Box>
-                        // }
                     />
                     <CardContent>
                         {csvLoading ? (
@@ -3743,8 +3648,8 @@ function TemplateFillerComponent({
                                                                     key={`indexeddb-${index}`}
                                                                     value={workingDoc.fileName}
                                                                 >
-                                                                    {workingDoc.fileName}{' '}
-                                                                    (mẫu đã thiết lập)
+                                                                    {workingDoc.fileName} (mẫu đã
+                                                                    thiết lập)
                                                                 </MenuItem>
                                                             ))}
                                                         </Select>
@@ -3847,7 +3752,7 @@ function TemplateFillerComponent({
 
                                                     {/* Quick Insert Field Panel */}
                                                     {syncfusionDocumentReady ||
-                                                        showQuickInsertPanel && (
+                                                        (showQuickInsertPanel && (
                                                             <Box
                                                                 sx={{
                                                                     position: 'fixed',
@@ -4116,7 +4021,7 @@ function TemplateFillerComponent({
                                                                     </Box>
                                                                 </Box>
                                                             </Box>
-                                                        )}
+                                                        ))}
                                                 </div>
                                             )}
                                         </Paper>
@@ -4222,7 +4127,7 @@ function TemplateFillerComponent({
                                                         // Set the current code reference for later use
                                                         currentCodeRef.current =
                                                             templateSelectionModal.record!.maTTHC;
-                                                        
+
                                                         // Trực tiếp mở editor thay vì gọi handleSelectTemplate
                                                         setEditorState(prev => ({
                                                             ...prev,

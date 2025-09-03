@@ -12,13 +12,10 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 
-const WordViewerIndexLazyRouteImport = createFileRoute('/word-viewer/')()
-const WordMapperIndexLazyRouteImport = createFileRoute('/word-mapper/')()
 const TemplateFillerIndexLazyRouteImport =
   createFileRoute('/template-filler/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
 const ServicesIndexLazyRouteImport = createFileRoute('/services/')()
-const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
 const ProceduresIndexLazyRouteImport = createFileRoute('/procedures/')()
 const OcrIndexLazyRouteImport = createFileRoute('/ocr/')()
 const LocalTemplateLoaderIndexLazyRouteImport = createFileRoute(
@@ -26,30 +23,11 @@ const LocalTemplateLoaderIndexLazyRouteImport = createFileRoute(
 )()
 const InfoIndexLazyRouteImport = createFileRoute('/info/')()
 const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
-const ExtensionIndexLazyRouteImport = createFileRoute('/extension/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 const AdminProceduresIndexLazyRouteImport =
   createFileRoute('/admin-procedures/')()
-const WordViewerSyncfusionLazyRouteImport = createFileRoute(
-  '/word-viewer/syncfusion',
-)()
-const WordMapperDetailLazyRouteImport = createFileRoute('/word-mapper/detail')()
 
-const WordViewerIndexLazyRoute = WordViewerIndexLazyRouteImport.update({
-  id: '/word-viewer/',
-  path: '/word-viewer/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/word-viewer/index.lazy').then((d) => d.Route),
-)
-const WordMapperIndexLazyRoute = WordMapperIndexLazyRouteImport.update({
-  id: '/word-mapper/',
-  path: '/word-mapper/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/word-mapper/index.lazy').then((d) => d.Route),
-)
 const TemplateFillerIndexLazyRoute = TemplateFillerIndexLazyRouteImport.update({
   id: '/template-filler/',
   path: '/template-filler/',
@@ -70,13 +48,6 @@ const ServicesIndexLazyRoute = ServicesIndexLazyRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() =>
   import('./routes/services/index.lazy').then((d) => d.Route),
-)
-const ProductsIndexLazyRoute = ProductsIndexLazyRouteImport.update({
-  id: '/products/',
-  path: '/products/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/products/index.lazy').then((d) => d.Route),
 )
 const ProceduresIndexLazyRoute = ProceduresIndexLazyRouteImport.update({
   id: '/procedures/',
@@ -108,13 +79,6 @@ const FormsIndexLazyRoute = FormsIndexLazyRouteImport.update({
   path: '/forms/',
   getParentRoute: () => rootRouteImport,
 } as any).lazy(() => import('./routes/forms/index.lazy').then((d) => d.Route))
-const ExtensionIndexLazyRoute = ExtensionIndexLazyRouteImport.update({
-  id: '/extension/',
-  path: '/extension/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/extension/index.lazy').then((d) => d.Route),
-)
 const DashboardIndexLazyRoute = DashboardIndexLazyRouteImport.update({
   id: '/dashboard/',
   path: '/dashboard/',
@@ -137,176 +101,105 @@ const AdminProceduresIndexLazyRoute =
   } as any).lazy(() =>
     import('./routes/admin-procedures/index.lazy').then((d) => d.Route),
   )
-const WordViewerSyncfusionLazyRoute =
-  WordViewerSyncfusionLazyRouteImport.update({
-    id: '/word-viewer/syncfusion',
-    path: '/word-viewer/syncfusion',
-    getParentRoute: () => rootRouteImport,
-  } as any).lazy(() =>
-    import('./routes/word-viewer/syncfusion.lazy').then((d) => d.Route),
-  )
-const WordMapperDetailLazyRoute = WordMapperDetailLazyRouteImport.update({
-  id: '/word-mapper/detail',
-  path: '/word-mapper/detail',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/word-mapper/detail.lazy').then((d) => d.Route),
-)
 
 export interface FileRoutesByFullPath {
-  '/word-mapper/detail': typeof WordMapperDetailLazyRoute
-  '/word-viewer/syncfusion': typeof WordViewerSyncfusionLazyRoute
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
-  '/extension': typeof ExtensionIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
   '/local-template-loader': typeof LocalTemplateLoaderIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/procedures': typeof ProceduresIndexLazyRoute
-  '/products': typeof ProductsIndexLazyRoute
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/template-filler': typeof TemplateFillerIndexLazyRoute
-  '/word-mapper': typeof WordMapperIndexLazyRoute
-  '/word-viewer': typeof WordViewerIndexLazyRoute
 }
 export interface FileRoutesByTo {
-  '/word-mapper/detail': typeof WordMapperDetailLazyRoute
-  '/word-viewer/syncfusion': typeof WordViewerSyncfusionLazyRoute
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
-  '/extension': typeof ExtensionIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
   '/info': typeof InfoIndexLazyRoute
   '/local-template-loader': typeof LocalTemplateLoaderIndexLazyRoute
   '/ocr': typeof OcrIndexLazyRoute
   '/procedures': typeof ProceduresIndexLazyRoute
-  '/products': typeof ProductsIndexLazyRoute
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/template-filler': typeof TemplateFillerIndexLazyRoute
-  '/word-mapper': typeof WordMapperIndexLazyRoute
-  '/word-viewer': typeof WordViewerIndexLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/word-mapper/detail': typeof WordMapperDetailLazyRoute
-  '/word-viewer/syncfusion': typeof WordViewerSyncfusionLazyRoute
   '/admin-procedures/': typeof AdminProceduresIndexLazyRoute
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
-  '/extension/': typeof ExtensionIndexLazyRoute
   '/forms/': typeof FormsIndexLazyRoute
   '/info/': typeof InfoIndexLazyRoute
   '/local-template-loader/': typeof LocalTemplateLoaderIndexLazyRoute
   '/ocr/': typeof OcrIndexLazyRoute
   '/procedures/': typeof ProceduresIndexLazyRoute
-  '/products/': typeof ProductsIndexLazyRoute
   '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
   '/template-filler/': typeof TemplateFillerIndexLazyRoute
-  '/word-mapper/': typeof WordMapperIndexLazyRoute
-  '/word-viewer/': typeof WordViewerIndexLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/word-mapper/detail'
-    | '/word-viewer/syncfusion'
     | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
-    | '/extension'
     | '/forms'
     | '/info'
     | '/local-template-loader'
     | '/ocr'
     | '/procedures'
-    | '/products'
     | '/services'
     | '/settings'
     | '/template-filler'
-    | '/word-mapper'
-    | '/word-viewer'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/word-mapper/detail'
-    | '/word-viewer/syncfusion'
     | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
-    | '/extension'
     | '/forms'
     | '/info'
     | '/local-template-loader'
     | '/ocr'
     | '/procedures'
-    | '/products'
     | '/services'
     | '/settings'
     | '/template-filler'
-    | '/word-mapper'
-    | '/word-viewer'
   id:
     | '__root__'
-    | '/word-mapper/detail'
-    | '/word-viewer/syncfusion'
     | '/admin-procedures/'
     | '/analytics/'
     | '/dashboard/'
-    | '/extension/'
     | '/forms/'
     | '/info/'
     | '/local-template-loader/'
     | '/ocr/'
     | '/procedures/'
-    | '/products/'
     | '/services/'
     | '/settings/'
     | '/template-filler/'
-    | '/word-mapper/'
-    | '/word-viewer/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  WordMapperDetailLazyRoute: typeof WordMapperDetailLazyRoute
-  WordViewerSyncfusionLazyRoute: typeof WordViewerSyncfusionLazyRoute
   AdminProceduresIndexLazyRoute: typeof AdminProceduresIndexLazyRoute
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
-  ExtensionIndexLazyRoute: typeof ExtensionIndexLazyRoute
   FormsIndexLazyRoute: typeof FormsIndexLazyRoute
   InfoIndexLazyRoute: typeof InfoIndexLazyRoute
   LocalTemplateLoaderIndexLazyRoute: typeof LocalTemplateLoaderIndexLazyRoute
   OcrIndexLazyRoute: typeof OcrIndexLazyRoute
   ProceduresIndexLazyRoute: typeof ProceduresIndexLazyRoute
-  ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
   ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
   TemplateFillerIndexLazyRoute: typeof TemplateFillerIndexLazyRoute
-  WordMapperIndexLazyRoute: typeof WordMapperIndexLazyRoute
-  WordViewerIndexLazyRoute: typeof WordViewerIndexLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/word-viewer/': {
-      id: '/word-viewer/'
-      path: '/word-viewer'
-      fullPath: '/word-viewer'
-      preLoaderRoute: typeof WordViewerIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/word-mapper/': {
-      id: '/word-mapper/'
-      path: '/word-mapper'
-      fullPath: '/word-mapper'
-      preLoaderRoute: typeof WordMapperIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/template-filler/': {
       id: '/template-filler/'
       path: '/template-filler'
@@ -326,13 +219,6 @@ declare module '@tanstack/react-router' {
       path: '/services'
       fullPath: '/services'
       preLoaderRoute: typeof ServicesIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/products/': {
-      id: '/products/'
-      path: '/products'
-      fullPath: '/products'
-      preLoaderRoute: typeof ProductsIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/procedures/': {
@@ -370,13 +256,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FormsIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/extension/': {
-      id: '/extension/'
-      path: '/extension'
-      fullPath: '/extension'
-      preLoaderRoute: typeof ExtensionIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/dashboard/': {
       id: '/dashboard/'
       path: '/dashboard'
@@ -398,41 +277,21 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminProceduresIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/word-viewer/syncfusion': {
-      id: '/word-viewer/syncfusion'
-      path: '/word-viewer/syncfusion'
-      fullPath: '/word-viewer/syncfusion'
-      preLoaderRoute: typeof WordViewerSyncfusionLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/word-mapper/detail': {
-      id: '/word-mapper/detail'
-      path: '/word-mapper/detail'
-      fullPath: '/word-mapper/detail'
-      preLoaderRoute: typeof WordMapperDetailLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  WordMapperDetailLazyRoute: WordMapperDetailLazyRoute,
-  WordViewerSyncfusionLazyRoute: WordViewerSyncfusionLazyRoute,
   AdminProceduresIndexLazyRoute: AdminProceduresIndexLazyRoute,
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
-  ExtensionIndexLazyRoute: ExtensionIndexLazyRoute,
   FormsIndexLazyRoute: FormsIndexLazyRoute,
   InfoIndexLazyRoute: InfoIndexLazyRoute,
   LocalTemplateLoaderIndexLazyRoute: LocalTemplateLoaderIndexLazyRoute,
   OcrIndexLazyRoute: OcrIndexLazyRoute,
   ProceduresIndexLazyRoute: ProceduresIndexLazyRoute,
-  ProductsIndexLazyRoute: ProductsIndexLazyRoute,
   ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
   TemplateFillerIndexLazyRoute: TemplateFillerIndexLazyRoute,
-  WordMapperIndexLazyRoute: WordMapperIndexLazyRoute,
-  WordViewerIndexLazyRoute: WordViewerIndexLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

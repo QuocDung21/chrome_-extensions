@@ -34,13 +34,43 @@ export interface ThuTucHC {
     tenFile: string;
 }
 
+export interface ThuTucHanhChinh {
+    thuTucHanhChinhID: string;
+    maThuTucHanhChinh: string;
+    tenThuTucHanhChinh: string;
+    maCapHanhChinh: string;
+    loaiThuTucHanhChinh: number;
+    maLinhVuc: string;
+    trinhTuThucHien: string;
+    cachThucHien: string;
+    doiTuongThucHien: string;
+    diaChiTiepNhan: string;
+    yeuCau: string;
+    ketQuaThucHien: string;
+    moTa: string;
+    canCuPhapLy: string;
+    vanBanID: string;
+}
+
+export interface ThanhPhanHoSoTTHC {
+    thanhPhanHoSoTTHCID: string;
+    thuTucHanhChinhID: string;
+    tenThanhPhanHoSoTTHC: string;
+    tenTepDinhKem: string;
+    duongDanTepDinhKem: string;
+    soBanChinh: string;
+    soBanSao: string;
+    ghiChu: string | null;
+}
+
 // --- DATABASE CLASS ---
 export class AppDatabase extends Dexie {
-    linhVuc!: Table<LinhVuc, string>; 
+    linhVuc!: Table<LinhVuc, string>;
     workingDocuments!: Table<WorkingDocument, string>;
     workingDocumentsV2!: Table<WorkingDocument, number>;
     thuTucHC!: Table<ThuTucHC, string>;
-
+    thuTucHanhChinh!: Table<ThuTucHanhChinh, string>;
+    thanhPhanHoSoTTHC!: Table<ThanhPhanHoSoTTHC, string>;
     constructor() {
         super('DocumentAI_DB');
         this.version(1).stores({
@@ -67,7 +97,9 @@ export class AppDatabase extends Dexie {
             })
             .upgrade(async tx => {
                 try {
-                    const old = await (tx.table('workingDocuments') as Table<WorkingDocument, any>).toArray();
+                    const old = await (
+                        tx.table('workingDocuments') as Table<WorkingDocument, any>
+                    ).toArray();
                     for (const d of old) {
                         // Di chuyển mỗi bản ghi cũ sang V2 (mỗi maTTHC sẽ trở thành một entry có id)
                         await (tx.table('workingDocumentsV2') as Table<WorkingDocument, any>).add({
@@ -80,9 +112,16 @@ export class AppDatabase extends Dexie {
                     }
                 } catch {}
             });
+
+        this.version(5).stores({
+            thuTucHanhChinh: 'thuTucHanhChinhID, tenThuTucHanhChinh, maLinhVuc, maThuTucHanhChinh'
+        });
+        this.version(6).stores({
+            thanhPhanHoSoTTHC: 'thanhPhanHoSoTTHCID, thuTucHanhChinhID'
+        });
     }
 }
 
 // Khởi tạo và export một instance của database để dùng trong toàn bộ ứng dụng
 export const db = new AppDatabase();
-// 
+//
