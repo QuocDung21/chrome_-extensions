@@ -75,11 +75,9 @@ export const verifyAndRequestPermission = async (
     handle: FileSystemDirectoryHandle
 ): Promise<boolean> => {
     const options = { mode: 'readwrite' as const };
-    // @ts-expect-error
     if ((await handle.queryPermission(options)) === 'granted') {
         return true;
     }
-    // @ts-expect-error
     if ((await handle.requestPermission(options)) === 'granted') {
         return true;
     }
