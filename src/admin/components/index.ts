@@ -1,2 +1,4 @@
-export { HtmlRenderer } from './HtmlRenderer';
-export { SimpleHtmlRenderer } from './SimpleHtmlRenderer';
+// export { HtmlRenderer } from './HtmlRenderer';
+// export { SimpleHtmlRenderer } from './SimpleHtmlRenderer';
+export { SyncfusionEditorModal } from './template-filler/SyncfusionEditorModal';
+export { ApiTemplateCard } from './template-filler/ApiTemplateCard';
