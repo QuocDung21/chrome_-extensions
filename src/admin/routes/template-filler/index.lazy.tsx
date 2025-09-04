@@ -80,14 +80,17 @@ import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 
 import { ApiTemplateCard } from '@/admin/components/template-filler/ApiTemplateCard';
+import { DataSyncPanel } from '@/admin/components/template-filler/DataSyncPanel';
 import { SyncfusionEditorModal } from '@/admin/components/template-filler/SyncfusionEditorModal';
 import { ConfigConstant } from '@/admin/constant/config.constant';
 import { WorkingDocument, db } from '@/admin/db/db';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { thuTucHCRepository } from '@/admin/repository/ThuTucHCRepository';
+import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
+import { DataSyncDebug } from '@/admin/utils/dataSyncDebug';
 import { formatDDMMYYYY, getCurrentDateParts } from '@/admin/utils/formatDate';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
@@ -755,6 +758,8 @@ function TemplateFillerComponent() {
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
+    const [isDataSynced, setIsDataSynced] = useState(false);
+    const [showSyncPanel, setShowSyncPanel] = useState(false);
 
     // Add currentCodeRef for template management
     const currentCodeRef = useRef<string>('');
@@ -1317,11 +1322,23 @@ function TemplateFillerComponent() {
     //#region LOAD TTHC
     const loadThuTucHanhChinh = async () => {
         try {
-            const data = await thuTucHCRepository.getAllThuTucHCApi();
-            setThuTucHcList(data);
+            // Kiểm tra xem dữ liệu đã được đồng bộ chưa
+            const synced = await dataSyncService.isDataSynced();
+            setIsDataSynced(synced);
+
+            if (synced) {
+                // Sử dụng dữ liệu từ IndexedDB
+                const data = await db.thuTucHanhChinh.toArray();
+                setThuTucHcList(data);
+                console.log('✅ Loaded TTHC from IndexedDB:', data.length, 'items');
+            } else {
+                // Fallback: tải từ API như cũ
+                const data = await thuTucHCRepository.getAllThuTucHCApi();
+                setThuTucHcList(data);
+                console.log('📡 Loaded TTHC from API:', data.length, 'items');
+            }
         } catch (err) {
-            console.error('Lỗi khi tải thủ tục hành chính từ API:', err);
-        } finally {
+            console.error('Lỗi khi tải thủ tục hành chính:', err);
         }
     };
     useEffect(() => {
@@ -1462,19 +1479,30 @@ function TemplateFillerComponent() {
         const loadLinhVuc = async () => {
             setLinhVucLoading(true);
             try {
-                const data = await linhVucRepository.getLinhVucList();
-                setLinhVucList(data);
-                console.log('✅ Loaded lĩnh vực from repository:', data.length, 'items');
+                // Kiểm tra xem dữ liệu đã được đồng bộ chưa
+                const synced = await dataSyncService.isDataSynced();
+
+                if (synced) {
+                    // Sử dụng dữ liệu từ IndexedDB
+                    const data = await db.linhVuc.toArray();
+                    setLinhVucList(data);
+                    console.log('✅ Loaded lĩnh vực from IndexedDB:', data.length, 'items');
+                } else {
+                    // Fallback: sử dụng repository như cũ
+                    const data = await linhVucRepository.getLinhVucList();
+                    setLinhVucList(data);
+                    console.log('📡 Loaded lĩnh vực from repository:', data.length, 'items');
+                }
 
                 // Log mapping between repository and CSV data for debugging
                 const csvLinhVuc = filterOptions.linhVuc;
                 console.log('📊 CSV lĩnh vực count:', csvLinhVuc.length);
-                console.log('📊 Repository lĩnh vực count:', data.length);
+                console.log('📊 Repository lĩnh vực count:', linhVucList.length);
 
                 // Show success message
                 setSnackbar({
                     open: true,
-                    message: `Đã tải ${data.length} lĩnh vực từ cơ sở dữ liệu`,
+                    message: `Đã tải ${linhVucList.length} lĩnh vực từ ${synced ? 'IndexedDB' : 'cơ sở dữ liệu'}`,
                     severity: 'success'
                 });
             } catch (error) {
@@ -1489,7 +1517,7 @@ function TemplateFillerComponent() {
             }
         };
         loadLinhVuc();
-    }, [filterOptions.linhVuc]);
+    }, [filterOptions.linhVuc, isDataSynced]);
     //#endregion
 
     // Load working documents from IndexedDB on component mount
@@ -1670,6 +1698,12 @@ function TemplateFillerComponent() {
     const handleSnackbarClose = useCallback(() => {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
+
+    // Handle sync completion
+    const handleSyncComplete = useCallback(async () => {
+        await loadThuTucHanhChinh();
+        setShowSyncPanel(false);
+    }, []);
     // Scan & Fill Panel Handlers
     const handleInputModeChange = useCallback((mode: 'ntsoft' | 'scanner') => {
         setScanState(prev => ({ ...prev, inputMode: mode }));
@@ -1819,6 +1853,15 @@ function TemplateFillerComponent() {
                         mb: 1
                     }}
                 >
+                    {/* Data Sync Panel Toggle */}
+                    <Button
+                        variant={isDataSynced ? 'contained' : 'outlined'}
+                        color={isDataSynced ? 'success' : 'primary'}
+                        onClick={() => setShowSyncPanel(!showSyncPanel)}
+                        sx={{ ml: 'auto', minWidth: 120 }}
+                    >
+                        {isDataSynced ? '✅ Đã đồng bộ' : '🔄 Đồng bộ dữ liệu'}
+                    </Button>
                     <TextField
                         size="small"
                         value={filters.searchText}
@@ -1937,6 +1980,10 @@ function TemplateFillerComponent() {
                         )}
                     />
                 </Box>
+
+                {/* Data Sync Panel */}
+                {showSyncPanel && <DataSyncPanel onSyncComplete={handleSyncComplete} />}
+
                 {/* Template List */}
                 <Card
                     sx={{
@@ -2095,19 +2142,6 @@ function TemplateFillerComponent() {
                                     }
                                 }}
                             >
-                                {/* {availableTemplates.map((record, index) => (
-                                    <TemplateCard
-                                        key={`${record.maTTHC}-${index}`}
-                                        record={record}
-                                        index={index}
-                                        onSelect={handleSelectTemplate}
-                                        onSelectTemplate={handleSelectTemplate}
-                                        hasWorkingDocuments={hasWorkingDocuments(record.maTTHC)}
-                                        workingDocumentsCount={
-                                            getWorkingDocumentsForMaTTHC(record.maTTHC).length
-                                        }
-                                    />
-                                ))} */}
                                 {thuTucHcList.map((data, index) => (
                                     <ApiTemplateCard
                                         key={`${data.thuTucHanhChinhID}-${index}`}
@@ -2192,339 +2226,6 @@ function TemplateFillerComponent() {
                     onResetDocument={handleResetDocument}
                     sfContainerRef={sfContainerRef}
                 />
-
-                {/* Modal chọn mẫu đơn */}
-                <Dialog
-                    open={templateSelectionModal.open}
-                    onClose={() => setTemplateSelectionModal({ open: false, record: null })}
-                    maxWidth="md"
-                    fullWidth
-                    sx={{
-                        '& .MuiDialog-paper': {
-                            borderRadius: 1,
-                            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-                            boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
-                        }
-                    }}
-                >
-                    <Box
-                        sx={{
-                            background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
-                            color: 'white',
-                            p: 1,
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between'
-                        }}
-                    >
-                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
-                            Chọn mẫu đơn - {templateSelectionModal.record?.tenTTHC}
-                        </Typography>
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                            <IconButton
-                                onClick={() =>
-                                    setTemplateSelectionModal({ open: false, record: null })
-                                }
-                                sx={{ color: 'white' }}
-                            >
-                                <CloseIcon />
-                            </IconButton>
-                        </Box>
-                    </Box>
-                    <DialogContent sx={{ p: 1 }}>
-                        <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                            Vui lòng chọn một mẫu đơn từ danh sách bên dưới để tiếp tục:
-                        </Typography>
-                        {templateSelectionModal.record?.danhSachMauDon &&
-                            templateSelectionModal.record.danhSachMauDon.length > 0 && (
-                                <>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{ mb: 2, color: 'primary.main', fontWeight: 500 }}
-                                    >
-                                        1. Mẫu đơn hệ thống
-                                    </Typography>
-                                    <Box
-                                        sx={{
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            gap: 1,
-                                            mb: 1
-                                        }}
-                                    >
-                                        {templateSelectionModal.record.danhSachMauDon.map(
-                                            (mauDon, index) => (
-                                                <Paper
-                                                    key={`csv-${index}`}
-                                                    variant="outlined"
-                                                    sx={{
-                                                        p: 1,
-                                                        borderRadius: 1,
-                                                        border: '1px solid #f3f6f4',
-                                                        background:
-                                                            'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-                                                        cursor: 'pointer',
-                                                        transition: 'all 0.3s ease',
-                                                        '&:hover': {
-                                                            transform: 'translateY(-2px)',
-                                                            boxShadow:
-                                                                '0 8px 25px rgba(25,118,210,0.15)',
-                                                            borderColor: '#1976d2'
-                                                        }
-                                                    }}
-                                                    onClick={() => {
-                                                        const updatedRecord = {
-                                                            ...templateSelectionModal.record!,
-                                                            selectedMauDon: mauDon
-                                                        };
-                                                        setTemplateSelectionModal({
-                                                            open: false,
-                                                            record: null
-                                                        });
-
-                                                        // Trực tiếp mở editor thay vì gọi handleSelectTemplate
-                                                        setEditorState(prev => ({
-                                                            ...prev,
-                                                            selectedRecord: updatedRecord,
-                                                            showEditorModal: true,
-                                                            syncfusionLoading: true,
-                                                            syncfusionDocumentReady: false
-                                                        }));
-
-                                                        setSnackbar({
-                                                            open: true,
-                                                            message: `Đang tải mẫu: ${updatedRecord.tenTTHC}`,
-                                                            severity: 'info'
-                                                        });
-                                                    }}
-                                                >
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            justifyContent: 'space-between',
-                                                            alignItems: 'center'
-                                                        }}
-                                                    >
-                                                        <Box sx={{ flex: 1 }}>
-                                                            <Typography
-                                                                variant="body2"
-                                                                sx={{ fontWeight: 500, mb: 1 }}
-                                                            >
-                                                                {mauDon.tenFile}
-                                                            </Typography>
-                                                            {mauDon.tenGiayTo && (
-                                                                <Typography
-                                                                    variant="body1"
-                                                                    color="text.secondary"
-                                                                >
-                                                                    {mauDon.tenGiayTo}
-                                                                </Typography>
-                                                            )}
-                                                            <Typography
-                                                                variant="caption"
-                                                                color="primary"
-                                                                sx={{ fontStyle: 'italic' }}
-                                                            >
-                                                                {mauDon.duongDan}
-                                                            </Typography>
-                                                        </Box>
-                                                    </Box>
-                                                    <Box
-                                                        sx={{
-                                                            display: 'flex',
-                                                            justifyContent: 'flex-end'
-                                                        }}
-                                                    >
-                                                        <Button
-                                                            variant="contained"
-                                                            size="small"
-                                                            startIcon={<EditIcon />}
-                                                            sx={{
-                                                                borderRadius: 1,
-                                                                textTransform: 'none',
-                                                                fontWeight: 600,
-                                                                background:
-                                                                    'linear-gradient(45deg, #1976d2, #42a5f5)',
-                                                                '&:hover': {
-                                                                    background:
-                                                                        'linear-gradient(45deg, #1565c0, #1976d2)',
-                                                                    transform: 'translateY(-2px)'
-                                                                },
-                                                                transition: 'all 0.3s ease'
-                                                            }}
-                                                        >
-                                                            Sử dụng mẫu này
-                                                        </Button>
-                                                    </Box>
-                                                </Paper>
-                                            )
-                                        )}
-                                    </Box>
-                                </>
-                            )}
-
-                        {/* IndexedDB Working Documents Section */}
-                        {templateSelectionModal.record?.maTTHC &&
-                            hasWorkingDocuments(templateSelectionModal.record.maTTHC) && (
-                                <>
-                                    <Typography
-                                        variant="body2"
-                                        sx={{
-                                            mb: 1,
-                                            color: 'primary.main',
-                                            fontWeight: 600,
-                                            textTransform: 'underline'
-                                        }}
-                                    >
-                                        2. Mẫu đơn đã thiết lập
-                                    </Typography>
-                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                        {getWorkingDocumentsForMaTTHC(
-                                            templateSelectionModal.record.maTTHC
-                                        ).map((workingDoc, index) => (
-                                            <Paper
-                                                key={`indexeddb-${index}`}
-                                                variant="outlined"
-                                                sx={{
-                                                    p: 1,
-                                                    borderRadius: 1,
-                                                    border: '1px solid #f3f6f4',
-                                                    background:
-                                                        'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
-                                                    cursor: 'pointer',
-                                                    transition: 'all 0.3s ease',
-                                                    '&:hover': {
-                                                        transform: 'translateY(-2px)',
-                                                        boxShadow:
-                                                            '0 8px 25px rgba(25,118,210,0.15)',
-                                                        borderColor: '#1976d2'
-                                                    }
-                                                }}
-                                                onClick={() => {
-                                                    // Create a custom mauDon object from working document
-                                                    const customMauDon = {
-                                                        tenGiayTo: `Tài liệu đã lưu - ${workingDoc.fileName}`,
-                                                        tenFile: workingDoc.fileName,
-                                                        duongDan: `IndexedDB - ${new Date(workingDoc.updatedAt).toLocaleDateString('vi-VN')}`,
-                                                        isFromIndexedDB: true,
-                                                        workingDocument: workingDoc
-                                                    };
-
-                                                    // Cập nhật selectedMauDon cho record
-                                                    const updatedRecord = {
-                                                        ...templateSelectionModal.record!,
-                                                        selectedMauDon: customMauDon
-                                                    };
-                                                    setTemplateSelectionModal({
-                                                        open: false,
-                                                        record: null
-                                                    });
-
-                                                    // Trực tiếp mở editor thay vì gọi handleSelectTemplate
-                                                    setEditorState(prev => ({
-                                                        ...prev,
-                                                        selectedRecord: updatedRecord,
-                                                        showEditorModal: true,
-                                                        syncfusionLoading: true,
-                                                        syncfusionDocumentReady: false
-                                                    }));
-
-                                                    setSnackbar({
-                                                        open: true,
-                                                        message: `Đang tải mẫu: ${workingDoc.fileName}`,
-                                                        severity: 'info'
-                                                    });
-                                                }}
-                                            >
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'space-between',
-                                                        alignItems: 'center'
-                                                    }}
-                                                >
-                                                    <Box sx={{ flex: 1 }}>
-                                                        <Typography
-                                                            variant="body2"
-                                                            sx={{ fontWeight: 600, mb: 1 }}
-                                                        >
-                                                            {workingDoc.fileName}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="body2"
-                                                            color="text.secondary"
-                                                        >
-                                                            Mẫu đơn tùy chỉnh
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="primary"
-                                                            sx={{ fontStyle: 'italic' }}
-                                                        >
-                                                            {workingDoc.fileName}
-                                                        </Typography>
-                                                    </Box>
-                                                </Box>
-                                                <Box
-                                                    sx={{
-                                                        display: 'flex',
-                                                        justifyContent: 'flex-end'
-                                                    }}
-                                                >
-                                                    <Button
-                                                        variant="contained"
-                                                        size="small"
-                                                        startIcon={<EditIcon />}
-                                                        sx={{
-                                                            borderRadius: 1,
-                                                            textTransform: 'none',
-                                                            fontWeight: 600,
-                                                            background:
-                                                                'linear-gradient(45deg, #1976d2, #42a5f5)',
-                                                            '&:hover': {
-                                                                background:
-                                                                    'linear-gradient(45deg, #1565c0, #1976d2)',
-                                                                transform: 'translateY(-2px)'
-                                                            },
-                                                            transition: 'all 0.3s ease'
-                                                        }}
-                                                    >
-                                                        Sử dụng mẫu này
-                                                    </Button>
-                                                </Box>
-                                            </Paper>
-                                        ))}
-                                    </Box>
-                                </>
-                            )}
-
-                        {/* No templates message */}
-                        {(!templateSelectionModal.record?.danhSachMauDon ||
-                            templateSelectionModal.record.danhSachMauDon.length === 0) &&
-                            (!templateSelectionModal.record?.maTTHC ||
-                                !hasWorkingDocuments(templateSelectionModal.record.maTTHC)) && (
-                                <Paper
-                                    sx={{
-                                        p: 4,
-                                        textAlign: 'center',
-                                        borderRadius: 1,
-                                        background:
-                                            'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                                        border: '2px dashed #dee2e6'
-                                    }}
-                                >
-                                    <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
-                                        📄 Không có mẫu đơn nào
-                                    </Typography>
-                                    <Typography variant="body2" color="text.secondary">
-                                        Không tìm thấy mẫu đơn nào cho thủ tục này trong hệ thống
-                                        hoặc IndexedDB.
-                                    </Typography>
-                                </Paper>
-                            )}
-                    </DialogContent>
-                </Dialog>
-                {/* Snackbar for notifications */}
                 <Snackbar
                     open={snackbar.open}
                     autoHideDuration={4000}

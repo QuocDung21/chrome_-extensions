@@ -234,20 +234,26 @@ class ThanhPhanHoSoTTHCRepository {
         // Check exist local storage
         if (cachedCount > 0) {
             const cachedItems = await db.thanhPhanHoSoTTHC.toArray();
+            console.log(`✅ Using cached ThanhPhanHoSoTTHC data: ${cachedItems.length} items`);
             // Start background download for items without local files
             this.downloadMissingFiles(cachedItems);
             return cachedItems;
         }
 
+        console.log('📡 No cached data found, fetching from API...');
         const apiResponse = await thanhPhanHoSoTTHCApiService.getAllThanhPhanHoSoTTHC(1, 100, '');
         if (apiResponse.success && apiResponse.data && apiResponse.data.items.length > 0) {
             const thanhPhanHoSoItems = apiResponse.data.items;
             try {
                 await db.thanhPhanHoSoTTHC.bulkPut(thanhPhanHoSoItems);
+                console.log(
+                    `✅ Cached ${thanhPhanHoSoItems.length} ThanhPhanHoSoTTHC items to IndexedDB`
+                );
                 // Start background download of all files
                 this.downloadAllFiles(thanhPhanHoSoItems);
                 return thanhPhanHoSoItems;
             } catch (error) {
+                console.error('❌ Error caching data to IndexedDB:', error);
                 // Even if storage fails, still download files in background
                 this.downloadAllFiles(thanhPhanHoSoItems);
                 return thanhPhanHoSoItems;
@@ -258,7 +264,48 @@ class ThanhPhanHoSoTTHCRepository {
     }
 
     async getThanhPhanHoSoByMaTTHC(maTTHC: string) {
-        await this.getThanhPhanHoSoList();
+        // Kiểm tra xem có dữ liệu trong IndexedDB chưa
+        const existingCount = await db.thanhPhanHoSoTTHC.count();
+
+        if (existingCount === 0) {
+            // Nếu chưa có dữ liệu, tải từ API trước
+            await this.getThanhPhanHoSoList();
+        }
+
+        // Tìm kiếm trong IndexedDB theo thuTucHanhChinhID (nếu maTTHC là ID)
+        let filteredItems = await db.thanhPhanHoSoTTHC
+            .where('thuTucHanhChinhID')
+            .equals(maTTHC)
+            .toArray();
+
+        // Nếu không tìm thấy, thử tìm theo maThuTucHanhChinh thông qua bảng thuTucHanhChinh
+        if (filteredItems.length === 0) {
+            console.log(`🔍 No direct match found, searching by maThuTucHanhChinh: ${maTTHC}`);
+
+            // Tìm thuTucHanhChinhID từ bảng thuTucHanhChinh
+            const thuTucRecord = await db.thuTucHanhChinh
+                .where('maThuTucHanhChinh')
+                .equals(maTTHC)
+                .first();
+
+            if (thuTucRecord) {
+                console.log(`✅ Found TTHC record with ID: ${thuTucRecord.thuTucHanhChinhID}`);
+                filteredItems = await db.thanhPhanHoSoTTHC
+                    .where('thuTucHanhChinhID')
+                    .equals(thuTucRecord.thuTucHanhChinhID)
+                    .toArray();
+            }
+        }
+
+        if (filteredItems.length > 0) {
+            console.log(
+                `✅ Found ${filteredItems.length} templates for TTHC ${maTTHC} in IndexedDB`
+            );
+            return filteredItems;
+        }
+
+        // Fallback: tải từ API nếu không tìm thấy trong IndexedDB
+        console.log(`📡 No data found in IndexedDB for TTHC ${maTTHC}, fetching from API...`);
         const response = await thanhPhanHoSoTTHCApiService.getAllThanhPhanHoSoTTHC(1, 100, maTTHC);
         if (response.success && response.data) {
             await db.thanhPhanHoSoTTHC.bulkPut(response.data.items);
