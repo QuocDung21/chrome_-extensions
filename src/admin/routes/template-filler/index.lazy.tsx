@@ -108,6 +108,9 @@ interface MauDon {
     soBanChinh?: string;
     soBanSao?: string;
     ghiChu?: string | null;
+    // Optional property for offline support
+    isFromOffline?: boolean;
+    thanhPhanHoSoTTHCID?: string;
 }
 interface TTHCRecord {
     stt: number;
@@ -142,46 +145,70 @@ interface TemplateEditorState {
     showEditorModal: boolean;
     syncfusionLoading: boolean;
     syncfusionDocumentReady: boolean;
-    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
+    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
 }
 
 // --- CUSTOM HOOKS ---
 const useSocketConnection = (apiUrl: string) => {
     const [socketStatus, setSocketStatus] = useState<
-        'connected' | 'disconnected' | 'connecting' | 'error'
+        'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled'
     >('disconnected');
     const [reconnectAttempts, setReconnectAttempts] = useState(0);
     const socketRef = useRef<Socket | null>(null);
+
     const connect = useCallback(() => {
+        // Check if socket URL is valid
+        if (!apiUrl || apiUrl.trim() === '') {
+            console.warn('⚠️ Socket URL is not configured, disabling socket connection');
+            setSocketStatus('disabled');
+            return;
+        }
+
         if (socketRef.current?.connected) return;
+
+        console.log(`🔌 Attempting to connect to socket: ${apiUrl}`);
         setSocketStatus('connecting');
-        socketRef.current = io(apiUrl, {
-            transports: ['websocket'],
-            timeout: 10000,
-            reconnection: true,
-            reconnectionAttempts: ConfigConstant.SOCKET_RECONNECT_ATTEMPTS,
-            reconnectionDelay: ConfigConstant.SOCKET_RECONNECT_DELAY
-        });
-        socketRef.current.on('connect', () => {
-            setSocketStatus('connected');
-            setReconnectAttempts(0);
-        });
-        socketRef.current.on('disconnect', () => {
-            setSocketStatus('disconnected');
-        });
-        socketRef.current.on('connect_error', error => {
-            console.error('Socket connection error:', error);
+
+        try {
+            socketRef.current = io(apiUrl, {
+                transports: ['websocket'],
+                timeout: 10000,
+                reconnection: true,
+                reconnectionAttempts: ConfigConstant.SOCKET_RECONNECT_ATTEMPTS,
+                reconnectionDelay: ConfigConstant.SOCKET_RECONNECT_DELAY
+            });
+
+            socketRef.current.on('connect', () => {
+                console.log('✅ Socket connected successfully');
+                setSocketStatus('connected');
+                setReconnectAttempts(0);
+            });
+
+            socketRef.current.on('disconnect', reason => {
+                console.log('🔌 Socket disconnected:', reason);
+                setSocketStatus('disconnected');
+            });
+
+            socketRef.current.on('connect_error', error => {
+                console.error('❌ Socket connection error:', error);
+                setSocketStatus('error');
+                setReconnectAttempts(prev => prev + 1);
+            });
+
+            socketRef.current.on('reconnect', attemptNumber => {
+                console.log(`🔄 Socket reconnected after ${attemptNumber} attempts`);
+                setSocketStatus('connected');
+                setReconnectAttempts(0);
+            });
+
+            socketRef.current.on('reconnect_failed', () => {
+                console.error('❌ Socket reconnection failed');
+                setSocketStatus('error');
+            });
+        } catch (error) {
+            console.error('❌ Failed to initialize socket:', error);
             setSocketStatus('error');
-            setReconnectAttempts(prev => prev + 1);
-        });
-        socketRef.current.on('reconnect', attemptNumber => {
-            console.log(`Reconnected after ${attemptNumber} attempts`);
-            setSocketStatus('connected');
-            setReconnectAttempts(0);
-        });
-        socketRef.current.on('reconnect_failed', () => {
-            setSocketStatus('error');
-        });
+        }
     }, [apiUrl]);
     const disconnect = useCallback(() => {
         if (socketRef.current) {
@@ -802,6 +829,13 @@ function TemplateFillerComponent() {
         isLoading: false
     });
 
+    // State cho offline files từ API
+    const [offlineFilesState, setOfflineFilesState] = useState({
+        downloadedFiles: {} as { [thanhPhanHoSoTTHCID: string]: boolean },
+        totalDownloaded: 0,
+        totalSize: 0
+    });
+
     // Snackbar state
     const [snackbar, setSnackbar] = useState<{
         open: boolean;
@@ -856,6 +890,31 @@ function TemplateFillerComponent() {
         [workingDocsState.workingDocsListByCode]
     );
 
+    // Refresh offline files information
+    const refreshOfflineFiles = useCallback(async () => {
+        try {
+            const stats = await thanhPhanHoSoTTHCRepository.getStorageStats();
+            const allFiles = await thanhPhanHoSoTTHCRepository.getAllLocalFiles();
+
+            const downloadedFiles: { [thanhPhanHoSoTTHCID: string]: boolean } = {};
+            allFiles.forEach(file => {
+                downloadedFiles[file.thanhPhanHoSoTTHCID] = true;
+            });
+
+            setOfflineFilesState({
+                downloadedFiles,
+                totalDownloaded: stats.totalFiles,
+                totalSize: stats.totalSize
+            });
+
+            console.log(
+                `📊 Offline files stats: ${stats.totalFiles} files, ${(stats.totalSize / 1024 / 1024).toFixed(2)} MB`
+            );
+        } catch (error) {
+            console.error('❌ Failed to refresh offline files:', error);
+        }
+    }, []);
+
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
 
     // Socket connection
@@ -877,8 +936,13 @@ function TemplateFillerComponent() {
             r => r.danhSachMauDon && r.danhSachMauDon.length > 0
         ).length;
         const total = filteredRecords.length;
-        return { available, total };
-    }, [filteredRecords]);
+        return {
+            available,
+            total,
+            offlineFiles: offlineFilesState.totalDownloaded,
+            offlineSize: offlineFilesState.totalSize
+        };
+    }, [filteredRecords, offlineFilesState]);
     // Event handlers
     const handleFilterChange = useCallback((filterType: keyof FilterState, value: string) => {
         setFilters(prev => {
@@ -1042,29 +1106,60 @@ function TemplateFillerComponent() {
             let blob: Blob;
 
             // Check if this is an API template
-            if (record.selectedMauDon.isApiTemplate && record.selectedMauDon.duongDanTepDinhKem) {
+            if (record.selectedMauDon.isApiTemplate) {
                 console.log(
-                    '🌐 Loading API template from:',
-                    record.selectedMauDon.duongDanTepDinhKem
+                    '🎯 Loading API template:',
+                    record.selectedMauDon.tenFile,
+                    'ID:',
+                    record.selectedMauDon.thanhPhanHoSoTTHCID
                 );
+
                 try {
-                    // Fetch template from API endpoint
-                    const apiRes = await fetch(record.selectedMauDon.duongDanTepDinhKem);
-                    if (!apiRes.ok) {
-                        console.error(
-                            '❌ Failed to fetch API template:',
-                            apiRes.status,
-                            apiRes.statusText
+                    // Check if we have the required ID
+                    if (!record.selectedMauDon.thanhPhanHoSoTTHCID) {
+                        throw new Error('Không có ID thành phần hồ sơ hợp lệ');
+                    }
+
+                    // Try to get file blob (will download if not available locally)
+                    const fileBlob = await thanhPhanHoSoTTHCRepository.getFileBlobForUse(
+                        record.selectedMauDon.thanhPhanHoSoTTHCID
+                    );
+
+                    if (fileBlob) {
+                        blob = fileBlob;
+                        console.log(
+                            '✅ API template loaded successfully, size:',
+                            blob.size,
+                            'bytes'
                         );
-                        throw new Error(
-                            `Không thể tải mẫu từ API: ${apiRes.status} ${apiRes.statusText}`
+                    } else {
+                        // Fallback to direct API download
+                        console.log(
+                            '🔄 Fallback: Loading API template directly from URL:',
+                            record.selectedMauDon.duongDanTepDinhKem
+                        );
+
+                        const apiUrl = `http://laptrinhid.qlns.vn/uploads/tthc/${record.selectedMauDon.duongDanTepDinhKem}`;
+                        const apiRes = await fetch(apiUrl);
+
+                        if (!apiRes.ok) {
+                            throw new Error(
+                                `Không thể tải mẫu từ API: ${apiRes.status} ${apiRes.statusText}`
+                            );
+                        }
+
+                        blob = await apiRes.blob();
+                        console.log(
+                            '✅ Fallback API template loaded successfully, size:',
+                            blob.size,
+                            'bytes'
                         );
                     }
-                    blob = await apiRes.blob();
-                    console.log('✅ API template loaded successfully, size:', blob.size, 'bytes');
                 } catch (error) {
                     console.error('❌ Error loading API template:', error);
-                    throw new Error('Lỗi khi tải mẫu từ API');
+                    throw new Error(
+                        `Lỗi khi tải mẫu API: ${error instanceof Error ? error.message : 'Lỗi không xác định'}`
+                    );
                 }
             }
             // Check if template is from IndexedDB
@@ -1261,6 +1356,54 @@ function TemplateFillerComponent() {
                 return;
             }
 
+            // Pre-download all files for this procedure to improve performance
+            try {
+                console.log(
+                    '📥 Pre-downloading all files for procedure:',
+                    record.maThuTucHanhChinh
+                );
+                const allTemplates = await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
+                    record.maThuTucHanhChinh
+                );
+                console.log(`✅ Found ${allTemplates.length} templates for procedure`);
+            } catch (error) {
+                console.warn(
+                    '⚠️ Failed to pre-download files, continuing with selected template only:',
+                    error
+                );
+            }
+
+            const hasLocalFile = await thanhPhanHoSoTTHCRepository.hasLocalFile(
+                template.thanhPhanHoSoTTHCID
+            );
+
+            let fileSource = 'online';
+            let templatePath = '';
+
+            if (hasLocalFile) {
+                console.log('✅ Using offline file for template:', template.tenThanhPhanHoSoTTHC);
+                fileSource = 'offline';
+                templatePath = `offline:${template.thanhPhanHoSoTTHCID}`;
+            } else {
+                console.log('📥 File not available offline, downloading...');
+                fileSource = 'downloading';
+
+                // Try to download the file to IndexedDB
+                const downloadSuccess = await thanhPhanHoSoTTHCRepository.downloadFileById(
+                    template.thanhPhanHoSoTTHCID
+                );
+
+                if (downloadSuccess) {
+                    console.log('✅ File downloaded successfully to IndexedDB');
+                    fileSource = 'offline';
+                    templatePath = `offline:${template.thanhPhanHoSoTTHCID}`;
+                } else {
+                    console.log('⚠️ Download failed, using API URL as fallback');
+                    fileSource = 'online';
+                    templatePath = `http://laptrinhid.qlns.vn/uploads/tthc/${template.duongDanTepDinhKem}`;
+                }
+            }
+
             // Create a compatible record for the editor
             const editorRecord = {
                 maTTHC: record.maThuTucHanhChinh,
@@ -1274,8 +1417,12 @@ function TemplateFillerComponent() {
                     soBanSao: template.soBanSao,
                     ghiChu: template.ghiChu,
                     duongDanTepDinhKem: template.duongDanTepDinhKem,
+                    duongDan: templatePath, // This will be used by loadTemplateIntoSyncfusion
                     // Mark this as an API template for special handling
-                    isApiTemplate: true
+                    isApiTemplate: true,
+                    isFromOffline: fileSource === 'offline',
+                    // Store template ID for offline access
+                    thanhPhanHoSoTTHCID: template.thanhPhanHoSoTTHCID
                 }
             } as any; // Type assertion for compatibility
 
@@ -1293,11 +1440,11 @@ function TemplateFillerComponent() {
 
             setSnackbar({
                 open: true,
-                message: `Đang tải mẫu API: ${template.tenThanhPhanHoSoTTHC}`,
+                message: `Đang tải mẫu ${fileSource === 'offline' ? '(offline)' : fileSource === 'downloading' ? '(đang tải về)' : '(online)'}: ${template.tenThanhPhanHoSoTTHC}`,
                 severity: 'info'
             });
 
-            // For API templates, we need to load the document from the API path
+            // For API templates, we need to load the document from the appropriate source
             // This will be handled in the editor modal's useEffect when it detects isApiTemplate
         } catch (error) {
             console.error('❌ Error handling API template selection:', error);
@@ -1350,6 +1497,11 @@ function TemplateFillerComponent() {
         refreshWorkingDocuments();
     }, [refreshWorkingDocuments]);
 
+    // Load offline files information on component mount
+    useEffect(() => {
+        refreshOfflineFiles();
+    }, [refreshOfflineFiles]);
+
     // Filter records when filters change
     useEffect(() => {
         const filtered = filterRecords(csvRecords, filters, linhVucList);
@@ -1370,6 +1522,12 @@ function TemplateFillerComponent() {
     // Socket event handlers for mobile data
     useEffect(() => {
         const handleDataReceived = async (data: ProcessingData) => {
+            // Only process data if socket is connected
+            if (socketStatus !== 'connected') {
+                console.log('⚠️ Socket not connected, ignoring data:', socketStatus);
+                return;
+            }
+
             if (!editorState.selectedRecord || !editorState.syncfusionDocumentReady) {
                 setSnackbar({
                     open: true,
@@ -1453,6 +1611,7 @@ function TemplateFillerComponent() {
     }, [
         on,
         off,
+        socketStatus,
         editorState.selectedRecord,
         editorState.syncfusionDocumentReady,
         targetState.selectedTarget
@@ -1791,7 +1950,22 @@ function TemplateFillerComponent() {
                     }}
                 >
                     <CardHeader
-                        title="Danh sách mẫu đơn"
+                        title={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                    Danh sách mẫu đơn
+                                </Typography>
+                                {templateStats.offlineFiles > 0 && (
+                                    <Chip
+                                        icon={<Download />}
+                                        label={`${templateStats.offlineFiles} file offline (${(templateStats.offlineSize / 1024 / 1024).toFixed(1)} MB)`}
+                                        color="success"
+                                        size="small"
+                                        sx={{ fontWeight: 600 }}
+                                    />
+                                )}
+                            </Box>
+                        }
                         sx={{
                             pb: 0,
                             '& .MuiCardHeader-title': {

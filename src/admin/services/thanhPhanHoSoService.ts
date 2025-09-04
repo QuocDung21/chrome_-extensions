@@ -14,6 +14,7 @@ export interface ThanhPhanHoSoTTHC {
     tenThanhPhanHoSoTTHC: string;
     tenTepDinhKem: string;
     duongDanTepDinhKem: string;
+    duongDanTepDinhKemLocal?: string; // Local file path/ID for offline access
     soBanChinh: string;
     soBanSao: string;
     ghiChu: string | null;

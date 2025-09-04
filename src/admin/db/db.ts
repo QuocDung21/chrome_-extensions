@@ -58,9 +58,23 @@ export interface ThanhPhanHoSoTTHC {
     tenThanhPhanHoSoTTHC: string;
     tenTepDinhKem: string;
     duongDanTepDinhKem: string;
+    duongDanTepDinhKemLocal?: string; // Local file path/ID for offline access
     soBanChinh: string;
     soBanSao: string;
     ghiChu: string | null;
+}
+
+// Interface for storing downloaded file data locally
+export interface ThanhPhanHoSoTTHCLocal {
+    id?: number; // Auto-increment primary key
+    thanhPhanHoSoTTHCID: string; // Reference to ThanhPhanHoSoTTHC
+    duongDanTepDinhKem: string; // Original file path from API
+    tenTepDinhKem: string; // Original file name
+    downloadUrl: string; // Complete download URL
+    blob: Blob; // File content as blob
+    mimeType: string; // File MIME type
+    downloadedAt: number; // Timestamp when downloaded
+    fileSize: number; // File size in bytes
 }
 
 // --- DATABASE CLASS ---
@@ -71,6 +85,7 @@ export class AppDatabase extends Dexie {
     thuTucHC!: Table<ThuTucHC, string>;
     thuTucHanhChinh!: Table<ThuTucHanhChinh, string>;
     thanhPhanHoSoTTHC!: Table<ThanhPhanHoSoTTHC, string>;
+    thanhPhanHoSoTTHCLocal!: Table<ThanhPhanHoSoTTHCLocal, number>;
     constructor() {
         super('DocumentAI_DB');
         this.version(1).stores({
@@ -101,7 +116,6 @@ export class AppDatabase extends Dexie {
                         tx.table('workingDocuments') as Table<WorkingDocument, any>
                     ).toArray();
                     for (const d of old) {
-                        // Di chuyển mỗi bản ghi cũ sang V2 (mỗi maTTHC sẽ trở thành một entry có id)
                         await (tx.table('workingDocumentsV2') as Table<WorkingDocument, any>).add({
                             maTTHC: d.maTTHC,
                             fileName: d.fileName,
@@ -118,6 +132,11 @@ export class AppDatabase extends Dexie {
         });
         this.version(6).stores({
             thanhPhanHoSoTTHC: 'thanhPhanHoSoTTHCID, thuTucHanhChinhID'
+        });
+
+        // Version 7: Add table for locally stored files
+        this.version(7).stores({
+            thanhPhanHoSoTTHCLocal: '++id, thanhPhanHoSoTTHCID, duongDanTepDinhKem, downloadedAt'
         });
     }
 }
