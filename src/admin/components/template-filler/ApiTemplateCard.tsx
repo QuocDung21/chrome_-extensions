@@ -1,11 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 
 import {
     CheckCircle as CheckCircleIcon,
     Close as CloseIcon,
     Description as DescriptionIcon,
     Edit as EditIcon,
-    Star as StarIcon
+    Star as StarIcon,
+    CloudDone as CloudDoneIcon,
+    Wifi as WifiIcon
 } from '@mui/icons-material';
 import {
     Alert,
@@ -50,6 +52,7 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
             message: '',
             severity: 'info' as 'success' | 'error' | 'warning' | 'info'
         });
+        const [offlineStatus, setOfflineStatus] = useState<{ [key: string]: boolean }>({});
 
         const handleOpenModal = async () => {
             console.log('🔍 Opening template modal for TTHC:', record.maThuTucHanhChinh);
@@ -61,6 +64,17 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                 );
 
                 console.log('✅ Loaded templates:', templates.length, 'items');
+
+                // Check offline status for each template
+                const offlineStatusMap: { [key: string]: boolean } = {};
+                for (const template of templates) {
+                    const hasOffline = await thanhPhanHoSoTTHCRepository.hasLocalFile(
+                        template.thanhPhanHoSoTTHCID
+                    );
+                    offlineStatusMap[template.thanhPhanHoSoTTHCID] = hasOffline;
+                    console.log(`📁 Template ${template.tenTepDinhKem} offline status:`, hasOffline);
+                }
+                setOfflineStatus(offlineStatusMap);
 
                 setModalState({
                     open: true,
@@ -377,12 +391,31 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                                                 alignItems: 'center'
                                                             }}
                                                         >
-                                                            <Chip
-                                                                label="Có sẵn"
-                                                                color="success"
-                                                                size="small"
-                                                                icon={<CheckCircleIcon />}
-                                                            />
+                                                            {offlineStatus[template.thanhPhanHoSoTTHCID] ? (
+                                                                <Chip
+                                                                    label="Offline"
+                                                                    color="success"
+                                                                    size="small"
+                                                                    icon={<CloudDoneIcon />}
+                                                                    sx={{
+                                                                        background: 'linear-gradient(45deg, #4caf50, #66bb6a)',
+                                                                        color: 'white',
+                                                                        fontWeight: 600
+                                                                    }}
+                                                                />
+                                                            ) : (
+                                                                <Chip
+                                                                    label="Online"
+                                                                    color="primary"
+                                                                    size="small"
+                                                                    icon={<WifiIcon />}
+                                                                    sx={{
+                                                                        background: 'linear-gradient(45deg, #2196f3, #42a5f5)',
+                                                                        color: 'white',
+                                                                        fontWeight: 600
+                                                                    }}
+                                                                />
+                                                            )}
                                                             <Button
                                                                 variant="contained"
                                                                 color="primary"
@@ -390,7 +423,17 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                                                 onClick={() =>
                                                                     handleTemplateSelect(template)
                                                                 }
-                                                                sx={{ ml: 'auto' }}
+                                                                sx={{ 
+                                                                    ml: 'auto',
+                                                                    background: offlineStatus[template.thanhPhanHoSoTTHCID] 
+                                                                        ? 'linear-gradient(45deg, #4caf50, #66bb6a)'
+                                                                        : 'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                                    '&:hover': {
+                                                                        background: offlineStatus[template.thanhPhanHoSoTTHCID]
+                                                                            ? 'linear-gradient(45deg, #388e3c, #4caf50)'
+                                                                            : 'linear-gradient(45deg, #1565c0, #1976d2)'
+                                                                    }
+                                                                }}
                                                             >
                                                                 Chọn mẫu này
                                                             </Button>

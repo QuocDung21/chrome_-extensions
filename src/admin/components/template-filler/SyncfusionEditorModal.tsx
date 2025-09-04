@@ -92,7 +92,7 @@ interface TemplateEditorState {
     showEditorModal: boolean;
     syncfusionLoading: boolean;
     syncfusionDocumentReady: boolean;
-    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
+    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
 }
 
 interface ScanState {
@@ -114,7 +114,7 @@ interface SyncfusionEditorModalProps {
     scanState: ScanState;
     targetState: TargetState;
     linhVucList: LinhVuc[];
-    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
+    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
     onClose: () => void;
     onDownload: () => void;
     onPrint: () => void;
@@ -385,6 +385,7 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                             </Typography>
                                         </Box>
                                     )}
+                                {/* http://laptrinhid.qlns.vn/uploads/tthc/DuongDanTepDinhKem */}
                                 <DocumentEditorContainerComponent
                                     id="sf-docx-editor-modal"
                                     ref={sfContainerRef}
@@ -488,20 +489,30 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                                     label={
                                                         socketStatus === 'connected'
                                                             ? 'Đã kết nối'
-                                                            : 'Mất kết nối'
+                                                            : socketStatus === 'disabled'
+                                                              ? 'Tắt kết nối'
+                                                              : socketStatus === 'connecting'
+                                                                ? 'Đang kết nối...'
+                                                                : 'Mất kết nối'
                                                     }
                                                     variant="filled"
                                                     sx={{
                                                         backgroundColor:
                                                             socketStatus === 'connected'
                                                                 ? 'success.main'
-                                                                : 'error.main',
+                                                                : socketStatus === 'disabled'
+                                                                  ? 'grey.500'
+                                                                  : socketStatus === 'connecting'
+                                                                    ? 'warning.main'
+                                                                    : 'error.main',
                                                         color: 'white',
                                                         fontWeight: 600,
                                                         animation:
                                                             socketStatus === 'connected'
                                                                 ? 'pulse 2s infinite'
-                                                                : 'none'
+                                                                : socketStatus === 'connecting'
+                                                                  ? 'pulse 1s infinite'
+                                                                  : 'none'
                                                     }}
                                                 />
                                             </Box>
