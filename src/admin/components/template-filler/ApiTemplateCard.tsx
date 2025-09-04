@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import {
     CheckCircle as CheckCircleIcon,
     Close as CloseIcon,
+    CloudDone as CloudDoneIcon,
     Description as DescriptionIcon,
     Edit as EditIcon,
     Star as StarIcon,
-    CloudDone as CloudDoneIcon,
     Wifi as WifiIcon
 } from '@mui/icons-material';
 import {
@@ -27,7 +27,9 @@ import {
     Typography
 } from '@mui/material';
 
+import { db } from '@/admin/db/db';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
+import { dataSyncService } from '@/admin/services/dataSyncService';
 import { ThanhPhanHoSoTTHC } from '@/admin/services/thanhPhanHoSoService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
 
@@ -59,9 +61,29 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
             setModalState(prev => ({ ...prev, open: true, loading: true }));
 
             try {
-                const templates = await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
-                    record.maThuTucHanhChinh
-                );
+                let templates: ThanhPhanHoSoTTHC[] = [];
+
+                // Kiểm tra xem dữ liệu đã được đồng bộ chưa
+                const isDataSynced = await dataSyncService.isDataSynced();
+
+                if (isDataSynced) {
+                    // Sử dụng dữ liệu từ IndexedDB - tìm theo thuTucHanhChinhID
+                    console.log('✅ Using offline data from IndexedDB');
+                    templates = await db.thanhPhanHoSoTTHC
+                        .where('thuTucHanhChinhID')
+                        .equals(record.thuTucHanhChinhID)
+                        .toArray();
+
+                    console.log(
+                        `✅ Found ${templates.length} templates in IndexedDB for TTHC ${record.maThuTucHanhChinh}`
+                    );
+                } else {
+                    // Fallback: sử dụng repository (có thể gọi API)
+                    console.log('📡 Data not synced, using repository (may call API)');
+                    templates = await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
+                        record.maThuTucHanhChinh
+                    );
+                }
 
                 console.log('✅ Loaded templates:', templates.length, 'items');
 
@@ -72,7 +94,10 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                         template.thanhPhanHoSoTTHCID
                     );
                     offlineStatusMap[template.thanhPhanHoSoTTHCID] = hasOffline;
-                    console.log(`📁 Template ${template.tenTepDinhKem} offline status:`, hasOffline);
+                    console.log(
+                        `📁 Template ${template.tenTepDinhKem} offline status:`,
+                        hasOffline
+                    );
                 }
                 setOfflineStatus(offlineStatusMap);
 
@@ -85,7 +110,9 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                 if (templates.length === 0) {
                     setSnackbar({
                         open: true,
-                        message: 'Không tìm thấy mẫu đơn nào cho thủ tục này',
+                        message: isDataSynced
+                            ? 'Không tìm thấy mẫu đơn nào cho thủ tục này trong dữ liệu offline'
+                            : 'Không tìm thấy mẫu đơn nào cho thủ tục này',
                         severity: 'warning'
                     });
                 }
@@ -391,14 +418,17 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                                                 alignItems: 'center'
                                                             }}
                                                         >
-                                                            {offlineStatus[template.thanhPhanHoSoTTHCID] ? (
+                                                            {offlineStatus[
+                                                                template.thanhPhanHoSoTTHCID
+                                                            ] ? (
                                                                 <Chip
                                                                     label="Offline"
                                                                     color="success"
                                                                     size="small"
                                                                     icon={<CloudDoneIcon />}
                                                                     sx={{
-                                                                        background: 'linear-gradient(45deg, #4caf50, #66bb6a)',
+                                                                        background:
+                                                                            'linear-gradient(45deg, #4caf50, #66bb6a)',
                                                                         color: 'white',
                                                                         fontWeight: 600
                                                                     }}
@@ -410,7 +440,8 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                                                     size="small"
                                                                     icon={<WifiIcon />}
                                                                     sx={{
-                                                                        background: 'linear-gradient(45deg, #2196f3, #42a5f5)',
+                                                                        background:
+                                                                            'linear-gradient(45deg, #2196f3, #42a5f5)',
                                                                         color: 'white',
                                                                         fontWeight: 600
                                                                     }}
@@ -423,13 +454,18 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                                                 onClick={() =>
                                                                     handleTemplateSelect(template)
                                                                 }
-                                                                sx={{ 
+                                                                sx={{
                                                                     ml: 'auto',
-                                                                    background: offlineStatus[template.thanhPhanHoSoTTHCID] 
+                                                                    background: offlineStatus[
+                                                                        template.thanhPhanHoSoTTHCID
+                                                                    ]
                                                                         ? 'linear-gradient(45deg, #4caf50, #66bb6a)'
                                                                         : 'linear-gradient(45deg, #1976d2, #42a5f5)',
                                                                     '&:hover': {
-                                                                        background: offlineStatus[template.thanhPhanHoSoTTHCID]
+                                                                        background: offlineStatus[
+                                                                            template
+                                                                                .thanhPhanHoSoTTHCID
+                                                                        ]
                                                                             ? 'linear-gradient(45deg, #388e3c, #4caf50)'
                                                                             : 'linear-gradient(45deg, #1565c0, #1976d2)'
                                                                     }

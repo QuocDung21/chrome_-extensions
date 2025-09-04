@@ -125,3 +125,4 @@ const allowedTypes = [
 #### Storage đầy
 - IndexedDB có giới hạn storage
 - Có thể clear cache để giải phóng dung lượng
+
