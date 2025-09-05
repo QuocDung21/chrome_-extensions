@@ -92,6 +92,7 @@ import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
 import { DataSyncDebug } from '@/admin/utils/dataSyncDebug';
 import { formatDDMMYYYY, getCurrentDateParts } from '@/admin/utils/formatDate';
+import Utils from '@/admin/utils/utils';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
 interface ProcessingData {
@@ -244,64 +245,73 @@ const useSocketConnection = (apiUrl: string) => {
     };
 };
 // --- UTILITY FUNCTIONS ---
-const parseJSONData = (jsonArray: any[]): TTHCRecord[] => {
-    if (!Array.isArray(jsonArray)) return [];
-    const records: TTHCRecord[] = jsonArray
-        .map(item => {
-            const record: TTHCRecord = {
-                stt: item['stt'] || 0,
-                maTTHC: item['maTTHC'] ?? '',
-                tenTTHC: item['tenTTHC'] ?? '',
-                qdCongBo: item['qdCongBo'] ?? '',
-                doiTuong: item['doiTuong'] ?? '',
-                linhVuc: item['linhVuc'] ?? '',
-                coQuanCongKhai: item['coQuanCongKhai'] ?? '',
-                capThucHien: item['capThucHien'] ?? '',
-                tinhTrang: item['tinhTrang'] ?? '',
-                danhSachMauDon: item['danhSachMauDon'] || []
-            };
-            return record;
-        })
-        .filter(r => r.danhSachMauDon.length > 0);
-    return records;
+// Convert ThuTucHanhChinh to TTHCRecord format for compatibility
+const convertThuTucHanhChinhToTTHCRecord = (
+    thuTucHC: ThuTucHanhChinh,
+    linhVucList: LinhVuc[]
+): TTHCRecord => {
+    // Find corresponding linhVuc name from maLinhVuc
+    const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
+
+    return {
+        stt: 0, // Not available in IndexedDB
+        maTTHC: thuTucHC.maThuTucHanhChinh,
+        tenTTHC: thuTucHC.tenThuTucHanhChinh,
+        qdCongBo: '', // Not available in IndexedDB
+        doiTuong: thuTucHC.doiTuongThucHien,
+        linhVuc: linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc,
+        coQuanCongKhai: '', // Not available in IndexedDB
+        capThucHien: thuTucHC.maCapHanhChinh,
+        tinhTrang: 'Công khai', // Default value
+        danhSachMauDon: [] // Will be populated from API templates
+    };
 };
-const createFilterOptions = (records: TTHCRecord[]): FilterOptions => {
+const createFilterOptionsFromIndexDB = (
+    thuTucHcList: ThuTucHanhChinh[],
+    linhVucList: LinhVuc[]
+): FilterOptions => {
     const linhVucSet = new Set<string>();
     const doiTuongSet = new Set<string>();
     const capThucHienSet = new Set<string>();
     const thuTucByLinhVuc: { [linhVuc: string]: string[] } = {};
-    records.forEach(record => {
-        if (record.linhVuc && record.tenTTHC) {
-            const linhVuc = record.linhVuc.trim();
-            const thuTuc = record.tenTTHC.trim();
-            linhVucSet.add(linhVuc);
-            if (!thuTucByLinhVuc[linhVuc]) {
-                thuTucByLinhVuc[linhVuc] = [];
+
+    thuTucHcList.forEach(thuTucHC => {
+        // Get linhVuc name from maLinhVuc
+        const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
+        const linhVucName = linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc;
+
+        if (linhVucName && thuTucHC.tenThuTucHanhChinh) {
+            const tenLinhVuc = linhVucName.trim();
+            const tenThuTuc = thuTucHC.tenThuTucHanhChinh.trim();
+            linhVucSet.add(tenLinhVuc);
+
+            if (!thuTucByLinhVuc[tenLinhVuc]) {
+                thuTucByLinhVuc[tenLinhVuc] = [];
             }
-            if (!thuTucByLinhVuc[linhVuc].includes(thuTuc)) {
-                thuTucByLinhVuc[linhVuc].push(thuTuc);
+            if (!thuTucByLinhVuc[tenLinhVuc].includes(tenThuTuc)) {
+                thuTucByLinhVuc[tenLinhVuc].push(tenThuTuc);
             }
         }
+
         // Extract doiTuong options
-        if (record.doiTuong) {
-            const doiTuongList = record.doiTuong
+        if (thuTucHC.doiTuongThucHien) {
+            const doiTuongList = thuTucHC.doiTuongThucHien
                 .split(';')
                 .map(dt => dt.trim())
                 .filter(dt => dt);
             doiTuongList.forEach(dt => doiTuongSet.add(dt));
         }
+
         // Extract capThucHien options
-        if (record.capThucHien) {
-            const capThucHienList = record.capThucHien
-                .split(';')
-                .map(cth => cth.trim())
-                .filter(cth => cth);
-            capThucHienList.forEach(cth => capThucHienSet.add(cth));
+        if (thuTucHC.maCapHanhChinh) {
+            capThucHienSet.add(thuTucHC.maCapHanhChinh.trim());
         }
     });
+
     Object.keys(thuTucByLinhVuc).forEach(linhVuc => {
         thuTucByLinhVuc[linhVuc].sort();
     });
+
     return {
         linhVuc: Array.from(linhVucSet).sort(),
         doiTuong: Array.from(doiTuongSet).sort(),
@@ -350,21 +360,22 @@ const enhanceRecordsWithAvailability = async (
     }
     return enhancedRecords;
 };
-const filterRecords = (
-    records: EnhancedTTHCRecord[],
+const filterThuTucHanhChinh = (
+    thuTucHcList: ThuTucHanhChinh[],
     filters: FilterState,
     linhVucList: LinhVuc[]
-): EnhancedTTHCRecord[] => {
-    return records.filter(record => {
+): ThuTucHanhChinh[] => {
+    return thuTucHcList.filter(thuTucHC => {
         // Search text filter
         if (filters.searchText) {
             const searchLower = filters.searchText.toLowerCase();
+            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
             const searchableText = [
-                record.tenTTHC,
-                record.maTTHC,
-                record.linhVuc,
-                record.doiTuong,
-                record.qdCongBo
+                thuTucHC.tenThuTucHanhChinh,
+                thuTucHC.maThuTucHanhChinh,
+                linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc,
+                thuTucHC.doiTuongThucHien,
+                thuTucHC.moTa
             ]
                 .join(' ')
                 .toLowerCase();
@@ -373,41 +384,32 @@ const filterRecords = (
             }
         }
 
-        // Lĩnh vực filter - sử dụng maLinhVuc để tìm tenLinhVuc tương ứng
+        // Lĩnh vực filter - filters.linhVuc chứa tenLinhVuc, cần map về maLinhVuc để so sánh
         if (filters.linhVuc) {
-            const selectedLinhVuc = linhVucList.find(lv => lv.maLinhVuc === filters.linhVuc);
+            // Tìm lĩnh vực từ tenLinhVuc để lấy maLinhVuc
+            const selectedLinhVuc = linhVucList.find(lv => lv.tenLinhVuc === filters.linhVuc);
             if (selectedLinhVuc) {
-                // Nếu có maLinhVuc, kiểm tra xem record.linhVuc có chứa tenLinhVuc không
-                if (!record.linhVuc.includes(selectedLinhVuc.tenLinhVuc)) {
+                // So sánh maLinhVuc của thuTucHC với maLinhVuc của lĩnh vực được chọn
+                if (thuTucHC.maLinhVuc !== selectedLinhVuc.maLinhVuc) {
                     return false;
                 }
             } else {
-                // Fallback: nếu không tìm thấy, kiểm tra trực tiếp
-                if (!record.linhVuc.includes(filters.linhVuc)) {
+                // Fallback: nếu không tìm thấy, có thể filters.linhVuc là maLinhVuc
+                if (thuTucHC.maLinhVuc !== filters.linhVuc) {
                     return false;
                 }
             }
         }
 
-        if (filters.doiTuong && !record.doiTuong.includes(filters.doiTuong)) {
+        if (filters.doiTuong && !thuTucHC.doiTuongThucHien.includes(filters.doiTuong)) {
             return false;
         }
-        if (filters.capThucHien && !record.capThucHien.includes(filters.capThucHien)) {
+        if (filters.capThucHien && !thuTucHC.maCapHanhChinh.includes(filters.capThucHien)) {
             return false;
         }
-        if (
-            filters.availability === 'available' &&
-            (!record.danhSachMauDon || record.danhSachMauDon.length === 0)
-        ) {
-            return false;
-        }
-        if (
-            filters.availability === 'unavailable' &&
-            record.danhSachMauDon &&
-            record.danhSachMauDon.length > 0
-        ) {
-            return false;
-        }
+
+        // Note: availability filter không áp dụng cho IndexedDB data vì templates được load từ API riêng
+
         return true;
     });
 };
@@ -434,37 +436,37 @@ const processDataIntelligently = (data: string): any => {
     }
 };
 //#region  Chuyển đổi dữ liệu từ mobile/socket sang ProcessingData
-const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
-    // Handle mobile socket data format
-    if (data.so_cccd || data.so_cmnd || data.ho_ten) {
-        console.log('📱 Detected mobile socket data format, using as-is');
-        return {
-            ...data,
-            cccd: data.cccd || data.so_cccd || '',
-            cmnd: data.cmnd || data.so_cmnd || '',
-            hoTen: data.hoTen || data.ho_ten || '',
-            ngaySinh: data.ngaySinh || data.ngay_sinh || '',
-            gioiTinh: data.gioiTinh || data.gioi_tinh || '',
-            diaChi: data.diaChi || data.noi_cu_tru || '',
-            ngayCap: data.ngayCap || data.ngay_cap || '',
-            so_cccd: data.so_cccd || data.cccd || '',
-            so_cmnd: data.so_cmnd || data.cmnd || '',
-            ho_ten: data.ho_ten || data.hoTen || '',
-            ngay_sinh: data.ngay_sinh || data.ngaySinh || '',
-            gioi_tinh: data.gioi_tinh || data.gioiTinh || '',
-            noi_cu_tru: data.noi_cu_tru || data.diaChi || '',
-            ngay_cap: data.ngay_cap || data.ngayCap || '',
-            // Tách ngày/tháng/năm
-            ns_ngay: data.ns_ngay || '',
-            ns_thang: data.ns_thang || '',
-            ns_nam: data.ns_nam || '',
-            nc_ngay: data.nc_ngay || '',
-            nc_thang: data.nc_thang || '',
-            nc_nam: data.nc_nam || ''
-        } as ProcessingData;
-    }
-    return data;
-};
+// const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
+//     // Handle mobile socket data format
+//     if (data.so_cccd || data.so_cmnd || data.ho_ten) {
+//         console.log('📱 Detected mobile socket data format, using as-is');
+//         return {
+//             ...data,
+//             cccd: data.cccd || data.so_cccd || '',
+//             cmnd: data.cmnd || data.so_cmnd || '',
+//             hoTen: data.hoTen || data.ho_ten || '',
+//             ngaySinh: data.ngaySinh || data.ngay_sinh || '',
+//             gioiTinh: data.gioiTinh || data.gioi_tinh || '',
+//             diaChi: data.diaChi || data.noi_cu_tru || '',
+//             ngayCap: data.ngayCap || data.ngay_cap || '',
+//             so_cccd: data.so_cccd || data.cccd || '',
+//             so_cmnd: data.so_cmnd || data.cmnd || '',
+//             ho_ten: data.ho_ten || data.hoTen || '',
+//             ngay_sinh: data.ngay_sinh || data.ngaySinh || '',
+//             gioi_tinh: data.gioi_tinh || data.gioiTinh || '',
+//             noi_cu_tru: data.noi_cu_tru || data.diaChi || '',
+//             ngay_cap: data.ngay_cap || data.ngayCap || '',
+//             // Tách ngày/tháng/năm
+//             ns_ngay: data.ns_ngay || '',
+//             ns_thang: data.ns_thang || '',
+//             ns_nam: data.ns_nam || '',
+//             nc_ngay: data.nc_ngay || '',
+//             nc_thang: data.nc_thang || '',
+//             nc_nam: data.nc_nam || ''
+//         } as ProcessingData;
+//     }
+//     return data;
+// };
 //#endregion
 
 //#region TemplateCard
@@ -748,7 +750,6 @@ const applyDataToSyncfusion = async (
 };
 // #region --- COMPONENT CHÍNH ---
 function TemplateFillerComponent() {
-    const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
         doiTuong: [],
@@ -757,6 +758,7 @@ function TemplateFillerComponent() {
     });
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
+    const [filteredThuTucHcList, setFilteredThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
     const [isDataSynced, setIsDataSynced] = useState(false);
     const [showSyncPanel, setShowSyncPanel] = useState(false);
@@ -791,13 +793,12 @@ function TemplateFillerComponent() {
     };
     const [filters, setFilters] = useState<FilterState>({
         searchText: '',
-        linhVuc: '', // Sẽ lưu maLinhVuc thay vì tenLinhVuc
+        linhVuc: '', // Sẽ lưu tenLinhVuc để dễ hiểu và hiển thị
         doiTuong: '',
         capThucHien: '',
         availability: 'all'
     });
-    const [filteredRecords, setFilteredRecords] = useState<EnhancedTTHCRecord[]>([]);
-    const [csvLoading, setCsvLoading] = useState(false);
+    const [dataLoading, setDataLoading] = useState(false);
     // State cho template editor
     const [editorState, setEditorState] = useState<TemplateEditorState>({
         selectedRecord: null,
@@ -931,23 +932,16 @@ function TemplateFillerComponent() {
         }
         return filterOptions.thuTucByLinhVuc[filters.linhVuc];
     }, [filters.linhVuc, filterOptions.thuTucByLinhVuc]);
-    // Memoized available templates for performance
-    const availableTemplates = useMemo(() => {
-        return filteredRecords.filter(r => r.danhSachMauDon && r.danhSachMauDon.length > 0);
-    }, [filteredRecords]);
     // Memoized statistics for header
     const templateStats = useMemo(() => {
-        const available = filteredRecords.filter(
-            r => r.danhSachMauDon && r.danhSachMauDon.length > 0
-        ).length;
-        const total = filteredRecords.length;
+        const total = filteredThuTucHcList.length;
         return {
-            available,
+            available: total, // All records from IndexedDB are considered available
             total,
             offlineFiles: offlineFilesState.totalDownloaded,
             offlineSize: offlineFilesState.totalSize
         };
-    }, [filteredRecords, offlineFilesState]);
+    }, [filteredThuTucHcList, offlineFilesState]);
     // Event handlers
     const handleFilterChange = useCallback((filterType: keyof FilterState, value: string) => {
         setFilters(prev => {
@@ -1281,46 +1275,22 @@ function TemplateFillerComponent() {
     useEffect(() => {
         setEditorState(prev => ({ ...prev, socketStatus }));
     }, [socketStatus]);
-    // Load JSON data on component mount
+    // Update filter options when data changes
     useEffect(() => {
-        const loadData = async () => {
-            setCsvLoading(true);
-            try {
-                const jsonResponse = await fetch('/DanhSachTTHC.json');
-                if (!jsonResponse.ok) {
-                    throw new Error('Không thể tải dữ liệu JSON');
-                }
-                const jsonContent = await jsonResponse.json();
-                const rawRecords = parseJSONData(jsonContent);
-                const enhancedRecords = await enhanceRecordsWithAvailability(rawRecords);
-                setCsvRecords(enhancedRecords);
-                setFilterOptions(createFilterOptions(rawRecords));
-                setFilteredRecords(enhancedRecords);
-                const availableCount = enhancedRecords.filter(
-                    r => r.danhSachMauDon && r.danhSachMauDon.length > 0
-                ).length;
-                const totalCount = enhancedRecords.length;
-                setSnackbar({
-                    open: true,
-                    message: `Đã tải ${totalCount} thủ tục hành chính, ${availableCount} có mẫu đơn sẵn sàng`,
-                    severity: 'success'
-                });
-            } catch (error) {
-                console.error('Error loading data:', error);
-                setSnackbar({
-                    open: true,
-                    message: 'Không thể tải dữ liệu mẫu đơn',
-                    severity: 'error'
-                });
-            } finally {
-                setCsvLoading(false);
-            }
-        };
-        loadData();
-    }, []);
+        if (thuTucHcList.length > 0 && linhVucList.length > 0) {
+            const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
+            setFilterOptions(options);
+            console.log('✅ Updated filter options from IndexedDB data:', {
+                linhVuc: options.linhVuc.length,
+                doiTuong: options.doiTuong.length,
+                capThucHien: options.capThucHien.length
+            });
+        }
+    }, [thuTucHcList, linhVucList]);
 
     //#region LOAD TTHC
     const loadThuTucHanhChinh = async () => {
+        setDataLoading(true);
         try {
             // Kiểm tra xem dữ liệu đã được đồng bộ chưa
             const synced = await dataSyncService.isDataSynced();
@@ -1331,14 +1301,33 @@ function TemplateFillerComponent() {
                 const data = await db.thuTucHanhChinh.toArray();
                 setThuTucHcList(data);
                 console.log('✅ Loaded TTHC from IndexedDB:', data.length, 'items');
+
+                setSnackbar({
+                    open: true,
+                    message: `Đã tải ${data.length} thủ tục hành chính từ IndexedDB`,
+                    severity: 'success'
+                });
             } else {
                 // Fallback: tải từ API như cũ
                 const data = await thuTucHCRepository.getAllThuTucHCApi();
                 setThuTucHcList(data);
                 console.log('📡 Loaded TTHC from API:', data.length, 'items');
+
+                setSnackbar({
+                    open: true,
+                    message: `Đã tải ${data.length} thủ tục hành chính từ API`,
+                    severity: 'success'
+                });
             }
         } catch (err) {
             console.error('Lỗi khi tải thủ tục hành chính:', err);
+            setSnackbar({
+                open: true,
+                message: 'Không thể tải dữ liệu thủ tục hành chính',
+                severity: 'error'
+            });
+        } finally {
+            setDataLoading(false);
         }
     };
     useEffect(() => {
@@ -1455,9 +1444,15 @@ function TemplateFillerComponent() {
                 syncfusionDocumentReady: false
             }));
 
+            // setSnackbar({
+            //     open: true,
+            //     message: `Đang tải mẫu ${fileSource === 'offline' ? '(offline)' : fileSource === 'downloading' ? '(đang tải về)' : '(online)'}: ${template.tenThanhPhanHoSoTTHC}`,
+            //     severity: 'info'
+            // });
+
             setSnackbar({
                 open: true,
-                message: `Đang tải mẫu ${fileSource === 'offline' ? '(offline)' : fileSource === 'downloading' ? '(đang tải về)' : '(online)'}: ${template.tenThanhPhanHoSoTTHC}`,
+                message: `Đang tải mẫu ${template.tenThanhPhanHoSoTTHC}`,
                 severity: 'info'
             });
 
@@ -1488,15 +1483,14 @@ function TemplateFillerComponent() {
                     setLinhVucList(data);
                     console.log('✅ Loaded lĩnh vực from IndexedDB:', data.length, 'items');
                 } else {
-                    // Fallback: sử dụng repository như cũ
                     const data = await linhVucRepository.getLinhVucList();
                     setLinhVucList(data);
                     console.log('📡 Loaded lĩnh vực from repository:', data.length, 'items');
                 }
 
-                // Log mapping between repository and CSV data for debugging
-                const csvLinhVuc = filterOptions.linhVuc;
-                console.log('📊 CSV lĩnh vực count:', csvLinhVuc.length);
+                // Log mapping between filter options and repository data for debugging
+                const filterLinhVuc = filterOptions.linhVuc;
+                console.log('📊 Filter lĩnh vực options count:', filterLinhVuc.length);
                 console.log('📊 Repository lĩnh vực count:', linhVucList.length);
 
                 // Show success message
@@ -1530,11 +1524,16 @@ function TemplateFillerComponent() {
         refreshOfflineFiles();
     }, [refreshOfflineFiles]);
 
-    // Filter records when filters change
+    // Filter thuTucHcList when filters change
     useEffect(() => {
-        const filtered = filterRecords(csvRecords, filters, linhVucList);
-        setFilteredRecords(filtered);
-    }, [csvRecords, filters, linhVucList]);
+        const filtered = filterThuTucHanhChinh(thuTucHcList, filters, linhVucList);
+        setFilteredThuTucHcList(filtered);
+        console.log('🔍 Filtered data:', {
+            total: thuTucHcList.length,
+            filtered: filtered.length,
+            filters
+        });
+    }, [thuTucHcList, filters, linhVucList]);
     // Load template when editor modal opens
     useEffect(() => {
         console.log('Modal state changed:', {
@@ -1568,7 +1567,7 @@ function TemplateFillerComponent() {
                 try {
                     console.log('🔌 Received data from mobile app via socket:', data);
                     console.log('🎯 Current selected target:', targetState.selectedTarget);
-                    const processingData = convertScannedInfoToProcessingData(data);
+                    const processingData = Utils.convertScannedInfoToProcessingData(data);
                     console.log('🔄 Converted mobile data to ProcessingData:', processingData);
                     const success = await applyDataToSyncfusion(
                         sfContainerRef.current,
@@ -1740,7 +1739,7 @@ function TemplateFillerComponent() {
         setScanState(prev => ({ ...prev, isProcessing: true }));
         try {
             const scannedInfo = processDataIntelligently(scanState.inputText);
-            const processingData = convertScannedInfoToProcessingData({
+            const processingData = Utils.convertScannedInfoToProcessingData({
                 ...scannedInfo,
                 ngaySinh: formatDDMMYYYY(scannedInfo.ngaySinh),
                 ngayCap: formatDDMMYYYY(scannedInfo.ngayCap)
@@ -1809,12 +1808,13 @@ function TemplateFillerComponent() {
         targetState.selectedTarget
     ]);
     console.log('🎨 TemplateFillerComponent render:', {
-        csvRecordsCount: csvRecords.length,
-        filteredRecordsCount: filteredRecords.length,
+        thuTucHcListCount: thuTucHcList.length,
+        filteredThuTucHcListCount: filteredThuTucHcList.length,
         showEditorModal: editorState.showEditorModal,
         selectedRecord: editorState.selectedRecord?.tenTTHC,
         syncfusionLoading: editorState.syncfusionLoading,
-        syncfusionReady: editorState.syncfusionDocumentReady
+        syncfusionReady: editorState.syncfusionDocumentReady,
+        isDataSynced: isDataSynced
     });
     const handleKeyDown = useCallback(
         async (e: React.KeyboardEvent) => {
@@ -1885,33 +1885,30 @@ function TemplateFillerComponent() {
                     />
                     <Autocomplete
                         size="small"
-                        options={['', ...linhVucList.map(lv => lv.maLinhVuc)]}
+                        options={['', ...filterOptions.linhVuc]}
                         value={filters.linhVuc}
                         onChange={(event, newValue) => {
                             handleFilterChange('linhVuc', newValue || '');
                             // Debug: Log thông tin lĩnh vực được chọn
                             if (newValue) {
                                 const selectedLinhVuc = linhVucList.find(
-                                    lv => lv.maLinhVuc === newValue
+                                    lv => lv.tenLinhVuc === newValue
                                 );
                                 console.log('🎯 Selected lĩnh vực:', {
-                                    maLinhVuc: newValue,
-                                    tenLinhVuc: selectedLinhVuc?.tenLinhVuc,
-                                    csvMatch: filterOptions.linhVuc.includes(
-                                        selectedLinhVuc?.tenLinhVuc || ''
-                                    )
+                                    tenLinhVuc: newValue,
+                                    maLinhVuc: selectedLinhVuc?.maLinhVuc,
+                                    found: !!selectedLinhVuc
                                 });
                             }
                         }}
                         getOptionLabel={option => {
                             if (!option) return 'Tất cả';
-                            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === option);
-                            return linhVuc ? linhVuc.tenLinhVuc : option;
+                            return option; // option is already tenLinhVuc
                         }}
                         renderInput={params => (
                             <TextField
                                 {...params}
-                                label={`Lĩnh vực (${linhVucList.length})`}
+                                label={`Lĩnh vực (${filterOptions.linhVuc.length})`}
                                 placeholder={linhVucLoading ? 'Đang tải...' : 'Chọn lĩnh vực'}
                                 InputProps={{
                                     ...params.InputProps,
@@ -1935,7 +1932,8 @@ function TemplateFillerComponent() {
                                 );
                             }
 
-                            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === option);
+                            // Find corresponding maLinhVuc for display
+                            const linhVuc = linhVucList.find(lv => lv.tenLinhVuc === option);
                             return (
                                 <Box component="li" {...props}>
                                     <Box
@@ -1947,11 +1945,13 @@ function TemplateFillerComponent() {
                                         }}
                                     >
                                         <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                                            {linhVuc?.tenLinhVuc || option}
+                                            {option}
                                         </Typography>
-                                        <Typography variant="caption" color="text.secondary">
-                                            Mã: {option}
-                                        </Typography>
+                                        {linhVuc && (
+                                            <Typography variant="caption" color="text.secondary">
+                                                Mã: {linhVuc.maLinhVuc}
+                                            </Typography>
+                                        )}
                                     </Box>
                                 </Box>
                             );
@@ -2027,7 +2027,7 @@ function TemplateFillerComponent() {
                             height: '100%'
                         }}
                     >
-                        {csvLoading ? (
+                        {dataLoading ? (
                             <Box sx={{ p: 2 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                                     <CircularProgress size={24} />
@@ -2142,15 +2142,16 @@ function TemplateFillerComponent() {
                                     }
                                 }}
                             >
-                                {thuTucHcList.map((data, index) => (
+                                {filteredThuTucHcList.map((data, index) => (
                                     <ApiTemplateCard
                                         key={`${data.thuTucHanhChinhID}-${index}`}
                                         record={data}
+                                        linhVucList={linhVucList}
                                         onSelect={handleSelectThuTucHanhChinh}
                                         onTemplateSelect={handleApiTemplateSelect}
                                     />
                                 ))}
-                                {availableTemplates.length === 0 && (
+                                {filteredThuTucHcList.length === 0 && (
                                     <Paper
                                         sx={{
                                             p: 6,
