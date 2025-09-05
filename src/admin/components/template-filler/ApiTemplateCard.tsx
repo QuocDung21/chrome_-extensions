@@ -30,11 +30,13 @@ import {
 import { db } from '@/admin/db/db';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { dataSyncService } from '@/admin/services/dataSyncService';
+import { LinhVuc } from '@/admin/services/linhVucService';
 import { ThanhPhanHoSoTTHC } from '@/admin/services/thanhPhanHoSoService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
 
 interface ApiTemplateCardProps {
     record: ThuTucHanhChinh;
+    linhVucList: LinhVuc[];
     onSelect: (record: ThuTucHanhChinh) => void;
     onTemplateSelect?: (templateData: {
         record: ThuTucHanhChinh;
@@ -43,7 +45,13 @@ interface ApiTemplateCardProps {
 }
 
 export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
-    ({ record, onSelect, onTemplateSelect }) => {
+    ({ record, linhVucList, onSelect, onTemplateSelect }) => {
+        // Find linhVuc name from maLinhVuc for performance
+        const linhVucName = React.useMemo(() => {
+            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === record.maLinhVuc);
+            return linhVuc ? linhVuc.tenLinhVuc : record.maLinhVuc;
+        }, [linhVucList, record.maLinhVuc]);
+
         const [modalState, setModalState] = useState({
             open: false,
             loading: false,
@@ -237,10 +245,10 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                     variant="body2"
                                     sx={{ width: 150, color: 'text.secondary', flexShrink: 0 }}
                                 >
-                                    Mã lĩnh vực:
+                                    Lĩnh vực:
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                                    {record.maLinhVuc}
+                                    {linhVucName}
                                 </Typography>
                             </Box>
                             <Box sx={{ display: 'flex', gap: 2 }}>

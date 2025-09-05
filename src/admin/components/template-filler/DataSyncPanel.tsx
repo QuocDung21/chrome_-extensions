@@ -190,7 +190,7 @@ export const DataSyncPanel: React.FC<DataSyncPanelProps> = ({ onSyncComplete }) 
                             </Typography>
                         </Box>
                     }
-                    subheader="Đồng bộ dữ liệu từ API vào IndexedDB để sử dụng offline"
+                    subheader="Đồng bộ dữ liệu từ server vào DocumentAI extension"
                 />
                 <CardContent>
                     <Stack spacing={3}>
@@ -364,12 +364,11 @@ export const DataSyncPanel: React.FC<DataSyncPanelProps> = ({ onSyncComplete }) 
                                 {syncStatus.isSyncing ? (
                                     <CircularProgress size={20} />
                                 ) : isDataSynced ? (
-                                    'Làm mới'
+                                    'Làm mới dữ liệu'
                                 ) : (
-                                    'Đồng bộ'
+                                    'Đồng bộ dữ liệu'
                                 )}
                             </Button>
-
                             <Button
                                 variant="outlined"
                                 color="error"
@@ -379,16 +378,6 @@ export const DataSyncPanel: React.FC<DataSyncPanelProps> = ({ onSyncComplete }) 
                                 sx={{ minWidth: 140 }}
                             >
                                 Xóa dữ liệu
-                            </Button>
-
-                            <Button
-                                variant="outlined"
-                                color="info"
-                                onClick={handleDebugData}
-                                disabled={syncStatus.isSyncing}
-                                sx={{ minWidth: 140 }}
-                            >
-                                🔍 Debug
                             </Button>
                         </Box>
                     </Stack>
