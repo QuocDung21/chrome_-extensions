@@ -12,7 +12,6 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 
-const TemplateSetupIndexLazyRouteImport = createFileRoute('/template-setup/')()
 const TemplateFillerIndexLazyRouteImport =
   createFileRoute('/template-filler/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
@@ -26,16 +25,7 @@ const InfoIndexLazyRouteImport = createFileRoute('/info/')()
 const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
-const AdminProceduresIndexLazyRouteImport =
-  createFileRoute('/admin-procedures/')()
 
-const TemplateSetupIndexLazyRoute = TemplateSetupIndexLazyRouteImport.update({
-  id: '/template-setup/',
-  path: '/template-setup/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/template-setup/index.lazy').then((d) => d.Route),
-)
 const TemplateFillerIndexLazyRoute = TemplateFillerIndexLazyRouteImport.update({
   id: '/template-filler/',
   path: '/template-filler/',
@@ -101,17 +91,8 @@ const AnalyticsIndexLazyRoute = AnalyticsIndexLazyRouteImport.update({
 } as any).lazy(() =>
   import('./routes/analytics/index.lazy').then((d) => d.Route),
 )
-const AdminProceduresIndexLazyRoute =
-  AdminProceduresIndexLazyRouteImport.update({
-    id: '/admin-procedures/',
-    path: '/admin-procedures/',
-    getParentRoute: () => rootRouteImport,
-  } as any).lazy(() =>
-    import('./routes/admin-procedures/index.lazy').then((d) => d.Route),
-  )
 
 export interface FileRoutesByFullPath {
-  '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
@@ -122,10 +103,8 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/template-filler': typeof TemplateFillerIndexLazyRoute
-  '/template-setup': typeof TemplateSetupIndexLazyRoute
 }
 export interface FileRoutesByTo {
-  '/admin-procedures': typeof AdminProceduresIndexLazyRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
@@ -136,11 +115,9 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/template-filler': typeof TemplateFillerIndexLazyRoute
-  '/template-setup': typeof TemplateSetupIndexLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
-  '/admin-procedures/': typeof AdminProceduresIndexLazyRoute
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
   '/forms/': typeof FormsIndexLazyRoute
@@ -151,12 +128,10 @@ export interface FileRoutesById {
   '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
   '/template-filler/': typeof TemplateFillerIndexLazyRoute
-  '/template-setup/': typeof TemplateSetupIndexLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
-    | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
     | '/forms'
@@ -167,10 +142,8 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/template-filler'
-    | '/template-setup'
   fileRoutesByTo: FileRoutesByTo
   to:
-    | '/admin-procedures'
     | '/analytics'
     | '/dashboard'
     | '/forms'
@@ -181,10 +154,8 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/template-filler'
-    | '/template-setup'
   id:
     | '__root__'
-    | '/admin-procedures/'
     | '/analytics/'
     | '/dashboard/'
     | '/forms/'
@@ -195,11 +166,9 @@ export interface FileRouteTypes {
     | '/services/'
     | '/settings/'
     | '/template-filler/'
-    | '/template-setup/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
-  AdminProceduresIndexLazyRoute: typeof AdminProceduresIndexLazyRoute
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
   FormsIndexLazyRoute: typeof FormsIndexLazyRoute
@@ -210,18 +179,10 @@ export interface RootRouteChildren {
   ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
   TemplateFillerIndexLazyRoute: typeof TemplateFillerIndexLazyRoute
-  TemplateSetupIndexLazyRoute: typeof TemplateSetupIndexLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/template-setup/': {
-      id: '/template-setup/'
-      path: '/template-setup'
-      fullPath: '/template-setup'
-      preLoaderRoute: typeof TemplateSetupIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/template-filler/': {
       id: '/template-filler/'
       path: '/template-filler'
@@ -292,18 +253,10 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AnalyticsIndexLazyRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/admin-procedures/': {
-      id: '/admin-procedures/'
-      path: '/admin-procedures'
-      fullPath: '/admin-procedures'
-      preLoaderRoute: typeof AdminProceduresIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
-  AdminProceduresIndexLazyRoute: AdminProceduresIndexLazyRoute,
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
   FormsIndexLazyRoute: FormsIndexLazyRoute,
@@ -314,7 +267,6 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
   TemplateFillerIndexLazyRoute: TemplateFillerIndexLazyRoute,
-  TemplateSetupIndexLazyRoute: TemplateSetupIndexLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
