@@ -1181,6 +1181,12 @@ function TemplateFillerComponent() {
             }
 
             console.log('📦 Template blob size:', blob.size, 'bytes');
+
+            // Validate blob first
+            if (blob.size === 0) {
+                throw new Error('File rỗng hoặc bị lỗi');
+            }
+
             const form = new FormData();
             form.append('files', blob, record.selectedMauDon.tenFile);
             console.log('🔄 Converting DOCX to SFDT...');
@@ -1188,18 +1194,96 @@ function TemplateFillerComponent() {
                 '🌐 Syncfusion service URL:',
                 ConfigConstant.SYNCFUSION_SERVICE_URL + 'Import'
             );
-            const importRes = await fetch(`${ConfigConstant.SYNCFUSION_SERVICE_URL}Import`, {
-                method: 'POST',
-                body: form
-            });
-            if (!importRes.ok) {
-                console.error(
-                    '❌ Syncfusion import failed:',
-                    importRes.status,
-                    importRes.statusText
+
+            // Try multiple Syncfusion service URLs as fallback
+            const serviceUrls = [
+                ConfigConstant.SYNCFUSION_SERVICE_URL,
+                'https://services.syncfusion.com/js/production/api/documenteditor/',
+                'https://ej2services.syncfusion.com/production/web-services/api/documenteditor/'
+            ];
+
+            let importRes;
+            let lastError;
+
+            for (let i = 0; i < serviceUrls.length; i++) {
+                const serviceUrl = serviceUrls[i];
+                console.log(
+                    `🔄 Trying Syncfusion service URL (${i + 1}/${serviceUrls.length}):`,
+                    serviceUrl + 'Import'
                 );
-                throw new Error(`Lỗi khi import file: ${importRes.status} ${importRes.statusText}`);
+
+                try {
+                    // Create manual abort controller for better browser compatibility
+                    const controller = new AbortController();
+                    const timeoutId = setTimeout(() => controller.abort(), 30000);
+
+                    try {
+                        // Try import with current service URL
+                        importRes = await fetch(`${serviceUrl}Import`, {
+                            method: 'POST',
+                            body: form,
+                            mode: 'cors',
+                            signal: controller.signal
+                        });
+                    } finally {
+                        clearTimeout(timeoutId);
+                    }
+
+                    if (importRes.ok) {
+                        console.log(
+                            `✅ Successfully connected to Syncfusion service: ${serviceUrl}`
+                        );
+                        break; // Success, exit loop
+                    } else {
+                        console.warn(
+                            `⚠️ Service ${serviceUrl} returned ${importRes.status}: ${importRes.statusText}`
+                        );
+                        lastError = new Error(
+                            `Service returned ${importRes.status}: ${importRes.statusText}`
+                        );
+                    }
+                } catch (error: any) {
+                    console.warn(`⚠️ Failed to connect to service ${serviceUrl}:`, error.message);
+                    lastError = error;
+
+                    // If this is not the last URL, continue trying
+                    if (i < serviceUrls.length - 1) {
+                        console.log('🔄 Trying next service URL...');
+                        continue;
+                    }
+                }
             }
+
+            // If no service worked, throw detailed error
+            if (!importRes || !importRes.ok) {
+                console.error('❌ All Syncfusion services failed');
+
+                if (lastError?.name === 'AbortError' || lastError?.message.includes('timeout')) {
+                    throw new Error(
+                        `Tất cả dịch vụ Syncfusion không phản hồi. Vui lòng kiểm tra kết nối mạng hoặc thử lại sau.\n\nCác service đã thử:\n${serviceUrls.map(url => `- ${url}`).join('\n')}`
+                    );
+                } else if (
+                    lastError?.message.includes('CORS') ||
+                    lastError?.message.includes('blocked')
+                ) {
+                    throw new Error(
+                        `Không thể kết nối tới bất kỳ dịch vụ Syncfusion nào do chính sách CORS.\n\nVui lòng liên hệ quản trị viên để:\n1. Cấu hình CORS headers\n2. Thiết lập local Syncfusion service\n3. Sử dụng proxy server`
+                    );
+                } else if (importRes?.status === 404) {
+                    throw new Error(
+                        `Tất cả dịch vụ Syncfusion đều không khả dụng (404).\n\nVui lòng:\n1. Liên hệ quản trị viên để cập nhật service URL\n2. Kiểm tra kết nối internet\n3. Thiết lập local Syncfusion service`
+                    );
+                } else if (importRes?.status && importRes.status >= 500) {
+                    throw new Error(
+                        `Lỗi server Syncfusion (${importRes.status}). Tất cả các service đều gặp sự cố. Vui lòng thử lại sau.`
+                    );
+                } else {
+                    throw new Error(
+                        `Không thể kết nối tới bất kỳ dịch vụ Syncfusion nào.\n\nLỗi cuối: ${lastError?.message || 'Unknown error'}\n\nVui lòng liên hệ quản trị viên để hỗ trợ.`
+                    );
+                }
+            }
+
             const sfdtText = await importRes.text();
             console.log('✅ SFDT conversion completed, length:', sfdtText.length);
             if (!sfdtText || sfdtText.length < 100) {
@@ -1275,18 +1359,29 @@ function TemplateFillerComponent() {
     useEffect(() => {
         setEditorState(prev => ({ ...prev, socketStatus }));
     }, [socketStatus]);
-    // Update filter options when data changes
-    useEffect(() => {
+    // Memoized filter options to prevent unnecessary re-creation
+    const memoizedFilterOptions = useMemo(() => {
         if (thuTucHcList.length > 0 && linhVucList.length > 0) {
             const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
-            setFilterOptions(options);
             console.log('✅ Updated filter options from IndexedDB data:', {
                 linhVuc: options.linhVuc.length,
                 doiTuong: options.doiTuong.length,
                 capThucHien: options.capThucHien.length
             });
+            return options;
         }
-    }, [thuTucHcList, linhVucList]);
+        return {
+            linhVuc: [],
+            doiTuong: [],
+            capThucHien: [],
+            thuTucByLinhVuc: {}
+        };
+    }, [thuTucHcList.length, linhVucList.length]);
+
+    // Update filter options only when memoized value changes
+    useEffect(() => {
+        setFilterOptions(memoizedFilterOptions);
+    }, [memoizedFilterOptions]);
 
     //#region LOAD TTHC
     const loadThuTucHanhChinh = async () => {
@@ -1488,15 +1583,10 @@ function TemplateFillerComponent() {
                     console.log('📡 Loaded lĩnh vực from repository:', data.length, 'items');
                 }
 
-                // Log mapping between filter options and repository data for debugging
-                const filterLinhVuc = filterOptions.linhVuc;
-                console.log('📊 Filter lĩnh vực options count:', filterLinhVuc.length);
-                console.log('📊 Repository lĩnh vực count:', linhVucList.length);
-
                 // Show success message
                 setSnackbar({
                     open: true,
-                    message: `Đã tải ${linhVucList.length} lĩnh vực từ ${synced ? 'IndexedDB' : 'cơ sở dữ liệu'}`,
+                    message: `Đã tải lĩnh vực từ ${synced ? 'IndexedDB' : 'cơ sở dữ liệu'}`,
                     severity: 'success'
                 });
             } catch (error) {
@@ -1511,29 +1601,34 @@ function TemplateFillerComponent() {
             }
         };
         loadLinhVuc();
-    }, [filterOptions.linhVuc, isDataSynced]);
+    }, [isDataSynced]);
     //#endregion
 
     // Load working documents from IndexedDB on component mount
     useEffect(() => {
         refreshWorkingDocuments();
-    }, [refreshWorkingDocuments]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
     // Load offline files information on component mount
     useEffect(() => {
         refreshOfflineFiles();
-    }, [refreshOfflineFiles]);
+    }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-    // Filter thuTucHcList when filters change
-    useEffect(() => {
+    // Memoized filtered data to prevent unnecessary filtering
+    const memoizedFilteredData = useMemo(() => {
         const filtered = filterThuTucHanhChinh(thuTucHcList, filters, linhVucList);
-        setFilteredThuTucHcList(filtered);
         console.log('🔍 Filtered data:', {
             total: thuTucHcList.length,
             filtered: filtered.length,
             filters
         });
+        return filtered;
     }, [thuTucHcList, filters, linhVucList]);
+
+    // Update filtered state when memoized value changes
+    useEffect(() => {
+        setFilteredThuTucHcList(memoizedFilteredData);
+    }, [memoizedFilteredData]);
     // Load template when editor modal opens
     useEffect(() => {
         console.log('Modal state changed:', {
@@ -1545,7 +1640,7 @@ function TemplateFillerComponent() {
             console.log('🚀 Triggering template load for:', editorState.selectedRecord.tenTTHC);
             loadTemplateIntoSyncfusion(editorState.selectedRecord);
         }
-    }, [editorState.showEditorModal, editorState.selectedRecord, loadTemplateIntoSyncfusion]);
+    }, [editorState.showEditorModal, editorState.selectedRecord]); // eslint-disable-line react-hooks/exhaustive-deps
     // Socket event handlers for mobile data
     useEffect(() => {
         const handleDataReceived = async (data: ProcessingData) => {
@@ -1807,15 +1902,7 @@ function TemplateFillerComponent() {
         editorState.syncfusionDocumentReady,
         targetState.selectedTarget
     ]);
-    console.log('🎨 TemplateFillerComponent render:', {
-        thuTucHcListCount: thuTucHcList.length,
-        filteredThuTucHcListCount: filteredThuTucHcList.length,
-        showEditorModal: editorState.showEditorModal,
-        selectedRecord: editorState.selectedRecord?.tenTTHC,
-        syncfusionLoading: editorState.syncfusionLoading,
-        syncfusionReady: editorState.syncfusionDocumentReady,
-        isDataSynced: isDataSynced
-    });
+
     const handleKeyDown = useCallback(
         async (e: React.KeyboardEvent) => {
             if (e.key === 'Enter') {
@@ -1889,17 +1976,6 @@ function TemplateFillerComponent() {
                         value={filters.linhVuc}
                         onChange={(event, newValue) => {
                             handleFilterChange('linhVuc', newValue || '');
-                            // Debug: Log thông tin lĩnh vực được chọn
-                            if (newValue) {
-                                const selectedLinhVuc = linhVucList.find(
-                                    lv => lv.tenLinhVuc === newValue
-                                );
-                                console.log('🎯 Selected lĩnh vực:', {
-                                    tenLinhVuc: newValue,
-                                    maLinhVuc: selectedLinhVuc?.maLinhVuc,
-                                    found: !!selectedLinhVuc
-                                });
-                            }
                         }}
                         getOptionLabel={option => {
                             if (!option) return 'Tất cả';
