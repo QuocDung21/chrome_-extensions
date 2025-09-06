@@ -12,6 +12,7 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 
+const TemplateSetupIndexLazyRouteImport = createFileRoute('/template-setup/')()
 const TemplateFillerIndexLazyRouteImport =
   createFileRoute('/template-filler/')()
 const SettingsIndexLazyRouteImport = createFileRoute('/settings/')()
@@ -28,6 +29,13 @@ const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 const AdminProceduresIndexLazyRouteImport =
   createFileRoute('/admin-procedures/')()
 
+const TemplateSetupIndexLazyRoute = TemplateSetupIndexLazyRouteImport.update({
+  id: '/template-setup/',
+  path: '/template-setup/',
+  getParentRoute: () => rootRouteImport,
+} as any).lazy(() =>
+  import('./routes/template-setup/index.lazy').then((d) => d.Route),
+)
 const TemplateFillerIndexLazyRoute = TemplateFillerIndexLazyRouteImport.update({
   id: '/template-filler/',
   path: '/template-filler/',
@@ -114,6 +122,7 @@ export interface FileRoutesByFullPath {
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/template-filler': typeof TemplateFillerIndexLazyRoute
+  '/template-setup': typeof TemplateSetupIndexLazyRoute
 }
 export interface FileRoutesByTo {
   '/admin-procedures': typeof AdminProceduresIndexLazyRoute
@@ -127,6 +136,7 @@ export interface FileRoutesByTo {
   '/services': typeof ServicesIndexLazyRoute
   '/settings': typeof SettingsIndexLazyRoute
   '/template-filler': typeof TemplateFillerIndexLazyRoute
+  '/template-setup': typeof TemplateSetupIndexLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -141,6 +151,7 @@ export interface FileRoutesById {
   '/services/': typeof ServicesIndexLazyRoute
   '/settings/': typeof SettingsIndexLazyRoute
   '/template-filler/': typeof TemplateFillerIndexLazyRoute
+  '/template-setup/': typeof TemplateSetupIndexLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -156,6 +167,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/template-filler'
+    | '/template-setup'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/admin-procedures'
@@ -169,6 +181,7 @@ export interface FileRouteTypes {
     | '/services'
     | '/settings'
     | '/template-filler'
+    | '/template-setup'
   id:
     | '__root__'
     | '/admin-procedures/'
@@ -182,6 +195,7 @@ export interface FileRouteTypes {
     | '/services/'
     | '/settings/'
     | '/template-filler/'
+    | '/template-setup/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -196,10 +210,18 @@ export interface RootRouteChildren {
   ServicesIndexLazyRoute: typeof ServicesIndexLazyRoute
   SettingsIndexLazyRoute: typeof SettingsIndexLazyRoute
   TemplateFillerIndexLazyRoute: typeof TemplateFillerIndexLazyRoute
+  TemplateSetupIndexLazyRoute: typeof TemplateSetupIndexLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/template-setup/': {
+      id: '/template-setup/'
+      path: '/template-setup'
+      fullPath: '/template-setup'
+      preLoaderRoute: typeof TemplateSetupIndexLazyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/template-filler/': {
       id: '/template-filler/'
       path: '/template-filler'
@@ -292,6 +314,7 @@ const rootRouteChildren: RootRouteChildren = {
   ServicesIndexLazyRoute: ServicesIndexLazyRoute,
   SettingsIndexLazyRoute: SettingsIndexLazyRoute,
   TemplateFillerIndexLazyRoute: TemplateFillerIndexLazyRoute,
+  TemplateSetupIndexLazyRoute: TemplateSetupIndexLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
