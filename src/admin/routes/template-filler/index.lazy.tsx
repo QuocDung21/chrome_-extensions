@@ -245,26 +245,6 @@ const useSocketConnection = (apiUrl: string) => {
     };
 };
 
-const convertThuTucHanhChinhToTTHCRecord = (
-    thuTucHC: ThuTucHanhChinh,
-    linhVucList: LinhVuc[]
-): TTHCRecord => {
-    // Find corresponding linhVuc name from maLinhVuc
-    const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
-
-    return {
-        stt: 0, // Not available in IndexedDB
-        maTTHC: thuTucHC.maThuTucHanhChinh,
-        tenTTHC: thuTucHC.tenThuTucHanhChinh,
-        qdCongBo: '', // Not available in IndexedDB
-        doiTuong: thuTucHC.doiTuongThucHien,
-        linhVuc: linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc,
-        coQuanCongKhai: '', // Not available in IndexedDB
-        capThucHien: thuTucHC.maCapHanhChinh,
-        tinhTrang: 'Công khai', // Default value
-        danhSachMauDon: [] // Will be populated from API templates
-    };
-};
 const createFilterOptionsFromIndexDB = (
     thuTucHcList: ThuTucHanhChinh[],
     linhVucList: LinhVuc[]
@@ -327,38 +307,7 @@ const buildDocxUrlForRecord = (record: TTHCRecord, mauDon: MauDon): string => {
     const path = `templates_by_code/${encodedCode}/docx/${encodedName}`.replace(/\/+/g, '/');
     return `/${path}`;
 };
-const extractTemplateName = (fullPath: string): string => {
-    if (!fullPath || !fullPath.includes('/')) return '';
-    const parts = fullPath.split('/');
-    return parts[parts.length - 1];
-};
-const checkTemplateExists = async (record: TTHCRecord, mauDon: MauDon): Promise<boolean> => {
-    try {
-        const url = buildDocxUrlForRecord(record, mauDon);
-        const res = await fetch(url, { method: 'HEAD' });
-        return res.ok;
-    } catch {
-        return false;
-    }
-};
-const enhanceRecordsWithAvailability = async (
-    records: TTHCRecord[]
-): Promise<EnhancedTTHCRecord[]> => {
-    const enhancedRecords: EnhancedTTHCRecord[] = [];
-    for (const record of records) {
-        // Nếu có danhSachMauDon thì coi như có sẵn template
-        const selectedMauDon =
-            record.danhSachMauDon && record.danhSachMauDon.length > 0
-                ? record.danhSachMauDon[0]
-                : undefined;
 
-        enhancedRecords.push({
-            ...record,
-            selectedMauDon
-        });
-    }
-    return enhancedRecords;
-};
 const filterThuTucHanhChinh = (
     thuTucHcList: ThuTucHanhChinh[],
     filters: FilterState,
@@ -1006,11 +955,104 @@ function TemplateFillerComponent() {
         }
     }, [targetState.originalSfdt]);
 
+    const handleApiTemplateSelect = async (templateData: {
+        record: ThuTucHanhChinh;
+        template: any; // ThanhPhanHoSoTTHC
+    }) => {
+        console.log('🎯 API Template selected:', templateData);
+
+        try {
+            const { record, template } = templateData;
+
+            // Check if there are existing working documents for this TTHC
+            const hasExistingWorkingDocs = hasWorkingDocuments(record.maThuTucHanhChinh);
+            console.log(
+                `🔍 API template selection - Has existing working docs for ${record.maThuTucHanhChinh}:`,
+                hasExistingWorkingDocs
+            );
+
+            // Create a compatible record for the editor
+            const selectedMauDon = {
+                tenFile: template.tenTepDinhKem,
+                tenGiayTo: template.tenThanhPhanHoSoTTHC,
+                tenThanhPhan: template.tenThanhPhanHoSoTTHC,
+                soBanChinh: template.soBanChinh,
+                soBanSao: template.soBanSao,
+                ghiChu: template.ghiChu,
+                duongDanTepDinhKem: template.duongDanTepDinhKem,
+                duongDan: `API Template`, // This will be used by loadTemplateIntoSyncfusion
+                // Mark this as an API template for special handling
+                isApiTemplate: true,
+                // Store template ID for offline access
+                thanhPhanHoSoTTHCID: template.thanhPhanHoSoTTHCID
+            };
+
+            const editorRecord = {
+                maTTHC: record.maThuTucHanhChinh,
+                tenTTHC: record.tenThuTucHanhChinh,
+                linhVuc: record.maLinhVuc,
+                doiTuong: record.doiTuongThucHien,
+                selectedMauDon: selectedMauDon,
+                // Add danhSachMauDon array with the single selected template
+                danhSachMauDon: [selectedMauDon]
+            } as any; // Type assertion for compatibility
+
+            if (hasExistingWorkingDocs) {
+                // If there are working documents, show template selection modal with both API template and working documents
+                console.log(
+                    '📋 Showing template selection modal with API template + working documents'
+                );
+                setTemplateSelectionModal({
+                    open: true,
+                    record: editorRecord
+                });
+
+                const message = `Đã tìm thấy ${getWorkingDocumentsForMaTTHC(record.maThuTucHanhChinh).length} bản sao tùy chỉnh. Hãy chọn mẫu bạn muốn sử dụng.`;
+                setSnackbar({
+                    open: true,
+                    message,
+                    severity: 'info'
+                });
+            } else {
+                // If no working documents, directly open editor with API template
+                console.log('🚀 Directly opening editor with API template (no working documents)');
+                setEditorState(prev => ({
+                    ...prev,
+                    selectedRecord: editorRecord,
+                    showEditorModal: true,
+                    syncfusionLoading: true,
+                    syncfusionDocumentReady: false
+                }));
+
+                const message = `Đang tải mẫu ${template.tenThanhPhanHoSoTTHC}`;
+                setSnackbar({
+                    open: true,
+                    message,
+                    severity: 'info'
+                });
+            }
+        } catch (error) {
+            console.error('❌ Error handling API template selection:', error);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi xử lý mẫu API',
+                severity: 'error'
+            });
+        }
+    };
+
     const handleTemplateSelectionOpen = useCallback(() => {
+        console.log('🎯 Opening template selection modal');
         if (editorState.selectedRecord) {
             setTemplateSelectionModal({
                 open: true,
                 record: editorState.selectedRecord
+            });
+        } else {
+            setSnackbar({
+                open: true,
+                message: 'Chưa có thủ tục được chọn',
+                severity: 'warning'
             });
         }
     }, [editorState.selectedRecord]);
@@ -1402,131 +1444,7 @@ function TemplateFillerComponent() {
         );
     };
 
-    const handleApiTemplateSelect = async (templateData: {
-        record: ThuTucHanhChinh;
-        template: import('@/admin/services/thanhPhanHoSoService').ThanhPhanHoSoTTHC;
-    }) => {
-        console.log('🎯 API Template selected:', templateData);
-
-        try {
-            // Convert ThanhPhanHoSoTTHC to a format compatible with the existing editor
-            const { record, template } = templateData;
-
-            // Check if template has a valid file path
-            if (!template.duongDanTepDinhKem) {
-                setSnackbar({
-                    open: true,
-                    message: 'Mẫu đơn không có đường dẫn tệp hợp lệ',
-                    severity: 'error'
-                });
-                return;
-            }
-
-            // Pre-download all files for this procedure to improve performance
-            try {
-                console.log(
-                    '📥 Pre-downloading all files for procedure:',
-                    record.maThuTucHanhChinh
-                );
-                const allTemplates = await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
-                    record.maThuTucHanhChinh
-                );
-                console.log(`✅ Found ${allTemplates.length} templates for procedure`);
-            } catch (error) {
-                console.warn(
-                    '⚠️ Failed to pre-download files, continuing with selected template only:',
-                    error
-                );
-            }
-
-            const hasLocalFile = await thanhPhanHoSoTTHCRepository.hasLocalFile(
-                template.thanhPhanHoSoTTHCID
-            );
-
-            let fileSource = 'online';
-            let templatePath = '';
-
-            if (hasLocalFile) {
-                console.log('✅ Using offline file for template:', template.tenThanhPhanHoSoTTHC);
-                fileSource = 'offline';
-                templatePath = `offline:${template.thanhPhanHoSoTTHCID}`;
-            } else {
-                console.log('📥 File not available offline, downloading...');
-                fileSource = 'downloading';
-
-                // Try to download the file to IndexedDB
-                const downloadSuccess = await thanhPhanHoSoTTHCRepository.downloadFileById(
-                    template.thanhPhanHoSoTTHCID
-                );
-
-                if (downloadSuccess) {
-                    console.log('✅ File downloaded successfully to IndexedDB');
-                    fileSource = 'offline';
-                    templatePath = `offline:${template.thanhPhanHoSoTTHCID}`;
-                } else {
-                    console.log('⚠️ Download failed, using API URL as fallback');
-                    fileSource = 'online';
-                    templatePath = `http://laptrinhid.qlns.vn/uploads/tthc/${template.duongDanTepDinhKem}`;
-                }
-            }
-
-            // Create a compatible record for the editor
-            const editorRecord = {
-                maTTHC: record.maThuTucHanhChinh,
-                tenTTHC: record.tenThuTucHanhChinh,
-                linhVuc: record.maLinhVuc,
-                doiTuong: record.doiTuongThucHien,
-                selectedMauDon: {
-                    tenFile: template.tenTepDinhKem,
-                    tenThanhPhan: template.tenThanhPhanHoSoTTHC,
-                    soBanChinh: template.soBanChinh,
-                    soBanSao: template.soBanSao,
-                    ghiChu: template.ghiChu,
-                    duongDanTepDinhKem: template.duongDanTepDinhKem,
-                    duongDan: templatePath, // This will be used by loadTemplateIntoSyncfusion
-                    // Mark this as an API template for special handling
-                    isApiTemplate: true,
-                    isFromOffline: fileSource === 'offline',
-                    // Store template ID for offline access
-                    thanhPhanHoSoTTHCID: template.thanhPhanHoSoTTHCID
-                }
-            } as any; // Type assertion for compatibility
-
-            // Set the current code reference for later use
-            currentCodeRef.current = record.maThuTucHanhChinh;
-
-            // Open editor with API template data - special handling needed for API templates
-            setEditorState(prev => ({
-                ...prev,
-                selectedRecord: editorRecord,
-                showEditorModal: true,
-                syncfusionLoading: true,
-                syncfusionDocumentReady: false
-            }));
-
-            // setSnackbar({
-            //     open: true,
-            //     message: `Đang tải mẫu ${fileSource === 'offline' ? '(offline)' : fileSource === 'downloading' ? '(đang tải về)' : '(online)'}: ${template.tenThanhPhanHoSoTTHC}`,
-            //     severity: 'info'
-            // });
-
-            setSnackbar({
-                open: true,
-                message: `Đang tải mẫu ${template.tenThanhPhanHoSoTTHC}`,
-                severity: 'info'
-            });
-
-            // For API templates, we need to load the document from the appropriate source
-            // This will be handled in the editor modal's useEffect when it detects isApiTemplate
-        } catch (error) {
-            console.error('❌ Error handling API template selection:', error);
-            setSnackbar({
-                open: true,
-                message: 'Lỗi khi xử lý mẫu API',
-                severity: 'error'
-            });
-        }
-    };
+    // Removed old handleApiTemplateSelect - using new one above
     //#endregion
 
     //#region LOAD LINH VUC
@@ -1880,6 +1798,11 @@ function TemplateFillerComponent() {
 
     const customToolbarItems = ['Print'];
 
+    // Load working documents from IndexedDB on component mount
+    useEffect(() => {
+        refreshWorkingDocuments();
+    }, [refreshWorkingDocuments]);
+
     return (
         <>
             <Box
@@ -2190,6 +2113,13 @@ function TemplateFillerComponent() {
                                         linhVucList={linhVucList}
                                         onSelect={handleSelectThuTucHanhChinh}
                                         onTemplateSelect={handleApiTemplateSelect}
+                                        hasWorkingDocuments={hasWorkingDocuments(
+                                            data.maThuTucHanhChinh
+                                        )}
+                                        workingDocumentsCount={
+                                            getWorkingDocumentsForMaTTHC(data.maThuTucHanhChinh)
+                                                .length
+                                        }
                                     />
                                 ))}
                                 {filteredThuTucHcList.length === 0 && (
@@ -2268,6 +2198,412 @@ function TemplateFillerComponent() {
                     onResetDocument={handleResetDocument}
                     sfContainerRef={sfContainerRef}
                 />
+
+                {/* Template Selection Modal */}
+                <Dialog
+                    open={templateSelectionModal.open}
+                    onClose={() => setTemplateSelectionModal({ open: false, record: null })}
+                    maxWidth="md"
+                    fullWidth
+                    sx={{
+                        '& .MuiDialog-paper': {
+                            borderRadius: 1,
+                            background: 'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                            boxShadow: '0 24px 48px rgba(0,0,0,0.2)'
+                        }
+                    }}
+                >
+                    <Box
+                        sx={{
+                            background: 'linear-gradient(135deg, #1976d2 0%, #42a5f5 100%)',
+                            color: 'white',
+                            p: 1,
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between'
+                        }}
+                    >
+                        <Typography variant="subtitle1" sx={{ fontWeight: 700 }}>
+                            Chọn mẫu đơn - {templateSelectionModal.record?.tenTTHC}
+                        </Typography>
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                            <IconButton
+                                onClick={() =>
+                                    setTemplateSelectionModal({ open: false, record: null })
+                                }
+                                sx={{ color: 'white' }}
+                            >
+                                <Close />
+                            </IconButton>
+                        </Box>
+                    </Box>
+                    <DialogContent sx={{ p: 3 }}>
+                        <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+                            Vui lòng chọn một mẫu đơn từ danh sách bên dưới để tiếp tục:
+                        </Typography>
+
+                        {/* API + CSV Templates Section */}
+                        {templateSelectionModal.record?.danhSachMauDon &&
+                            templateSelectionModal.record.danhSachMauDon.length > 0 && (
+                                <>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
+                                    >
+                                        Mẫu đơn
+                                        {templateSelectionModal.record.selectedMauDon
+                                            ?.isApiTemplate && (
+                                            <Chip
+                                                label="API Template"
+                                                color="primary"
+                                                size="small"
+                                                sx={{ ml: 1, fontWeight: 600 }}
+                                            />
+                                        )}
+                                    </Typography>
+                                    <Box
+                                        sx={{
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            gap: 2,
+                                            mb: 4
+                                        }}
+                                    >
+                                        {templateSelectionModal.record.danhSachMauDon.map(
+                                            (mauDon, index) => (
+                                                <Card
+                                                    key={`csv-${index}`}
+                                                    variant="outlined"
+                                                    sx={{
+                                                        p: 3,
+                                                        borderRadius: 1,
+                                                        border: '2px solid transparent',
+                                                        background:
+                                                            'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                                                        cursor: 'pointer',
+                                                        transition: 'all 0.3s ease',
+                                                        '&:hover': {
+                                                            transform: 'translateY(-2px)',
+                                                            boxShadow:
+                                                                '0 8px 25px rgba(25,118,210,0.15)',
+                                                            borderColor: '#1976d2'
+                                                        }
+                                                    }}
+                                                    onClick={() => {
+                                                        // Cập nhật selectedMauDon cho record
+                                                        const updatedRecord = {
+                                                            ...templateSelectionModal.record!,
+                                                            selectedMauDon: mauDon
+                                                        };
+                                                        setTemplateSelectionModal({
+                                                            open: false,
+                                                            record: null
+                                                        });
+
+                                                        // Trực tiếp mở editor thay vì gọi handleSelectTemplate
+                                                        setEditorState(prev => ({
+                                                            ...prev,
+                                                            selectedRecord: updatedRecord,
+                                                            showEditorModal: true,
+                                                            syncfusionLoading: true,
+                                                            syncfusionDocumentReady: false
+                                                        }));
+
+                                                        setSnackbar({
+                                                            open: true,
+                                                            message: `Đang tải mẫu: ${updatedRecord.tenTTHC}`,
+                                                            severity: 'info'
+                                                        });
+                                                    }}
+                                                >
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            justifyContent: 'space-between',
+                                                            alignItems: 'center'
+                                                        }}
+                                                    >
+                                                        <Box sx={{ flex: 1 }}>
+                                                            <Typography
+                                                                variant="h6"
+                                                                sx={{ fontWeight: 600, mb: 1 }}
+                                                            >
+                                                                {mauDon.tenFile}
+                                                            </Typography>
+                                                            {mauDon.tenGiayTo && (
+                                                                <Typography
+                                                                    variant="body2"
+                                                                    color="text.secondary"
+                                                                >
+                                                                    {mauDon.tenGiayTo}
+                                                                </Typography>
+                                                            )}
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="primary"
+                                                                sx={{ fontStyle: 'italic' }}
+                                                            >
+                                                                {mauDon.duongDan}
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                    <Box
+                                                        sx={{
+                                                            display: 'flex',
+                                                            justifyContent: 'flex-end'
+                                                        }}
+                                                    >
+                                                        <Button
+                                                            variant="contained"
+                                                            size="medium"
+                                                            startIcon={<EditIcon />}
+                                                            sx={{
+                                                                borderRadius: 1,
+                                                                textTransform: 'none',
+                                                                fontWeight: 600,
+                                                                background:
+                                                                    'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                                '&:hover': {
+                                                                    background:
+                                                                        'linear-gradient(45deg, #1565c0, #1976d2)',
+                                                                    transform: 'translateY(-2px)'
+                                                                },
+                                                                transition: 'all 0.3s ease'
+                                                            }}
+                                                        >
+                                                            Sử dụng mẫu này
+                                                        </Button>
+                                                    </Box>
+                                                </Card>
+                                            )
+                                        )}
+                                    </Box>
+                                </>
+                            )}
+
+                        {/* IndexedDB Working Documents Section */}
+                        {templateSelectionModal.record?.maTTHC &&
+                            hasWorkingDocuments(templateSelectionModal.record.maTTHC) && (
+                                <>
+                                    <Typography
+                                        variant="h6"
+                                        sx={{
+                                            mb: 2,
+                                            color: 'success.main',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1
+                                        }}
+                                    >
+                                        <Chip
+                                            label="Đã tùy chỉnh"
+                                            color="success"
+                                            size="small"
+                                            sx={{ fontWeight: 600 }}
+                                        />
+                                        Mẫu đơn đã thiết lập (
+                                        {
+                                            getWorkingDocumentsForMaTTHC(
+                                                templateSelectionModal.record.maTTHC
+                                            ).length
+                                        }{' '}
+                                        bản sao)
+                                    </Typography>
+                                    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                        {getWorkingDocumentsForMaTTHC(
+                                            templateSelectionModal.record.maTTHC
+                                        ).map((workingDoc, index) => (
+                                            <Card
+                                                key={`indexeddb-${index}`}
+                                                variant="outlined"
+                                                sx={{
+                                                    p: 3,
+                                                    borderRadius: 1,
+                                                    border: '2px solid transparent',
+                                                    background:
+                                                        'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)',
+                                                    cursor: 'pointer',
+                                                    transition: 'all 0.3s ease',
+                                                    '&:hover': {
+                                                        transform: 'translateY(-2px)',
+                                                        boxShadow:
+                                                            '0 8px 25px rgba(25,118,210,0.15)',
+                                                        borderColor: '#1976d2'
+                                                    }
+                                                }}
+                                                onClick={() => {
+                                                    // Create a custom mauDon object from working document
+                                                    const customMauDon = {
+                                                        tenGiayTo: `Tài liệu đã lưu - ${workingDoc.fileName}`,
+                                                        tenFile: workingDoc.fileName,
+                                                        duongDan: `IndexedDB - ${new Date(workingDoc.updatedAt).toLocaleDateString('vi-VN')}`,
+                                                        isFromIndexedDB: true,
+                                                        workingDocument: workingDoc
+                                                    };
+
+                                                    // Cập nhật selectedMauDon cho record
+                                                    const updatedRecord = {
+                                                        ...templateSelectionModal.record!,
+                                                        selectedMauDon: customMauDon
+                                                    };
+                                                    setTemplateSelectionModal({
+                                                        open: false,
+                                                        record: null
+                                                    });
+
+                                                    // Trực tiếp mở editor thay vì gọi handleSelectTemplate
+                                                    setEditorState(prev => ({
+                                                        ...prev,
+                                                        selectedRecord: updatedRecord,
+                                                        showEditorModal: true,
+                                                        syncfusionLoading: true,
+                                                        syncfusionDocumentReady: false
+                                                    }));
+
+                                                    setSnackbar({
+                                                        open: true,
+                                                        message: `Đang tải mẫu đã thiết lập: ${workingDoc.fileName}`,
+                                                        severity: 'info'
+                                                    });
+                                                }}
+                                            >
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        justifyContent: 'space-between',
+                                                        alignItems: 'flex-start',
+                                                        mb: 2
+                                                    }}
+                                                >
+                                                    <Box sx={{ flex: 1 }}>
+                                                        <Box
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: 2,
+                                                                mb: 1
+                                                            }}
+                                                        >
+                                                            <Typography
+                                                                variant="h6"
+                                                                sx={{ fontWeight: 600 }}
+                                                            >
+                                                                {workingDoc.fileName}
+                                                            </Typography>
+                                                            <Chip
+                                                                label="Bản sao tùy chỉnh"
+                                                                color="success"
+                                                                size="small"
+                                                                sx={{
+                                                                    fontWeight: 600,
+                                                                    fontSize: '0.65rem'
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                        <Box
+                                                            sx={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: 0.5
+                                                            }}
+                                                        >
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                📄 Kích thước:{' '}
+                                                                {(
+                                                                    workingDoc.blob.size / 1024
+                                                                ).toFixed(1)}{' '}
+                                                                KB
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                📅 Cập nhật:{' '}
+                                                                {new Date(
+                                                                    workingDoc.updatedAt
+                                                                ).toLocaleString('vi-VN')}
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="success.main"
+                                                                sx={{
+                                                                    fontStyle: 'italic',
+                                                                    fontWeight: 500,
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.5
+                                                                }}
+                                                            >
+                                                                💾 Đã lưu trong IndexedDB
+                                                            </Typography>
+                                                        </Box>
+                                                    </Box>
+                                                </Box>
+                                                <Box
+                                                    sx={{
+                                                        display: 'flex',
+                                                        justifyContent: 'flex-end'
+                                                    }}
+                                                >
+                                                    <Button
+                                                        variant="contained"
+                                                        size="medium"
+                                                        startIcon={<EditIcon />}
+                                                        sx={{
+                                                            borderRadius: 1,
+                                                            textTransform: 'none',
+                                                            fontWeight: 600,
+                                                            background:
+                                                                'linear-gradient(45deg, #4caf50, #66bb6a)',
+                                                            color: 'white',
+                                                            '&:hover': {
+                                                                background:
+                                                                    'linear-gradient(45deg, #388e3c, #4caf50)',
+                                                                transform: 'translateY(-2px)'
+                                                            },
+                                                            transition: 'all 0.3s ease'
+                                                        }}
+                                                    >
+                                                        Sử dụng bản tùy chỉnh
+                                                    </Button>
+                                                </Box>
+                                            </Card>
+                                        ))}
+                                    </Box>
+                                </>
+                            )}
+
+                        {/* No templates message */}
+                        {(!templateSelectionModal.record?.danhSachMauDon ||
+                            templateSelectionModal.record.danhSachMauDon.length === 0) &&
+                            (!templateSelectionModal.record?.maTTHC ||
+                                !hasWorkingDocuments(templateSelectionModal.record.maTTHC)) && (
+                                <Card
+                                    sx={{
+                                        p: 4,
+                                        textAlign: 'center',
+                                        borderRadius: 1,
+                                        background:
+                                            'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                                        border: '2px dashed #dee2e6'
+                                    }}
+                                >
+                                    <Typography variant="h6" color="text.secondary" sx={{ mb: 2 }}>
+                                        📄 Không có mẫu đơn nào
+                                    </Typography>
+                                    <Typography variant="body2" color="text.secondary">
+                                        Không tìm thấy mẫu đơn nào cho thủ tục này trong hệ thống
+                                        hoặc IndexedDB.
+                                    </Typography>
+                                </Card>
+                            )}
+                    </DialogContent>
+                </Dialog>
+
                 <Snackbar
                     open={snackbar.open}
                     autoHideDuration={4000}

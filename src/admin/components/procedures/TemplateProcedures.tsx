@@ -90,18 +90,20 @@ import '@syncfusion/ej2-react-documenteditor/styles/material.css';
 import '@syncfusion/ej2-splitbuttons/styles/material.css';
 import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-router';
 
+import { ConfigConstant } from '@/admin/constant/config.constant';
 import { WorkingDocument, db } from '@/admin/db/db';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
+import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
+import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
-import { formatDDMMYYYY, getCurrentDateParts } from '@/admin/utils/formatDate';
+import { ThuTucHanhChinh, thuTucHanhChinhApiService } from '@/admin/services/thuTucHanhChinh';
+
+import { ApiTemplateCard } from './ApiTemplateCard';
 
 DocumentEditorContainerComponent.Inject(Toolbar, Ribbon, Print);
 // --- CẤU HÌNH ---
-const SOCKET_URL = 'http://103.162.21.146:5003';
-const SYNCFUSION_SERVICE_URL =
-    'https://services.syncfusion.com/react/production/api/documenteditor/';
-const SOCKET_RECONNECT_ATTEMPTS = 5;
-const SOCKET_RECONNECT_DELAY = 3000;
+const SYNCFUSION_SERVICE_URL = ConfigConstant.SYNCFUSION_SERVICE_URL;
+
 // --- TYPE DEFINITIONS ---
 interface ProcessingData {
     [key: string]: any;
@@ -116,6 +118,15 @@ interface MauDon {
     // Optional properties for IndexedDB support
     isFromIndexedDB?: boolean;
     workingDocument?: WorkingDocument;
+    // Optional properties for API templates
+    isApiTemplate?: boolean;
+    isFromOffline?: boolean;
+    thanhPhanHoSoTTHCID?: string;
+    duongDanTepDinhKem?: string;
+    tenThanhPhan?: string;
+    soBanChinh?: number;
+    soBanSao?: number;
+    ghiChu?: string;
 }
 interface TTHCRecord {
     stt: number;
@@ -152,78 +163,7 @@ interface TemplateEditorState {
     syncfusionDocumentReady: boolean;
     socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
 }
-type Props = {
-    value?: LinhVuc | null; // cho phép control từ ngoài
-    onChange?: (value: LinhVuc | null) => void;
-};
-// --- CUSTOM HOOKS ---
-const useSocketConnection = (apiUrl: string) => {
-    const [socketStatus, setSocketStatus] = useState<
-        'connected' | 'disconnected' | 'connecting' | 'error'
-    >('disconnected');
-    const [reconnectAttempts, setReconnectAttempts] = useState(0);
-    const socketRef = useRef<Socket | null>(null);
-    const connect = useCallback(() => {
-        if (socketRef.current?.connected) return;
-        setSocketStatus('connecting');
-        socketRef.current = io(apiUrl, {
-            transports: ['websocket'],
-            timeout: 10000,
-            reconnection: true,
-            reconnectionAttempts: SOCKET_RECONNECT_ATTEMPTS,
-            reconnectionDelay: SOCKET_RECONNECT_DELAY
-        });
-        socketRef.current.on('connect', () => {
-            setSocketStatus('connected');
-            setReconnectAttempts(0);
-        });
-        socketRef.current.on('disconnect', () => {
-            setSocketStatus('disconnected');
-        });
-        socketRef.current.on('connect_error', error => {
-            console.error('Socket connection error:', error);
-            setSocketStatus('error');
-            setReconnectAttempts(prev => prev + 1);
-        });
-        socketRef.current.on('reconnect', attemptNumber => {
-            console.log(`Reconnected after ${attemptNumber} attempts`);
-            setSocketStatus('connected');
-            setReconnectAttempts(0);
-        });
-        socketRef.current.on('reconnect_failed', () => {
-            setSocketStatus('error');
-        });
-    }, [apiUrl]);
-    const disconnect = useCallback(() => {
-        if (socketRef.current) {
-            socketRef.current.disconnect();
-            socketRef.current = null;
-        }
-        setSocketStatus('disconnected');
-    }, []);
-    const on = useCallback((event: string, callback: (...args: any[]) => void) => {
-        if (socketRef.current) {
-            socketRef.current.on(event, callback);
-        }
-    }, []);
-    const off = useCallback((event: string, callback?: (...args: any[]) => void) => {
-        if (socketRef.current) {
-            socketRef.current.off(event, callback);
-        }
-    }, []);
-    useEffect(() => {
-        connect();
-        return () => disconnect();
-    }, [connect, disconnect]);
-    return {
-        socketStatus,
-        reconnectAttempts,
-        connect,
-        disconnect,
-        on,
-        off
-    };
-};
+
 // --- UTILITY FUNCTIONS ---
 const parseJSONData = (jsonArray: any[]): TTHCRecord[] => {
     if (!Array.isArray(jsonArray)) return [];
@@ -298,20 +238,6 @@ const buildDocxUrlForRecord = (record: TTHCRecord, mauDon: MauDon): string => {
     const encodedName = encodeURIComponent(templateName);
     const path = `templates_by_code/${encodedCode}/docx/${encodedName}`.replace(/\/+/g, '/');
     return `/${path}`;
-};
-const extractTemplateName = (fullPath: string): string => {
-    if (!fullPath || !fullPath.includes('/')) return '';
-    const parts = fullPath.split('/');
-    return parts[parts.length - 1];
-};
-const checkTemplateExists = async (record: TTHCRecord, mauDon: MauDon): Promise<boolean> => {
-    try {
-        const url = buildDocxUrlForRecord(record, mauDon);
-        const res = await fetch(url, { method: 'HEAD' });
-        return res.ok;
-    } catch {
-        return false;
-    }
 };
 const enhanceRecordsWithAvailability = async (
     records: TTHCRecord[]
@@ -391,60 +317,6 @@ const filterRecords = (
         }
         return true;
     });
-};
-// Hàm xử lý dữ liệu thông minh
-const processDataIntelligently = (data: string): any => {
-    // Simple parsing logic - can be enhanced later
-    try {
-        // Try JSON format first
-        return JSON.parse(data);
-    } catch {
-        // Try pipe-separated format: CCCD|CMND|Họ tên|Ngày sinh|Giới tính|Địa chỉ|Ngày cấp
-        const parts = data.split('|');
-        if (parts.length >= 7) {
-            const [cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap] = parts;
-            return { cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap };
-        }
-        // Try comma-separated format
-        const commaParts = data.split(',');
-        if (commaParts.length >= 7) {
-            const [cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap] = commaParts;
-            return { cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap };
-        }
-        throw new Error('Định dạng dữ liệu không được hỗ trợ');
-    }
-};
-// Chuyển đổi dữ liệu từ mobile/socket sang ProcessingData
-const convertScannedInfoToProcessingData = (data: any): ProcessingData => {
-    // Handle mobile socket data format
-    if (data.so_cccd || data.so_cmnd || data.ho_ten) {
-        console.log('📱 Detected mobile socket data format, using as-is');
-        return {
-            ...data,
-            cccd: data.cccd || data.so_cccd || '',
-            cmnd: data.cmnd || data.so_cmnd || '',
-            hoTen: data.hoTen || data.ho_ten || '',
-            ngaySinh: data.ngaySinh || data.ngay_sinh || '',
-            gioiTinh: data.gioiTinh || data.gioi_tinh || '',
-            diaChi: data.diaChi || data.noi_cu_tru || '',
-            ngayCap: data.ngayCap || data.ngay_cap || '',
-            so_cccd: data.so_cccd || data.cccd || '',
-            so_cmnd: data.so_cmnd || data.cmnd || '',
-            ho_ten: data.ho_ten || data.hoTen || '',
-            ngay_sinh: data.ngay_sinh || data.ngaySinh || '',
-            gioi_tinh: data.gioi_tinh || data.gioiTinh || '',
-            noi_cu_tru: data.noi_cu_tru || data.diaChi || '',
-            ngay_cap: data.ngay_cap || data.ngayCap || '',
-            // Tách ngày/tháng/năm
-            ns_ngay: data.ns_ngay || '',
-            ns_thang: data.ns_thang || '',
-            ns_nam: data.ns_nam || '',
-            nc_ngay: data.nc_ngay || '',
-            nc_thang: data.nc_thang || '',
-            nc_nam: data.nc_nam || ''
-        } as ProcessingData;
-    }
-    return data;
 };
 
 // Fill placeholders in Syncfusion editor: replaces {key} in body text
@@ -588,58 +460,6 @@ const applyDataToSyncfusionFactory =
         }
     };
 
-function LinhVucListComponent({ value = '', onChange }: any) {
-    const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [error, setError] = useState<string | null>(null);
-    const [selectedLinhVuc, setSelectedLinhVuc] = useState<LinhVuc | null>(value);
-
-    useEffect(() => {
-        const loadLinhVuc = async () => {
-            setLoading(true);
-            setError(null);
-            try {
-                const data = await linhVucRepository.getLinhVucList();
-                setLinhVucList(data);
-            } catch (err: any) {
-                setError(err.message || 'Đã có lỗi xảy ra.');
-            } finally {
-                setLoading(false);
-            }
-        };
-
-        loadLinhVuc();
-    }, []);
-
-    // Nếu prop value thay đổi từ bên ngoài thì đồng bộ lại state
-    useEffect(() => {
-        setSelectedLinhVuc(value || null);
-    }, [value]);
-
-    const handleChange = (event: any, newValue: LinhVuc | null) => {
-        setSelectedLinhVuc(newValue);
-        onChange?.(newValue);
-    };
-
-    if (loading) return <CircularProgress />;
-    if (error) return <div style={{ color: 'red' }}>Lỗi: {error}</div>;
-
-    return (
-        <Autocomplete
-            size="small"
-            options={linhVucList}
-            value={selectedLinhVuc}
-            onChange={handleChange}
-            getOptionLabel={option => option.tenLinhVuc}
-            isOptionEqualToValue={(option, value) => option.maLinhVuc === value.maLinhVuc}
-            sx={{ minWidth: 200, maxWidth: 200 }}
-            renderInput={params => (
-                <TextField {...params} label="Lĩnh vực" placeholder="Chọn lĩnh vực" />
-            )}
-        />
-    );
-}
-
 const TemplateCard = React.memo<{
     record: EnhancedTTHCRecord;
     index: number;
@@ -747,40 +567,6 @@ const TemplateCard = React.memo<{
                                             ? 'Chọn mẫu'
                                             : 'Chọn mẫu'}
                                     </Button>
-
-                                    {/* {hasTemplates && (
-                                        <Button
-                                            variant="outlined"
-                                            size="small"
-                                            onClick={e => {
-                                                e.stopPropagation();
-                                                const selected = record.danhSachMauDon[0];
-                                                const docUrl = buildDocxUrlForRecord(
-                                                    record,
-                                                    selected
-                                                );
-                                                const code = record.maTTHC;
-                                                // Prefer callback if provided; fallback to navigation + localStorage
-                                                if (onSetupTemplate) {
-                                                    onSetupTemplate({ docUrl, code });
-                                                    try {
-                                                        onNavigateProcedures?.();
-                                                    } catch {}
-                                                } else {
-                                                    localStorage.setItem(
-                                                        'pending_procedure_load',
-                                                        JSON.stringify({ docUrl, code })
-                                                    );
-                                                    window.location.href =
-                                                        '/src/admin/index.html#/procedures/';
-                                                }
-                                            }}
-                                            startIcon={<EditIcon />}
-                                            sx={{ ml: 1, textTransform: 'none' }}
-                                        >
-                                            Thiết lập mẫu
-                                        </Button>
-                                    )} */}
                                 </>
                             )}
                         </Box>
@@ -864,33 +650,6 @@ const scanDocumentForSuffixes = (editor: DocumentEditorContainerComponent | null
     } catch (error) {
         console.error('❌ Error scanning document for suffixes:', error);
         return [];
-    }
-};
-
-// Function to reset document to original state
-const resetDocumentToOriginal = async (
-    editor: DocumentEditorContainerComponent | null,
-    originalSfdt: string | null
-): Promise<boolean> => {
-    try {
-        if (!editor?.documentEditor) {
-            console.error('❌ DocumentEditor is null, cannot reset');
-            return false;
-        }
-
-        if (!originalSfdt) {
-            console.error('❌ No original SFDT stored, cannot reset');
-            return false;
-        }
-
-        console.log('🔄 Resetting document to original state...');
-        editor.documentEditor.open(originalSfdt);
-        console.log('✅ Document reset to original state');
-
-        return true;
-    } catch (error) {
-        console.error('❌ Error resetting document:', error);
-        return false;
     }
 };
 
@@ -1064,8 +823,9 @@ const decodeFileName = (fileName: string): string => {
         return fileName;
     }
 };
+
 // --- COMPONENT CHÍNH ---
-function TemplateFillerComponent({
+function TemplateProceduresComponent({
     onSetupTemplate
 }: {
     onSetupTemplate?: (payload: { docUrl: string; code: string; htmlUrl?: string | null }) => void;
@@ -1120,14 +880,6 @@ function TemplateFillerComponent({
         }
     };
 
-    const handleDownloadClick = () => {
-        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            const fileName = editorState.selectedRecord?.selectedMauDon?.tenFile || 'Document.docx';
-            sfContainerRef.current.documentEditor.save(fileName, 'Docx');
-        } else {
-            console.error('Document editor not ready to download.');
-        }
-    };
     const [filters, setFilters] = useState<FilterState>({
         searchText: '',
         linhVuc: '', // Sẽ lưu maLinhVuc thay vì tenLinhVuc
@@ -1287,57 +1039,6 @@ function TemplateFillerComponent({
         }
         return selectedTemplateNameFromPath;
     }, [state.uploadedTemplateName, selectedTemplateNameFromPath]);
-    // Extract template name from path for display
-
-    const handleDownloadOriginalTemplate = useCallback(async () => {
-        if (!state.selectedTemplatePath) return;
-
-        // Check if it's a working document from IndexedDB
-        if (state.selectedTemplatePath.startsWith('working://')) {
-            if (state.generatedBlob) {
-                // Use the blob directly for working documents
-                const baseName = (
-                    state.uploadedTemplateName ||
-                    selectedTemplateNameFromPath ||
-                    'mau'
-                )
-                    .replace(/\s/g, '_')
-                    .replace(/\.(docx?|DOCX?)$/, '');
-                saveAs(state.generatedBlob, `${baseName}.docx`);
-                setSnackbar({
-                    open: true,
-                    message: 'Đã tải xuống tài liệu đã lưu',
-                    severity: 'success'
-                });
-            } else {
-                setSnackbar({
-                    open: true,
-                    message: 'Không thể tải xuống tài liệu đã lưu',
-                    severity: 'error'
-                });
-            }
-            return;
-        }
-
-        try {
-            const res = await fetch(state.selectedTemplatePath);
-            if (!res.ok) throw new Error('Không thể tải file mẫu');
-            const blob = await res.blob();
-            const baseName = decodeFileName(
-                state.uploadedTemplateName || selectedTemplateNameFromPath || 'mau'
-            )
-                .replace(/\s/g, '_')
-                .replace(/\.(docx?|DOCX?)$/, '');
-            saveAs(blob, `${baseName}.docx`);
-        } catch (e) {
-            setSnackbar({ open: true, message: 'Không thể tải mẫu gốc', severity: 'error' });
-        }
-    }, [
-        state.selectedTemplatePath,
-        state.uploadedTemplateName,
-        selectedTemplateNameFromPath,
-        state.generatedBlob
-    ]);
 
     // Upload a DOCX file and replace the current working document
     const handleUploadReplaceDocument = useCallback(
@@ -1717,11 +1418,23 @@ function TemplateFillerComponent({
                 }));
             }
 
+            // Update editor state to reflect the new working document
+            if (editorState.selectedRecord) {
+                const updatedRecord = {
+                    ...editorState.selectedRecord
+                    // Ensure the record has updated working documents
+                };
+                setEditorState(prev => ({
+                    ...prev,
+                    selectedRecord: updatedRecord
+                }));
+            }
+
             setSnackbar({
                 open: true,
                 message: shouldUpdateExisting
                     ? 'Đã cập nhật tài liệu đang làm việc'
-                    : 'Đã lưu tài liệu mới',
+                    : 'Đã lưu tài liệu mới vào IndexedDB',
                 severity: 'success'
             });
         } catch (error) {
@@ -1973,97 +1686,6 @@ function TemplateFillerComponent({
         refreshWorkingDocuments
     ]);
 
-    const handleLoadWorkingFromDb = useCallback(
-        async (maTTHC: string, record: LocalEnhancedTTHCRecord, docId?: number) => {
-            try {
-                // First try to get from local state, then from IndexedDB
-                let doc: WorkingDocument | undefined;
-                if (docId != null) {
-                    const found = await db.workingDocumentsV2.get(docId);
-                    doc = found || undefined;
-                } else {
-                    doc = workingDocsByCode[maTTHC];
-                    if (!doc) {
-                        const list = await db.workingDocumentsV2
-                            .where('maTTHC')
-                            .equals(maTTHC)
-                            .sortBy('updatedAt');
-                        doc = list[list.length - 1];
-                    }
-                }
-
-                if (!doc) {
-                    setSnackbar({
-                        open: true,
-                        message: 'Không tìm thấy tài liệu đã lưu cho thủ tục này',
-                        severity: 'warning'
-                    });
-                    return;
-                }
-
-                // Set the selected record for context
-                setSelectedRecord(record);
-
-                // Ghi nhớ mã thủ tục để sử dụng cho các thao tác lưu tiếp theo
-                currentCodeRef.current = maTTHC || '';
-                currentWorkingDocIdRef.current = doc.id ?? null;
-
-                // Create object URL for the blob
-                const objectUrl = URL.createObjectURL(doc.blob);
-
-                if (doc.mimeType === 'text/html') {
-                    // For HTML files, set as HTML URL but keep syncfusion mode
-                    setState(prev => ({
-                        ...prev,
-                        selectedTemplatePath: `working://${maTTHC}`,
-                        selectedHtmlUrl: objectUrl,
-                        generatedBlob: null,
-                        error: null
-                    }));
-
-                    // Keep syncfusion mode for consistency
-                } else {
-                    // For DOCX and other binary files
-                    setState(prev => ({
-                        ...prev,
-                        selectedTemplatePath: `working://${maTTHC}`,
-                        selectedHtmlUrl: null,
-                        generatedBlob: doc.blob,
-                        error: null
-                    }));
-
-                    // Load directly into Syncfusion editor
-                    if (sfContainerRef.current?.documentEditor) {
-                        sfContainerRef.current.documentEditor.open(doc.blob);
-                    }
-                }
-
-                // Reset processing state and close modals
-                resetProcessing();
-                setShowFilters(false);
-                setShowTemplateModal(false);
-
-                setSnackbar({
-                    open: true,
-                    message: `Đã mở tài liệu đã lưu: ${doc.fileName}`,
-                    severity: 'success'
-                });
-
-                console.log(
-                    `✅ Loaded working document from IndexedDB: ${doc.fileName} for maTTHC: ${maTTHC}`
-                );
-            } catch (error) {
-                console.error('Lỗi khi mở tài liệu đã lưu từ IndexedDB:', error);
-                setSnackbar({
-                    open: true,
-                    message: 'Lỗi khi mở tài liệu đã lưu',
-                    severity: 'error'
-                });
-            }
-        },
-        [workingDocsByCode, previewMode, resetProcessing]
-    );
-
     const getWorkingDocumentsForMaTTHC = useCallback(
         (maTTHC: string): WorkingDocument[] => {
             return workingDocsState.workingDocsListByCode[maTTHC] || [];
@@ -2080,16 +1702,6 @@ function TemplateFillerComponent({
 
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
     const previewContainerRef = useRef<HTMLDivElement>(null);
-    // Socket connection
-    const { socketStatus, on, off } = useSocketConnection(SOCKET_URL);
-    // Memoized values
-    const availableThuTuc = useMemo(() => {
-        if (!filters.linhVuc || !filterOptions.thuTucByLinhVuc[filters.linhVuc]) {
-            return [];
-        }
-        return filterOptions.thuTucByLinhVuc[filters.linhVuc];
-    }, [filters.linhVuc, filterOptions.thuTucByLinhVuc]);
-    // Memoized available templates for performance
     const availableTemplates = useMemo(() => {
         return filteredRecords.filter(r => r.danhSachMauDon && r.danhSachMauDon.length > 0);
     }, [filteredRecords]);
@@ -2243,38 +1855,269 @@ function TemplateFillerComponent({
 
             let blob: Blob;
 
-            // Check if template is from IndexedDB
+            // Check if template is from IndexedDB working documents
             if (record.selectedMauDon.isFromIndexedDB && record.selectedMauDon.workingDocument) {
-                console.log('📦 Loading template from IndexedDB:', record.selectedMauDon.tenFile);
+                console.log(
+                    '📦 Loading template from IndexedDB working document:',
+                    record.selectedMauDon.tenFile
+                );
                 blob = record.selectedMauDon.workingDocument.blob;
+            }
+            // Check if template is API template
+            else if (record.selectedMauDon.isApiTemplate) {
+                console.log('📦 Loading API template:', record.selectedMauDon.tenFile);
+
+                if (
+                    record.selectedMauDon.isFromOffline &&
+                    record.selectedMauDon.thanhPhanHoSoTTHCID
+                ) {
+                    // Load from offline file repository
+                    console.log(
+                        '📁 Loading API template from offline:',
+                        record.selectedMauDon.thanhPhanHoSoTTHCID
+                    );
+                    const offlineBlob = await thanhPhanHoSoTTHCRepository.getFileBlobForUse(
+                        record.selectedMauDon.thanhPhanHoSoTTHCID
+                    );
+                    if (!offlineBlob) {
+                        throw new Error('Không thể tải file offline');
+                    }
+                    blob = offlineBlob;
+                } else {
+                    // Load from API URL
+                    const apiUrl = `http://laptrinhid.qlns.vn/uploads/tthc/${record.selectedMauDon.duongDanTepDinhKem}`;
+                    console.log('📁 Loading API template from URL:', apiUrl);
+                    const res = await fetch(apiUrl);
+                    if (!res.ok) {
+                        console.error(
+                            '❌ Failed to fetch API template:',
+                            res.status,
+                            res.statusText
+                        );
+                        throw new Error(
+                            `Không thể tải file mẫu API: ${res.status} ${res.statusText}`
+                        );
+                    }
+                    blob = await res.blob();
+                }
             } else {
-                // Load from CSV template URL
+                // Load from CSV template URL (legacy)
                 const templateUrl = buildDocxUrlForRecord(record, record.selectedMauDon);
-                console.log('📁 Template URL:', templateUrl);
+                console.log('📁 Template URL (legacy):', templateUrl);
                 const res = await fetch(templateUrl);
                 if (!res.ok) {
-                    console.error('❌ Failed to fetch template:', res.status, res.statusText);
+                    console.error(
+                        '❌ Failed to fetch legacy template:',
+                        res.status,
+                        res.statusText
+                    );
                     throw new Error(`Không thể tải file mẫu: ${res.status} ${res.statusText}`);
                 }
                 blob = await res.blob();
             }
 
             console.log('📦 Template blob size:', blob.size, 'bytes');
+            console.log('📦 Template blob type:', blob.type);
+
+            // Validate blob
+            if (blob.size === 0) {
+                throw new Error('File template không có nội dung (0 bytes)');
+            }
+
+            if (blob.size > 50 * 1024 * 1024) {
+                // 50MB limit
+                throw new Error('File template quá lớn (>50MB)');
+            }
+
             const form = new FormData();
-            form.append('files', blob, record.selectedMauDon.tenFile);
+            // Use a safe filename for Syncfusion service
+            const safeFileName = (record.selectedMauDon.tenFile || 'template.docx').replace(
+                /[^a-zA-Z0-9.-]/g,
+                '_'
+            );
+            form.append('files', blob, safeFileName);
+
             console.log('🔄 Converting DOCX to SFDT...');
             console.log('🌐 Syncfusion service URL:', SYNCFUSION_SERVICE_URL + 'Import');
+            console.log('📄 Sending file:', safeFileName, 'size:', blob.size, 'type:', blob.type);
+
+            // Create timeout controller for better browser compatibility
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
+
             const importRes = await fetch(`${SYNCFUSION_SERVICE_URL}Import`, {
                 method: 'POST',
-                body: form
-            });
+                body: form,
+                signal: controller.signal
+            }).finally(() => clearTimeout(timeoutId));
+
+            console.log('📡 Syncfusion response status:', importRes.status);
+            console.log(
+                '📡 Syncfusion response headers:',
+                Object.fromEntries(importRes.headers.entries())
+            );
+
             if (!importRes.ok) {
-                console.error(
-                    '❌ Syncfusion import failed:',
-                    importRes.status,
-                    importRes.statusText
+                const responseText = await importRes.text().catch(() => 'Unable to read response');
+                console.error('❌ Syncfusion import failed:');
+                console.error('   Status:', importRes.status);
+                console.error('   StatusText:', importRes.statusText);
+                console.error('   Response:', responseText);
+
+                // Try alternative service URL if the main one fails
+                if (importRes.status === 404) {
+                    console.log('🔄 Trying alternative Syncfusion service...');
+                    try {
+                        const alternativeUrl =
+                            'https://ej2services.syncfusion.com/production/web-services/api/documenteditor/Import';
+                        console.log('🌐 Alternative service URL:', alternativeUrl);
+
+                        const altController = new AbortController();
+                        const altTimeoutId = setTimeout(() => altController.abort(), 30000);
+
+                        const altImportRes = await fetch(alternativeUrl, {
+                            method: 'POST',
+                            body: form,
+                            signal: altController.signal
+                        }).finally(() => clearTimeout(altTimeoutId));
+
+                        if (altImportRes.ok) {
+                            console.log('✅ Alternative service succeeded');
+                            const sfdtText = await altImportRes.text();
+                            console.log('✅ SFDT conversion completed, length:', sfdtText.length);
+
+                            if (!sfdtText || sfdtText.length < 100) {
+                                throw new Error('SFDT conversion returned invalid data');
+                            }
+
+                            // Continue with the successfully converted SFDT
+                            console.log('🔄 Opening document in Syncfusion editor...');
+                            sfContainerRef.current!.documentEditor.open(sfdtText);
+
+                            // Continue with the rest of the success flow
+                            setTimeout(() => {
+                                try {
+                                    const testSfdt =
+                                        sfContainerRef.current?.documentEditor?.serialize();
+                                    if (testSfdt && testSfdt.length > 100) {
+                                        const availableSuffixes = scanDocumentForSuffixes(
+                                            sfContainerRef.current
+                                        );
+                                        console.log(
+                                            '📋 Document loaded with available targets:',
+                                            availableSuffixes
+                                        );
+
+                                        setTargetState(prev => ({
+                                            ...prev,
+                                            availableTargets: availableSuffixes,
+                                            selectedTarget: '',
+                                            usedTargets: [],
+                                            originalSfdt: testSfdt
+                                        }));
+
+                                        setEditorState(prev => ({
+                                            ...prev,
+                                            syncfusionDocumentReady: true,
+                                            syncfusionLoading: false
+                                        }));
+
+                                        console.log(
+                                            '✅ Syncfusion document ready for data insertion'
+                                        );
+                                        const suffixMessage =
+                                            availableSuffixes.length > 0
+                                                ? ` (Tìm thấy ${availableSuffixes.length} đối tượng: ${availableSuffixes.map(s => `_${s}`).join(', ')})`
+                                                : ' (Không tìm thấy trường đặc biệt)';
+
+                                        setSnackbar({
+                                            open: true,
+                                            message: `Đã tải thành công: ${record.tenTTHC}${suffixMessage}`,
+                                            severity: 'success'
+                                        });
+                                    } else {
+                                        throw new Error('Document not properly loaded');
+                                    }
+                                } catch (error) {
+                                    console.warn('⚠️ Error checking document readiness:', error);
+                                    setEditorState(prev => ({
+                                        ...prev,
+                                        syncfusionDocumentReady: true,
+                                        syncfusionLoading: false
+                                    }));
+                                }
+                            }, 2000);
+
+                            return; // Exit early since alternative service succeeded
+                        }
+                    } catch (altError) {
+                        console.error('❌ Alternative service also failed:', altError);
+                    }
+                }
+
+                // Final fallback: Try to open the document directly without SFDT conversion
+                console.log('🔄 Attempting direct document load as final fallback...');
+                try {
+                    sfContainerRef.current!.documentEditor.open(blob);
+
+                    setTimeout(() => {
+                        try {
+                            const testSfdt = sfContainerRef.current?.documentEditor?.serialize();
+                            if (testSfdt && testSfdt.length > 100) {
+                                const availableSuffixes = scanDocumentForSuffixes(
+                                    sfContainerRef.current
+                                );
+                                console.log(
+                                    '📋 Document loaded (direct) with available targets:',
+                                    availableSuffixes
+                                );
+
+                                setTargetState(prev => ({
+                                    ...prev,
+                                    availableTargets: availableSuffixes,
+                                    selectedTarget: '',
+                                    usedTargets: [],
+                                    originalSfdt: testSfdt
+                                }));
+
+                                setEditorState(prev => ({
+                                    ...prev,
+                                    syncfusionDocumentReady: true,
+                                    syncfusionLoading: false
+                                }));
+
+                                console.log('✅ Direct document loading succeeded');
+                                const suffixMessage =
+                                    availableSuffixes.length > 0
+                                        ? ` (Tìm thấy ${availableSuffixes.length} đối tượng: ${availableSuffixes.map(s => `_${s}`).join(', ')})`
+                                        : ' (Không tìm thấy trường đặc biệt)';
+
+                                setSnackbar({
+                                    open: true,
+                                    message: `Đã tải thành công (direct): ${record.tenTTHC}${suffixMessage}`,
+                                    severity: 'success'
+                                });
+
+                                return; // Exit function successfully
+                            } else {
+                                throw new Error('Direct document loading failed');
+                            }
+                        } catch (directError) {
+                            console.error('❌ Direct document loading also failed:', directError);
+                            throw new Error(
+                                `Tất cả phương thức tải document đều thất bại: ${importRes.status} ${importRes.statusText}\nResponse: ${responseText}`
+                            );
+                        }
+                    }, 2000);
+
+                    return; // Exit early as we're attempting direct load
+                } catch (directLoadError) {
+                    console.error('❌ Direct load attempt failed:', directLoadError);
+                }
+
+                throw new Error(
+                    `Lỗi Syncfusion service: ${importRes.status} ${importRes.statusText}\nResponse: ${responseText}`
                 );
-                throw new Error(`Lỗi khi import file: ${importRes.status} ${importRes.statusText}`);
             }
             const sfdtText = await importRes.text();
             console.log('✅ SFDT conversion completed, length:', sfdtText.length);
@@ -2347,46 +2190,57 @@ function TemplateFillerComponent({
             });
         }
     }, []);
-    // Effects
+    // Load ThuTucHanhChinh data from API or IndexedDB
     useEffect(() => {
-        setEditorState(prev => ({ ...prev, socketStatus }));
-    }, [socketStatus]);
-    // Load JSON data on component mount
-    useEffect(() => {
-        const loadData = async () => {
-            setCsvLoading(true);
+        const loadThuTucHanhChinhData = async () => {
+            setDataLoading(true);
             try {
-                const jsonResponse = await fetch('/DanhSachTTHC.json');
-                if (!jsonResponse.ok) {
-                    throw new Error('Không thể tải dữ liệu JSON');
+                console.log('📋 Loading ThuTucHanhChinh data...');
+                let data: ThuTucHanhChinh[] = [];
+
+                // Check if data is synced to IndexedDB
+                const isDataSynced = await dataSyncService.isDataSynced();
+
+                if (isDataSynced) {
+                    // Load from IndexedDB
+                    console.log('✅ Using offline data from IndexedDB');
+                    data = await db.thuTucHanhChinh.orderBy('tenThuTucHanhChinh').toArray();
+                    console.log(`✅ Loaded ${data.length} ThuTucHanhChinh from IndexedDB`);
+                } else {
+                    // Load from API
+                    console.log('📡 Loading data from API');
+                    const response = await thuTucHanhChinhApiService.getAllThuTucHanhChinh(1, 1000);
+
+                    if (response.success && response.data) {
+                        data = response.data.items;
+                        console.log(`✅ Loaded ${data.length} ThuTucHanhChinh from API`);
+                    } else {
+                        throw new Error(
+                            response.error?.message || 'Failed to load ThuTucHanhChinh data'
+                        );
+                    }
                 }
-                const jsonContent = await jsonResponse.json();
-                const rawRecords = parseJSONData(jsonContent);
-                const enhancedRecords = await enhanceRecordsWithAvailability(rawRecords);
-                setCsvRecords(enhancedRecords);
-                setFilterOptions(createFilterOptions(rawRecords));
-                setFilteredRecords(enhancedRecords);
-                const availableCount = enhancedRecords.filter(
-                    r => r.danhSachMauDon && r.danhSachMauDon.length > 0
-                ).length;
-                const totalCount = enhancedRecords.length;
+
+                setThuTucHcList(data);
+
                 setSnackbar({
                     open: true,
-                    message: `Đã tải ${totalCount} thủ tục hành chính, ${availableCount} có mẫu đơn sẵn sàng`,
+                    message: `Đã tải ${data.length} thủ tục hành chính ${isDataSynced ? '(offline)' : '(online)'}`,
                     severity: 'success'
                 });
             } catch (error) {
-                console.error('Error loading data:', error);
+                console.error('❌ Error loading ThuTucHanhChinh data:', error);
                 setSnackbar({
                     open: true,
-                    message: 'Không thể tải dữ liệu mẫu đơn',
+                    message: 'Không thể tải danh sách thủ tục hành chính',
                     severity: 'error'
                 });
             } finally {
-                setCsvLoading(false);
+                setDataLoading(false);
             }
         };
-        loadData();
+
+        loadThuTucHanhChinhData();
     }, []);
 
     // Load lĩnh vực data from repository
@@ -2397,11 +2251,6 @@ function TemplateFillerComponent({
                 const data = await linhVucRepository.getLinhVucList();
                 setLinhVucList(data);
                 console.log('✅ Loaded lĩnh vực from repository:', data.length, 'items');
-
-                // Log mapping between repository and CSV data for debugging
-                const csvLinhVuc = filterOptions.linhVuc;
-                console.log('📊 CSV lĩnh vực count:', csvLinhVuc.length);
-                console.log('📊 Repository lĩnh vực count:', data.length);
 
                 // Show success message
                 setSnackbar({
@@ -2422,7 +2271,7 @@ function TemplateFillerComponent({
         };
 
         loadLinhVuc();
-    }, [filterOptions.linhVuc]);
+    }, []);
 
     // Load working documents from IndexedDB on component mount
     useEffect(() => {
@@ -2457,9 +2306,6 @@ function TemplateFillerComponent({
     }, [state.selectedTemplatePath]);
 
     useEffect(() => {
-        setState(prev => ({ ...prev, socketStatus }));
-    }, [socketStatus]);
-    useEffect(() => {
         if (state.generatedBlob && previewContainerRef.current) {
             previewContainerRef.current.innerHTML = '';
             renderAsync(state.generatedBlob, previewContainerRef.current, undefined, {
@@ -2476,9 +2322,6 @@ function TemplateFillerComponent({
             }
 
             try {
-                // Since we only use syncfusion mode, this section is not needed
-                // All document viewing is handled by Syncfusion editor
-
                 // ----- Chế độ xem Syncfusion -----
                 if (previewMode === 'syncfusion') {
                     // Điều kiện kiểm tra ref cho Syncfusion
@@ -2686,8 +2529,6 @@ function TemplateFillerComponent({
         };
 
         renderSelectedTemplate();
-        // Cần thêm state.generatedBlob vào dependency array vì chúng ta sử dụng nó để kiểm tra
-        // xem có phải là working document từ IndexedDB không
     }, [
         state.selectedTemplatePath,
         state.uploadedTemplateUrl,
@@ -2695,201 +2536,257 @@ function TemplateFillerComponent({
         state.selectedHtmlUrl,
         state.generatedBlob
     ]);
-    // Socket event handlers for mobile data
-    // useEffect(() => {
-    //     const handleDataReceived = async (data: ProcessingData) => {
-    //         if (!editorState.selectedRecord || !editorState.syncfusionDocumentReady) {
-    //             setSnackbar({
-    //                 open: true,
-    //                 message: 'Vui lòng chọn và mở mẫu đơn trước khi nhận dữ liệu.',
-    //                 severity: 'warning'
-    //             });
-    //             return;
-    //         }
-    //         if (data) {
-    //             try {
-    //                 console.log('🔌 Received data from mobile app via socket:', data);
-    //                 console.log('🎯 Current selected target:', targetState.selectedTarget);
-    //                 const processingData = convertScannedInfoToProcessingData(data);
-    //                 console.log('🔄 Converted mobile data to ProcessingData:', processingData);
-    //                 const success = await applyDataToSyncfusion(
-    //                     sfContainerRef.current,
-    //                     processingData,
-    //                     targetState.selectedTarget
-    //                 );
 
-    //                 // Update extracted data in scan state
-    //                 setScanState(prev => ({
-    //                     ...prev,
-    //                     extractedData: processingData
-    //                 }));
-
-    //                 if (success) {
-    //                     // Remove target from available list if it was used
-    //                     const usedTarget = targetState.selectedTarget;
-    //                     if (usedTarget) {
-    //                         setTargetState(prev => ({
-    //                             ...prev,
-    //                             availableTargets: prev.availableTargets.filter(
-    //                                 t => t !== usedTarget
-    //                             ),
-    //                             usedTargets: [...prev.usedTargets, usedTarget],
-    //                             selectedTarget: ''
-    //                         }));
-
-    //                         setSnackbar({
-    //                             open: true,
-    //                             message: `Đã chèn dữ liệu cho đối tượng _${usedTarget} từ NTS DocumentAI`,
-    //                             severity: 'success'
-    //                         });
-    //                     } else {
-    //                         setSnackbar({
-    //                             open: true,
-    //                             message: 'Đã chèn dữ liệu (mặc định) từ NTS DocumentAI',
-    //                             severity: 'success'
-    //                         });
-    //                     }
-    //                 } else {
-    //                     setSnackbar({
-    //                         open: true,
-    //                         message: 'Lỗi khi chèn dữ từ NTS DocumentAI',
-    //                         severity: 'error'
-    //                     });
-    //                 }
-    //             } catch (error) {
-    //                 const errorMessage =
-    //                     error instanceof Error ? error.message : 'Lỗi không xác định.';
-    //                 setSnackbar({
-    //                     open: true,
-    //                     message: `Lỗi xử lý dữ liệu`,
-    //                     severity: 'error'
-    //                 });
-    //                 console.error('❌ Error processing socket data:', error);
-    //             }
-    //         }
-    //     };
-    //     on('data_received', handleDataReceived);
-    //     return () => {
-    //         off('data_received', handleDataReceived);
-    //     };
-    // }, [
-    //     on,
-    //     off,
-    //     editorState.selectedRecord,
-    //     editorState.syncfusionDocumentReady,
-    //     targetState.selectedTarget
-    // ]);
     const handleSnackbarClose = useCallback(() => {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
-    // Scan & Fill Panel Handlers
-    const handleInputModeChange = useCallback((mode: 'ntsoft' | 'scanner') => {
-        setScanState(prev => ({ ...prev, inputMode: mode }));
-        console.log('Input mode', mode);
-    }, []);
-    const handleInputTextChange = useCallback((text: string) => {
-        setScanState(prev => ({ ...prev, inputText: text }));
-    }, []);
-    const handleOpenDocumentAI = useCallback(() => {
-        // Logic để mở Document AI app
-        setSnackbar({
-            open: true,
-            message: 'Đang mở NTSoft Document AI...',
-            severity: 'info'
+
+    //#endregion Import
+    const [offlineFilesState, setOfflineFilesState] = useState({
+        downloadedFiles: {} as { [thanhPhanHoSoTTHCID: string]: boolean },
+        totalDownloaded: 0,
+        totalSize: 0
+    });
+    const [filteredThuTucHcList, setFilteredThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
+
+    const handleApiTemplateSelect = async (templateData: {
+        record: ThuTucHanhChinh;
+        template: import('@/admin/services/thanhPhanHoSoService').ThanhPhanHoSoTTHC;
+    }) => {
+        console.log('🎯 API Template selected:', templateData);
+
+        try {
+            // Convert ThanhPhanHoSoTTHC to a format compatible with the existing editor
+            const { record, template } = templateData;
+
+            // Check if template has a valid file path
+            if (!template.duongDanTepDinhKem) {
+                setSnackbar({
+                    open: true,
+                    message: 'Mẫu đơn không có đường dẫn tệp hợp lệ',
+                    severity: 'error'
+                });
+                return;
+            }
+
+            // Pre-download all files for this procedure to improve performance
+            try {
+                console.log(
+                    '📥 Pre-downloading all files for procedure:',
+                    record.maThuTucHanhChinh
+                );
+                const allTemplates = await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
+                    record.maThuTucHanhChinh
+                );
+                console.log(`✅ Found ${allTemplates.length} templates for procedure`);
+            } catch (error) {
+                console.warn(
+                    '⚠️ Failed to pre-download files, continuing with selected template only:',
+                    error
+                );
+            }
+
+            const hasLocalFile = await thanhPhanHoSoTTHCRepository.hasLocalFile(
+                template.thanhPhanHoSoTTHCID
+            );
+
+            let fileSource = 'online';
+            let templatePath = '';
+
+            if (hasLocalFile) {
+                console.log('✅ Using offline file for template:', template.tenThanhPhanHoSoTTHC);
+                fileSource = 'offline';
+                templatePath = `offline:${template.thanhPhanHoSoTTHCID}`;
+            } else {
+                console.log('📥 File not available offline, downloading...');
+                fileSource = 'downloading';
+
+                // Try to download the file to IndexedDB
+                const downloadSuccess = await thanhPhanHoSoTTHCRepository.downloadFileById(
+                    template.thanhPhanHoSoTTHCID
+                );
+
+                if (downloadSuccess) {
+                    console.log('✅ File downloaded successfully to IndexedDB');
+                    fileSource = 'offline';
+                    templatePath = `offline:${template.thanhPhanHoSoTTHCID}`;
+                } else {
+                    console.log('⚠️ Download failed, using API URL as fallback');
+                    fileSource = 'online';
+                    templatePath = `http://laptrinhid.qlns.vn/uploads/tthc/${template.duongDanTepDinhKem}`;
+                }
+            }
+
+            // Create a compatible record for the editor
+            const selectedMauDon = {
+                tenFile: template.tenTepDinhKem,
+                tenGiayTo: template.tenThanhPhanHoSoTTHC,
+                tenThanhPhan: template.tenThanhPhanHoSoTTHC,
+                soBanChinh: template.soBanChinh,
+                soBanSao: template.soBanSao,
+                ghiChu: template.ghiChu,
+                duongDanTepDinhKem: template.duongDanTepDinhKem,
+                duongDan: templatePath, // This will be used by loadTemplateIntoSyncfusion
+                // Mark this as an API template for special handling
+                isApiTemplate: true,
+                isFromOffline: fileSource === 'offline',
+                // Store template ID for offline access
+                thanhPhanHoSoTTHCID: template.thanhPhanHoSoTTHCID
+            };
+
+            const editorRecord = {
+                maTTHC: record.maThuTucHanhChinh,
+                tenTTHC: record.tenThuTucHanhChinh,
+                linhVuc: record.maLinhVuc,
+                doiTuong: record.doiTuongThucHien,
+                selectedMauDon: selectedMauDon,
+                // Add danhSachMauDon array with the single selected template
+                // This prevents the "Cannot read properties of undefined (reading 'map')" error
+                danhSachMauDon: [selectedMauDon]
+            } as any; // Type assertion for compatibility
+
+            // Set the current code reference for later use
+            currentCodeRef.current = record.maThuTucHanhChinh;
+
+            // Check if there are existing working documents for this TTHC
+            const hasExistingWorkingDocs = hasWorkingDocuments(record.maThuTucHanhChinh);
+            console.log(
+                `🔍 API template selection - Has existing working docs for ${record.maThuTucHanhChinh}:`,
+                hasExistingWorkingDocs
+            );
+
+            if (hasExistingWorkingDocs) {
+                // If there are working documents, show template selection modal with both API template and working documents
+                console.log(
+                    '📋 Showing template selection modal with API template + working documents'
+                );
+                setTemplateSelectionModal({
+                    open: true,
+                    record: editorRecord
+                });
+            } else {
+                // If no working documents, directly open editor with API template
+                console.log('🚀 Directly opening editor with API template (no working documents)');
+                setEditorState(prev => ({
+                    ...prev,
+                    selectedRecord: editorRecord,
+                    showEditorModal: true,
+                    syncfusionLoading: true,
+                    syncfusionDocumentReady: false
+                }));
+            }
+
+            // setSnackbar({
+            //     open: true,
+            //     message: `Đang tải mẫu ${fileSource === 'offline' ? '(offline)' : fileSource === 'downloading' ? '(đang tải về)' : '(online)'}: ${template.tenThanhPhanHoSoTTHC}`,
+            //     severity: 'info'
+            // });
+
+            const message = hasExistingWorkingDocs
+                ? `Đã tìm thấy ${getWorkingDocumentsForMaTTHC(record.maThuTucHanhChinh).length} bản sao tùy chỉnh. Hãy chọn mẫu bạn muốn sử dụng.`
+                : `Đang tải mẫu ${template.tenThanhPhanHoSoTTHC}`;
+
+            setSnackbar({
+                open: true,
+                message,
+                severity: hasExistingWorkingDocs ? 'info' : 'info'
+            });
+
+            // For API templates, we need to load the document from the appropriate source
+            // This will be handled in the editor modal's useEffect when it detects isApiTemplate
+        } catch (error) {
+            console.error('❌ Error handling API template selection:', error);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi xử lý mẫu API',
+                severity: 'error'
+            });
+        }
+    };
+    const [dataLoading, setDataLoading] = useState(true);
+    const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
+    const filterThuTucHanhChinh = (
+        thuTucHcList: ThuTucHanhChinh[],
+        filters: FilterState,
+        linhVucList: LinhVuc[]
+    ): ThuTucHanhChinh[] => {
+        return thuTucHcList.filter(thuTucHC => {
+            // Search text filter
+            if (filters.searchText) {
+                const searchLower = filters.searchText.toLowerCase();
+                const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
+                const searchableText = [
+                    thuTucHC.tenThuTucHanhChinh,
+                    thuTucHC.maThuTucHanhChinh,
+                    linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc,
+                    thuTucHC.doiTuongThucHien,
+                    thuTucHC.moTa
+                ]
+                    .join(' ')
+                    .toLowerCase();
+                if (!searchableText.includes(searchLower)) {
+                    return false;
+                }
+            }
+
+            // Lĩnh vực filter - filters.linhVuc chứa tenLinhVuc, cần map về maLinhVuc để so sánh
+            if (filters.linhVuc) {
+                // Tìm lĩnh vực từ tenLinhVuc để lấy maLinhVuc
+                const selectedLinhVuc = linhVucList.find(lv => lv.tenLinhVuc === filters.linhVuc);
+                if (selectedLinhVuc) {
+                    // So sánh maLinhVuc của thuTucHC với maLinhVuc của lĩnh vực được chọn
+                    if (thuTucHC.maLinhVuc !== selectedLinhVuc.maLinhVuc) {
+                        return false;
+                    }
+                } else {
+                    // Fallback: nếu không tìm thấy, có thể filters.linhVuc là maLinhVuc
+                    if (thuTucHC.maLinhVuc !== filters.linhVuc) {
+                        return false;
+                    }
+                }
+            }
+
+            if (filters.doiTuong && !thuTucHC.doiTuongThucHien.includes(filters.doiTuong)) {
+                return false;
+            }
+            if (filters.capThucHien && !thuTucHC.maCapHanhChinh.includes(filters.capThucHien)) {
+                return false;
+            }
+
+            // Note: availability filter không áp dụng cho IndexedDB data vì templates được load từ API riêng
+
+            return true;
         });
-    }, []);
-    // const handleAnalyzeAndFill = useCallback(async () => {
-    //     if (!scanState.inputText.trim()) {
-    //         setSnackbar({
-    //             open: true,
-    //             message: 'Vui lòng nhập dữ liệu cần phân tích',
-    //             severity: 'warning'
-    //         });
-    //         return;
-    //     }
-    //     if (!editorState.selectedRecord || !editorState.syncfusionDocumentReady) {
-    //         setSnackbar({
-    //             open: true,
-    //             message: 'Vui lòng mở mẫu đơn trước khi điền dữ liệu',
-    //             severity: 'warning'
-    //         });
-    //         return;
-    //     }
-    //     setScanState(prev => ({ ...prev, isProcessing: true }));
-    //     try {
-    //         const scannedInfo = processDataIntelligently(scanState.inputText);
-    //         const processingData = convertScannedInfoToProcessingData({
-    //             ...scannedInfo,
-    //             ngaySinh: formatDDMMYYYY(scannedInfo.ngaySinh),
-    //             ngayCap: formatDDMMYYYY(scannedInfo.ngayCap)
-    //         });
-    //         setScanState(prev => ({
-    //             ...prev,
-    //             extractedData: processingData,
-    //             isProcessing: false
-    //         }));
-    //         // Apply data to Syncfusion editor
-    //         const success = await applyDataToSyncfusion(
-    //             sfContainerRef.current,
-    //             processingData,
-    //             targetState.selectedTarget
-    //         );
-    //         if (success) {
-    //             // Remove target from available list if it was used
-    //             const usedTarget = targetState.selectedTarget;
-    //             if (usedTarget) {
-    //                 setTargetState(prev => ({
-    //                     ...prev,
-    //                     availableTargets: prev.availableTargets.filter(t => t !== usedTarget),
-    //                     usedTargets: [...prev.usedTargets, usedTarget],
-    //                     selectedTarget: ''
-    //                 }));
+    };
 
-    //                 setSnackbar({
-    //                     open: true,
-    //                     message: `Đã phân tích và điền dữ liệu cho đối tượng _${usedTarget} thành công!`,
-    //                     severity: 'success'
-    //                 });
-    //             } else {
-    //                 setSnackbar({
-    //                     open: true,
-    //                     message: 'Đã phân tích và điền dữ liệu (mặc định) thành công!',
-    //                     severity: 'success'
-    //                 });
-    //             }
-    //         } else {
-    //             setSnackbar({
-    //                 open: true,
-    //                 message: 'Lỗi khi điền dữ liệu vào document',
-    //                 severity: 'error'
-    //             });
-    //         }
-    //     } catch (error) {
-    //         const errorMessage = error instanceof Error ? error.message : 'Lỗi không xác định';
-    //         setScanState(prev => ({ ...prev, isProcessing: false }));
-    //         setSnackbar({
-    //             open: true,
-    //             message: `Lỗi phân tích dữ liệu: ${errorMessage}`,
-    //             severity: 'error'
-    //         });
-    //     }
-    // }, [scanState.inputText, editorState.selectedRecord, editorState.syncfusionDocumentReady]);
-    // console.log('🎨 TemplateFillerComponent render:', {
-    //     csvRecordsCount: csvRecords.length,
-    //     filteredRecordsCount: filteredRecords.length,
-    //     showEditorModal: editorState.showEditorModal,
-    //     selectedRecord: editorState.selectedRecord?.tenTTHC,
-    //     syncfusionLoading: editorState.syncfusionLoading,
-    //     syncfusionReady: editorState.syncfusionDocumentReady
-    // });
-    // const handleKeyDown = async (e: React.KeyboardEvent) => {
-    //     if (e.key === 'Enter') {
-    //         e.preventDefault();
-    //         await handleAnalyzeAndFill();
-    //     }
-    // };
+    const memoizedFilteredData = useMemo(() => {
+        // Ensure arrays are not undefined before filtering
+        if (
+            !thuTucHcList ||
+            !Array.isArray(thuTucHcList) ||
+            !linhVucList ||
+            !Array.isArray(linhVucList)
+        ) {
+            console.log('⚠️ Data not ready yet:', {
+                thuTucHcList: !!thuTucHcList,
+                linhVucList: !!linhVucList
+            });
+            return [];
+        }
 
-    const customToolbarItems = ['Print'];
+        const filtered = filterThuTucHanhChinh(thuTucHcList, filters, linhVucList);
+        console.log('🔍 Filtered data:', {
+            total: thuTucHcList.length,
+            filtered: filtered.length,
+            filters
+        });
+        return filtered;
+    }, [thuTucHcList, filters, linhVucList]);
+
+    useEffect(() => {
+        setFilteredThuTucHcList(memoizedFilteredData);
+    }, [memoizedFilteredData]);
+    //#region Import
 
     return (
         <>
@@ -2911,50 +2808,6 @@ function TemplateFillerComponent({
                     }
                 }}
             >
-                {/* <Card
-                    sx={{
-                        mb: 4,
-                        borderRadius: 1,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
-                        backdropFilter: 'blur(10px)',
-                        background: 'rgba(255,255,255,0.9)',
-                        border: '1px solid rgba(255,255,255,0.2)'
-                    }}
-                >
-                    <CardHeader
-                        title="🔍 Tìm kiếm nhanh"
-                        sx={{
-                            pb: 1,
-                            '& .MuiCardHeader-title': {
-                                fontSize: '1.1rem',
-                                fontWeight: 600
-                            }
-                        }}
-                    />
-                    <CardContent sx={{ pt: 0 }}>
-                        <TextField
-                            fullWidth
-                            size="medium"
-                            value={filters.searchText}
-                            onChange={e => handleFilterChange('searchText', e.target.value)}
-                            placeholder="🔍 Tìm kiếm thủ tục, mã, lĩnh vực, đối tượng, quyết định công bố..."
-                            variant="outlined"
-                            sx={{
-                                '& .MuiOutlinedInput-root': {
-                                    borderRadius: 1,
-                                    transition: 'all 0.3s ease',
-                                    '&:hover': {
-                                        boxShadow: '0 4px 12px rgba(25,118,210,0.15)'
-                                    },
-                                    '&.Mui-focused': {
-                                        boxShadow: '0 4px 20px rgba(25,118,210,0.25)'
-                                    }
-                                }
-                            }}
-                        />
-                    </CardContent>
-                </Card> */}
-
                 <Box
                     sx={{
                         display: 'flex',
@@ -3066,38 +2919,7 @@ function TemplateFillerComponent({
                             );
                         }}
                     />
-                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
-                        <InputLabel>Lĩnh vực</InputLabel>
-                        <Select
-                            value={filters.linhVuc}
-                            onChange={e => handleFilterChange('linhVuc', e.target.value)}
-                        >
-                            <MenuItem value="">
-                                <em>Tất cả</em>
-                            </MenuItem>
-                            {filterOptions.linhVuc.map(item => (
-                                <MenuItem key={item} value={item}>
-                                    {item}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl> */}
-                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
-                        <InputLabel>Đối tượng</InputLabel>
-                        <Select
-                            value={filters.doiTuong}
-                            onChange={e => handleFilterChange('doiTuong', e.target.value)}
-                        >
-                            <MenuItem value="">
-                                <em>Tất cả</em>
-                            </MenuItem>
-                            {filterOptions.doiTuong.map(item => (
-                                <MenuItem key={item} value={item}>
-                                    {item}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl> */}
+
                     <Autocomplete
                         size="small"
                         sx={{ minWidth: 200, maxWidth: 200 }}
@@ -3120,35 +2942,6 @@ function TemplateFillerComponent({
                             <TextField {...params} label="Cấp thực hiện" placeholder="Tất cả" />
                         )}
                     />
-
-                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
-                        <InputLabel>Cấp thực hiện</InputLabel>
-                        <Select
-                            value={filters.capThucHien}
-                            onChange={e => handleFilterChange('capThucHien', e.target.value)}
-                        >
-                            <MenuItem value="">
-                                <em>Tất cả</em>
-                            </MenuItem>
-                            {filterOptions.capThucHien.map(item => (
-                                <MenuItem key={item} value={item}>
-                                    {item}
-                                </MenuItem>
-                            ))}
-                        </Select>
-                    </FormControl> */}
-                    {/* <LinhVucListComponent /> */}
-                    {/* <FormControl size="small" sx={{ minWidth: 120, maxWidth: 120 }}>
-                        <InputLabel>Trạng thái mẫu</InputLabel>
-                        <Select
-                            value={filters.availability}
-                            onChange={e => handleFilterChange('availability', e.target.value)}
-                        >
-                            <MenuItem value="all">Tất cả</MenuItem>
-                            <MenuItem value="available">Có sẵn mẫu</MenuItem>
-                            <MenuItem value="unavailable">Chưa có mẫu</MenuItem>
-                        </Select>
-                    </FormControl> */}
                 </Box>
                 {/* Template List */}
                 <Card
@@ -3163,17 +2956,28 @@ function TemplateFillerComponent({
                     }}
                 >
                     <CardHeader
-                        title="Danh sách mẫu đơn"
+                        title={
+                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                                <Typography variant="h6" sx={{ fontWeight: 600 }}>
+                                    Danh sách mẫu đơn
+                                </Typography>
+                            </Box>
+                        }
                         sx={{
-                            pb: 1,
+                            pb: 0,
                             '& .MuiCardHeader-title': {
                                 fontSize: '1.1rem',
                                 fontWeight: 600
                             }
                         }}
                     />
-                    <CardContent>
-                        {csvLoading ? (
+                    <CardContent
+                        sx={{
+                            flex: 1,
+                            height: '100%'
+                        }}
+                    >
+                        {dataLoading || linhVucLoading ? (
                             <Box sx={{ p: 2 }}>
                                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, mb: 3 }}>
                                     <CircularProgress size={24} />
@@ -3182,7 +2986,7 @@ function TemplateFillerComponent({
                                         color="primary"
                                         sx={{ fontWeight: 500 }}
                                     >
-                                        Đang tải danh sách mẫu đơn...
+                                        Đang tải danh sách thủ tục hành chính...
                                     </Typography>
                                 </Box>
                                 {/* Skeleton Loading */}
@@ -3266,9 +3070,12 @@ function TemplateFillerComponent({
                         ) : (
                             <Box
                                 sx={{
+                                    height: '100%',
                                     overflowY: 'auto',
                                     pr: 1,
                                     pt: 1,
+                                    paddingBottom: 0,
+                                    flex: 1,
                                     '&::-webkit-scrollbar': {
                                         width: '8px'
                                     },
@@ -3285,84 +3092,80 @@ function TemplateFillerComponent({
                                     }
                                 }}
                             >
-                                {availableTemplates.map((record, index) => (
-                                    <TemplateCard
-                                        key={`${record.maTTHC}-${index}`}
-                                        record={record}
-                                        index={index}
-                                        onSelect={handleSelectTemplate}
-                                        onSelectTemplate={handleSelectTemplate}
-                                        onSetupTemplate={onSetupTemplate}
-                                        onNavigateProcedures={() => {
-                                            try {
-                                                navigate({ to: '/procedures' });
-                                            } catch {
-                                                try {
-                                                    window.location.href =
-                                                        '/src/admin/index.html#/procedures/';
-                                                } catch {}
+                                {filteredThuTucHcList &&
+                                    Array.isArray(filteredThuTucHcList) &&
+                                    filteredThuTucHcList.map((data, index) => (
+                                        <ApiTemplateCard
+                                            key={`${data.thuTucHanhChinhID}-${index}`}
+                                            record={data}
+                                            linhVucList={linhVucList || []}
+                                            onSelect={() => {}}
+                                            onTemplateSelect={handleApiTemplateSelect}
+                                            hasWorkingDocuments={hasWorkingDocuments(
+                                                data.maThuTucHanhChinh
+                                            )}
+                                            workingDocumentsCount={
+                                                getWorkingDocumentsForMaTTHC(data.maThuTucHanhChinh)
+                                                    .length
                                             }
-                                        }}
-                                        hasWorkingDocuments={hasWorkingDocuments(record.maTTHC)}
-                                        workingDocumentsCount={
-                                            getWorkingDocumentsForMaTTHC(record.maTTHC).length
-                                        }
-                                    />
-                                ))}
-                                {availableTemplates.length === 0 && (
-                                    <Paper
-                                        sx={{
-                                            p: 6,
-                                            textAlign: 'center',
-                                            borderRadius: 1,
-                                            background:
-                                                'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
-                                            border: '2px dashed #dee2e6'
-                                        }}
-                                    >
-                                        <Box sx={{ mb: 3 }}>
+                                        />
+                                    ))}
+                                {(!filteredThuTucHcList || filteredThuTucHcList.length === 0) &&
+                                    !dataLoading &&
+                                    !linhVucLoading && (
+                                        <Paper
+                                            sx={{
+                                                p: 6,
+                                                textAlign: 'center',
+                                                borderRadius: 1,
+                                                background:
+                                                    'linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%)',
+                                                border: '2px dashed #dee2e6'
+                                            }}
+                                        >
+                                            <Box sx={{ mb: 3 }}>
+                                                <Typography
+                                                    variant="h1"
+                                                    sx={{
+                                                        fontSize: '4rem',
+                                                        opacity: 0.7,
+                                                        mb: 2
+                                                    }}
+                                                >
+                                                    📄
+                                                </Typography>
+                                            </Box>
                                             <Typography
-                                                variant="h1"
+                                                variant="h5"
+                                                color="text.secondary"
                                                 sx={{
-                                                    fontSize: '4rem',
-                                                    opacity: 0.7,
-                                                    mb: 2
+                                                    mb: 2,
+                                                    fontWeight: 600
                                                 }}
                                             >
-                                                📄
+                                                Không tìm thấy mẫu đơn nào
                                             </Typography>
-                                        </Box>
-                                        <Typography
-                                            variant="h5"
-                                            color="text.secondary"
-                                            sx={{
-                                                mb: 2,
-                                                fontWeight: 600
-                                            }}
-                                        >
-                                            Không tìm thấy mẫu đơn nào
-                                        </Typography>
-                                        <Typography
-                                            variant="body1"
-                                            color="text.secondary"
-                                            sx={{ mb: 3 }}
-                                        >
-                                            Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp với nhu
-                                            cầu của bạn
-                                        </Typography>
-                                        <Button
-                                            variant="outlined"
-                                            onClick={handleClearFilters}
-                                            sx={{
-                                                borderRadius: 1,
-                                                textTransform: 'none',
-                                                fontWeight: 600
-                                            }}
-                                        >
-                                            🔄 Xóa tất cả bộ lọc
-                                        </Button>
-                                    </Paper>
-                                )}
+                                            <Typography
+                                                variant="body1"
+                                                color="text.secondary"
+                                                sx={{ mb: 3 }}
+                                            >
+                                                Thử thay đổi bộ lọc để tìm kiếm mẫu đơn phù hợp với
+                                                nhu cầu của bạn
+                                            </Typography>
+                                            <Button
+                                                variant="outlined"
+                                                onClick={handleClearFilters}
+                                                sx={{
+                                                    borderRadius: 1,
+                                                    textTransform: 'none',
+                                                    fontWeight: 600
+                                                }}
+                                            >
+                                                🔄 Xóa tất cả bộ lọc
+                                            </Button>
+                                        </Paper>
+                                    )}
                             </Box>
                         )}
                     </CardContent>
@@ -4075,7 +3878,7 @@ function TemplateFillerComponent({
                             Vui lòng chọn một mẫu đơn từ danh sách bên dưới để tiếp tục:
                         </Typography>
 
-                        {/* CSV Templates Section */}
+                        {/* API + CSV Templates Section */}
                         {templateSelectionModal.record?.danhSachMauDon &&
                             templateSelectionModal.record.danhSachMauDon.length > 0 && (
                                 <>
@@ -4083,7 +3886,16 @@ function TemplateFillerComponent({
                                         variant="h6"
                                         sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
                                     >
-                                        Mẫu đơn hệ thống
+                                        Mẫu đơn
+                                        {templateSelectionModal.record.selectedMauDon
+                                            ?.isApiTemplate && (
+                                            <Chip
+                                                label="API Template"
+                                                color="primary"
+                                                size="small"
+                                                sx={{ ml: 1, fontWeight: 600 }}
+                                            />
+                                        )}
                                     </Typography>
                                     <Box
                                         sx={{
@@ -4217,9 +4029,28 @@ function TemplateFillerComponent({
                                 <>
                                     <Typography
                                         variant="h6"
-                                        sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
+                                        sx={{
+                                            mb: 2,
+                                            color: 'success.main',
+                                            fontWeight: 600,
+                                            display: 'flex',
+                                            alignItems: 'center',
+                                            gap: 1
+                                        }}
                                     >
-                                        Mẫu đơn được thiết lập
+                                        <Chip
+                                            label="Đã tùy chỉnh"
+                                            color="success"
+                                            size="small"
+                                            sx={{ fontWeight: 600 }}
+                                        />
+                                        Mẫu đơn đã thiết lập (
+                                        {
+                                            getWorkingDocumentsForMaTTHC(
+                                                templateSelectionModal.record.maTTHC
+                                            ).length
+                                        }
+                                        )
                                     </Typography>
                                     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
                                         {getWorkingDocumentsForMaTTHC(
@@ -4301,29 +4132,75 @@ function TemplateFillerComponent({
                                                     sx={{
                                                         display: 'flex',
                                                         justifyContent: 'space-between',
-                                                        alignItems: 'center'
+                                                        alignItems: 'flex-start',
+                                                        mb: 2
                                                     }}
                                                 >
                                                     <Box sx={{ flex: 1 }}>
-                                                        <Typography
-                                                            variant="h6"
-                                                            sx={{ fontWeight: 600, mb: 1 }}
+                                                        <Box
+                                                            sx={{
+                                                                display: 'flex',
+                                                                alignItems: 'center',
+                                                                gap: 2,
+                                                                mb: 1
+                                                            }}
                                                         >
-                                                            {workingDoc.fileName}
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="body2"
-                                                            color="text.secondary"
+                                                            <Typography
+                                                                variant="h6"
+                                                                sx={{ fontWeight: 600 }}
+                                                            >
+                                                                {workingDoc.fileName}
+                                                            </Typography>
+                                                            <Chip
+                                                                label="Bản sao tùy chỉnh"
+                                                                color="success"
+                                                                size="small"
+                                                                sx={{
+                                                                    fontWeight: 600,
+                                                                    fontSize: '0.65rem'
+                                                                }}
+                                                            />
+                                                        </Box>
+                                                        <Box
+                                                            sx={{
+                                                                display: 'flex',
+                                                                flexDirection: 'column',
+                                                                gap: 0.5
+                                                            }}
                                                         >
-                                                            Mẫu đơn tùy chỉnh
-                                                        </Typography>
-                                                        <Typography
-                                                            variant="caption"
-                                                            color="primary"
-                                                            sx={{ fontStyle: 'italic' }}
-                                                        >
-                                                            {workingDoc.fileName}
-                                                        </Typography>
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                📄 Kích thước:{' '}
+                                                                {(
+                                                                    workingDoc.blob.size / 1024
+                                                                ).toFixed(1)}{' '}
+                                                                KB
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="body2"
+                                                                color="text.secondary"
+                                                            >
+                                                                📅 Cập nhật:{' '}
+                                                                {new Date(
+                                                                    workingDoc.updatedAt
+                                                                ).toLocaleString('vi-VN')}
+                                                            </Typography>
+                                                            <Typography
+                                                                variant="caption"
+                                                                color="success.main"
+                                                                sx={{
+                                                                    fontStyle: 'italic',
+                                                                    fontWeight: 500,
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: 0.5
+                                                                }}
+                                                            >
+                                                                💾 Đã lưu trong IndexedDB
+                                                            </Typography>
+                                                        </Box>
                                                     </Box>
                                                 </Box>
                                                 <Box
@@ -4342,16 +4219,17 @@ function TemplateFillerComponent({
                                                             textTransform: 'none',
                                                             fontWeight: 600,
                                                             background:
-                                                                'linear-gradient(45deg, #1976d2, #42a5f5)',
+                                                                'linear-gradient(45deg, #4caf50, #66bb6a)',
+                                                            color: 'white',
                                                             '&:hover': {
                                                                 background:
-                                                                    'linear-gradient(45deg, #1565c0, #1976d2)',
+                                                                    'linear-gradient(45deg, #388e3c, #4caf50)',
                                                                 transform: 'translateY(-2px)'
                                                             },
                                                             transition: 'all 0.3s ease'
                                                         }}
                                                     >
-                                                        Sử dụng mẫu này
+                                                        Sử dụng bản tùy chỉnh
                                                     </Button>
                                                     <Button
                                                         variant="contained"
@@ -4441,245 +4319,6 @@ function TemplateFillerComponent({
                     </DialogActions>
                 </Dialog>
 
-                {/* Dialog: Hướng dẫn chèn {field} */}
-                <Dialog
-                    open={showFieldGuide}
-                    onClose={() => setShowFieldGuide(false)}
-                    maxWidth="md"
-                    fullWidth
-                >
-                    <DialogTitle>Hướng dẫn thiết lập mẫu</DialogTitle>
-                    <DialogContent dividers>
-                        {/* Quick actions */}
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1.5, mb: 2 }}>
-                            {/* <Button
-                                            size="small"
-                                            startIcon={<GetAppIcon />}
-                                            onClick={handleDownloadOriginalTemplate}
-                                        >
-                                            Tải mẫu gốc
-                                        </Button> */}
-                            {/* <Button 
-                                            size="small" 
-                                            startIcon={<DownloadIcon />}
-                                            onClick={handleDownloadWorkingDocument}
-                                            disabled={!(state.generatedBlob || state.uploadedTemplateUrl || state.selectedTemplatePath || (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) || (previewMode === 'html' && htmlIframeRef.current?.contentDocument))}
-                                        >
-                                            Tải mẫu đã chỉnh
-                                        </Button> */}
-                            {/* <Button
-                                            component="label"
-                                            size="small"
-                                            startIcon={<UploadIcon />}
-                                            variant="outlined"
-                                        >
-                                            Thay thế tài liệu
-                                            <input
-                                                type="file"
-                                                accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
-                                                hidden
-                                                onChange={e => {
-                                                    const file = e.target.files?.[0];
-                                                    if (file) handleUploadReplaceDocument(file);
-                                                    // Reset input value to allow selecting the same file again
-                                                    e.target.value = '';
-                                                }}
-                                            />
-                                        </Button> */}
-                        </Box>
-
-                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
-                            3 bước đơn giản
-                        </Typography>
-                        <Box
-                            sx={{
-                                display: 'grid',
-                                gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr 1fr' },
-                                gap: 2,
-                                mb: 2
-                            }}
-                        >
-                            <Paper variant="outlined" sx={{ p: 2 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                    Bước 1: Chèn thẻ
-                                </Typography>
-                                <Typography variant="body2">
-                                    Mở file Word và gõ các thẻ như {`{hoTen}`}, {`{cccd}`},{' '}
-                                    {`{ngay}`}/{`{thang}`}/{`{nam}`} vào vị trí cần điền.
-                                </Typography>
-                            </Paper>
-                            <Paper variant="outlined" sx={{ p: 2 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                    Bước 2: Lưu và tải lên
-                                </Typography>
-                                <Typography variant="body2">
-                                    Lưu file .docx rồi bấm "Tải mẫu đã chỉnh" để sử dụng ngay.
-                                </Typography>
-                            </Paper>
-                            <Paper variant="outlined" sx={{ p: 2 }}>
-                                <Typography variant="subtitle2" sx={{ fontWeight: 700, mb: 0.5 }}>
-                                    Bước 3: Nhập dữ liệu
-                                </Typography>
-                                <Typography variant="body2">
-                                    Quét QR/nhập dữ liệu. Hệ thống sẽ tự điền vào đúng vị trí trên
-                                    mẫu.
-                                </Typography>
-                            </Paper>
-                        </Box>
-
-                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 600 }}>
-                            Ví dụ nhanh
-                        </Typography>
-                        <Paper variant="outlined" sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
-                            <Typography
-                                variant="body2"
-                                sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}
-                                align="left"
-                            >
-                                {`
-                                        Họ và tên: {ho_ten}
-                                        Số CCCD: {cccd}
-                                        Ngày sinh: {ns_ngay}/{ns_thang}/{ns_nam}  (hoặc {ngay_sinh})
-                                        Giới tính: {gioi_tinh}
-                                        Địa chỉ: {noi_cu_tru}
-                                        Ngày cấp: {nc_ngay}/{nc_thang}/{nc_nam}  (hoặc {ngay_cap})
-                                        `}
-                            </Typography>
-                        </Paper>
-
-                        <Typography variant="subtitle1" sx={{ mb: 1, fontWeight: 700 }}>
-                            Danh sách trường hỗ trợ (bấm để sao chép)
-                        </Typography>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            Nhóm chính:
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                            {[
-                                'cccd',
-                                'cmnd',
-                                'hoTen',
-                                'ngaySinh',
-                                'gioiTinh',
-                                'diaChi',
-                                'ngayCap'
-                            ].map(k => (
-                                <MuiTooltip key={k} title="Bấm để sao chép">
-                                    <Chip
-                                        label={`{${k}}`}
-                                        variant="outlined"
-                                        size="small"
-                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
-                                    />
-                                </MuiTooltip>
-                            ))}
-                        </Box>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            Tương thích (snake_case):
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                            {[
-                                'ho_ten',
-                                'ngay_sinh',
-                                'gioi_tinh',
-                                'dia_chi',
-                                'ngay_cap',
-                                'noi_cu_tru'
-                            ].map(k => (
-                                <MuiTooltip key={k} title="Bấm để sao chép">
-                                    <Chip
-                                        label={`{${k}}`}
-                                        variant="outlined"
-                                        size="small"
-                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
-                                    />
-                                </MuiTooltip>
-                            ))}
-                        </Box>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            Bí danh/tiện dụng:
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1, mb: 2 }}>
-                            {[
-                                'ten',
-                                'hoten',
-                                'ho_va_ten',
-                                'so_cccd',
-                                'so_cmnd',
-                                'ngay_thang_nam_sinh',
-                                'ngay_thang_nam_cap'
-                            ].map(k => (
-                                <MuiTooltip key={k} title="Bấm để sao chép">
-                                    <Chip
-                                        label={`{${k}}`}
-                                        variant="outlined"
-                                        size="small"
-                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
-                                    />
-                                </MuiTooltip>
-                            ))}
-                        </Box>
-                        <Typography variant="body2" sx={{ mb: 1 }}>
-                            Tách ngày/tháng/năm tự động:
-                        </Typography>
-                        <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {[
-                                'ngay',
-                                'thang',
-                                'nam',
-                                'ngay_sinh_full',
-                                'ngayCap_full',
-                                'ngay_cap_full',
-                                'ngay_cap_ngay',
-                                'ngay_cap_thang',
-                                'ngay_cap_nam'
-                            ].map(k => (
-                                <MuiTooltip key={k} title="Bấm để sao chép">
-                                    <Chip
-                                        label={`{${k}}`}
-                                        variant="outlined"
-                                        size="small"
-                                        onClick={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        onDelete={() => navigator.clipboard.writeText(`{${k}}`)}
-                                        deleteIcon={<ContentCopyIcon fontSize="small" />}
-                                    />
-                                </MuiTooltip>
-                            ))}
-                        </Box>
-
-                        <Accordion sx={{ mt: 2 }}>
-                            <AccordionSummary expandIcon={<ExpandMoreIcon />}>
-                                <Typography variant="subtitle2">Câu hỏi thường gặp</Typography>
-                            </AccordionSummary>
-                            <AccordionDetails>
-                                <Typography variant="body2" sx={{ mb: 1 }}>
-                                    • Không thấy dữ liệu hiện lên? Hãy kiểm tra chính tả của thẻ, ví
-                                    dụ {`{hoTen}`} không phải {`{hoten}`}. Bạn có thể dùng các thẻ
-                                    trong danh sách phía trên để copy cho chính xác.
-                                </Typography>
-                                <Typography variant="body2" sx={{ mb: 1 }}>
-                                    • Có thể ghi tiếng Việt có dấu không? Có, thẻ {`{field}`} chỉ là
-                                    tên khóa, bạn có thể đặt văn bản mô tả xung quanh tùy ý.
-                                </Typography>
-                                <Typography variant="body2" sx={{ mb: 1 }}>
-                                    • Thay đổi mẫu nhiều lần được không? Được, bạn có thể bấm "Tải
-                                    mẫu gốc" rồi "Tải mẫu đã chỉnh" để cập nhật bất cứ khi nào.
-                                </Typography>
-                            </AccordionDetails>
-                        </Accordion>
-                    </DialogContent>
-                    <DialogActions>
-                        <Button onClick={() => setShowFieldGuide(false)} autoFocus>
-                            Đóng
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-
                 {/* Snackbar for notifications */}
                 <Snackbar
                     open={snackbar.open}
@@ -4699,4 +4338,4 @@ function TemplateFillerComponent({
         </>
     );
 }
-export default TemplateFillerComponent;
+export default TemplateProceduresComponent;
