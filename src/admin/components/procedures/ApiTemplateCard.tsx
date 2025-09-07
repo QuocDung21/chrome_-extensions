@@ -74,7 +74,68 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
         const [offlineStatus, setOfflineStatus] = useState<{ [key: string]: boolean }>({});
 
         const handleOpenModal = async () => {
-            console.log('🔍 Opening template modal for TTHC:', record.maThuTucHanhChinh);
+            console.log('🔍 Opening template selection for TTHC:', record.maThuTucHanhChinh);
+
+            // If onTemplateSelect is provided, use parent logic instead of internal modal
+            if (onTemplateSelect) {
+                console.log('📋 Using parent template selection logic (avoiding double modal)');
+
+                try {
+                    let templates: ThanhPhanHoSoTTHC[] = [];
+
+                    // Kiểm tra xem dữ liệu đã được đồng bộ chưa
+                    const isDataSynced = await dataSyncService.isDataSynced();
+
+                    if (isDataSynced) {
+                        // Sử dụng dữ liệu từ IndexedDB - tìm theo thuTucHanhChinhID
+                        console.log('✅ Using offline data from IndexedDB');
+                        templates = await db.thanhPhanHoSoTTHC
+                            .where('thuTucHanhChinhID')
+                            .equals(record.thuTucHanhChinhID)
+                            .toArray();
+
+                        console.log(
+                            `✅ Found ${templates.length} templates in IndexedDB for TTHC ${record.maThuTucHanhChinh}`
+                        );
+                    } else {
+                        // Fallback: sử dụng repository (có thể gọi API)
+                        console.log('📡 Data not synced, using repository (may call API)');
+                        templates = await thanhPhanHoSoTTHCRepository.getThanhPhanHoSoByMaTTHC(
+                            record.maThuTucHanhChinh
+                        );
+                    }
+
+                    console.log('✅ Loaded templates:', templates.length, 'items');
+
+                    if (templates.length >= 1) {
+                        // Always use the first template and let parent handle the selection modal
+                        console.log(
+                            '🎯 Templates found, letting parent handle selection modal with working documents'
+                        );
+                        onTemplateSelect({ record, template: templates[0] });
+                    } else {
+                        setSnackbar({
+                            open: true,
+                            message: isDataSynced
+                                ? 'Không tìm thấy mẫu đơn nào cho thủ tục này trong dữ liệu offline'
+                                : 'Không tìm thấy mẫu đơn nào cho thủ tục này',
+                            severity: 'warning'
+                        });
+                    }
+                    return; // Exit early - don't open internal modal
+                } catch (error) {
+                    console.error('❌ Error loading templates for parent:', error);
+                    setSnackbar({
+                        open: true,
+                        message: 'Lỗi khi tải danh sách mẫu đơn',
+                        severity: 'error'
+                    });
+                    return;
+                }
+            }
+
+            // Original internal modal logic (when onTemplateSelect is not provided)
+            console.log('📋 Using internal modal logic');
             setModalState(prev => ({ ...prev, open: true, loading: true }));
 
             try {
