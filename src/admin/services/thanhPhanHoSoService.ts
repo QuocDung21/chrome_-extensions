@@ -85,7 +85,7 @@ class ThanhPhanHoSoTTHCApiService {
                 }
             });
 
-            const serverData = response.data;
+            const serverData = response.data.Result;
             const transformedData: ThanhPhanHoSoTTHCApiResponse = {
                 items: serverData.Items.map((item: any) => ({
                     thanhPhanHoSoTTHCID: item.ThanhPhanHoSoTTHCID,

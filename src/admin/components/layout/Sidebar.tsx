@@ -63,13 +63,13 @@ const scanningItems: NavigationItem[] = [
         icon: <QRIcon />,
         path: '/qr-cccd'
     },
-    {
-        id: 'word-mapper',
-        label: 'Mẫu đơn, tờ khai',
-        icon: <WordMapperIcon />,
-        path: '/forms'
-        // badge: 'NEW'
-    },
+    // {
+    //     id: 'word-mapper',
+    //     label: 'Mẫu đơn, tờ khai',
+    //     icon: <WordMapperIcon />,
+    //     path: '/forms'
+    //     // badge: 'NEW'
+    // },
     {
         id: 'template-filler',
         label: 'Soạn thảo mẫu',

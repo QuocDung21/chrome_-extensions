@@ -114,10 +114,10 @@ function LocalTemplateLoaderComponent() {
         setLoading(true);
         try {
             const files: WordFile[] = [];
-            // @ts-expect-error
             for await (const procedureHandle of handle.values()) {
                 if (procedureHandle.kind === 'directory') {
                     try {
+                        // @ts-expect-error
                         const docxFolderHandle = await procedureHandle.getDirectoryHandle('docx');
                         for await (const fileHandle of docxFolderHandle.values()) {
                             if (fileHandle.kind === 'file') {

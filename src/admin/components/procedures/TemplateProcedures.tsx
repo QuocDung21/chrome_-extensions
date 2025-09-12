@@ -1,52 +1,31 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { renderAsync } from 'docx-preview';
-import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
-import PizZip from 'pizzip';
+
 // --- THƯ VIỆN ---
-import { Socket, io } from 'socket.io-client';
 
 // --- ICON ---
 
 import {
     AddCircleOutline as AddCircleOutlineIcon,
-    Badge as BadgeIcon,
-    CalendarToday as CalendarTodayIcon,
-    CheckCircle as CheckCircleIcon,
     Close,
     Close as CloseIcon,
-    ContentCopy as ContentCopyIcon,
     Delete as DeleteIcon,
     Download,
     Download as DownloadIcon,
     Edit as EditIcon,
-    EventAvailable as EventAvailableIcon,
-    Event as EventIcon,
-    ExpandMore as ExpandMoreIcon,
-    Home as HomeIcon,
     Info as InfoIcon,
-    Person as PersonIcon,
-    Print as PrintIcon,
-    RestartAlt as RestartAltIcon,
     Star,
-    Upload as UploadIcon,
-    Wc as WcIcon,
-    Wifi as WifiIcon
+    Upload as UploadIcon
 } from '@mui/icons-material';
-import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import SaveIcon from '@mui/icons-material/Save';
-import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import {
-    Accordion,
-    AccordionDetails,
-    AccordionSummary,
     Alert,
     Autocomplete,
     Box,
     Button,
     Card,
-    CardActions,
     CardContent,
     CardHeader,
     Chip,
@@ -56,14 +35,11 @@ import {
     DialogContent,
     DialogTitle,
     FormControl,
-    Grid,
     IconButton,
     InputLabel,
     MenuItem,
-    Tooltip as MuiTooltip,
     Paper,
     Select,
-    SelectChangeEvent,
     Snackbar,
     Stack,
     TextField,
@@ -108,9 +84,6 @@ const SYNCFUSION_SERVICE_URL = ConfigConstant.SYNCFUSION_SERVICE_URL;
 interface ProcessingData {
     [key: string]: any;
 }
-interface LocalEnhancedTTHCRecord extends TTHCRecord {
-    isTemplateAvailable: boolean;
-}
 interface MauDon {
     tenGiayTo: string | null;
     tenFile: string;
@@ -143,12 +116,6 @@ interface TTHCRecord {
 interface EnhancedTTHCRecord extends TTHCRecord {
     selectedMauDon?: MauDon;
 }
-interface FilterOptions {
-    linhVuc: string[];
-    doiTuong: string[];
-    capThucHien: string[];
-    thuTucByLinhVuc: { [linhVuc: string]: string[] };
-}
 interface FilterState {
     searchText: string;
     linhVuc: string;
@@ -165,71 +132,6 @@ interface TemplateEditorState {
 }
 
 // --- UTILITY FUNCTIONS ---
-const parseJSONData = (jsonArray: any[]): TTHCRecord[] => {
-    if (!Array.isArray(jsonArray)) return [];
-    const records: TTHCRecord[] = jsonArray
-        .map(item => {
-            const record: TTHCRecord = {
-                stt: item['stt'] || 0,
-                maTTHC: item['maTTHC'] ?? '',
-                tenTTHC: item['tenTTHC'] ?? '',
-                qdCongBo: item['qdCongBo'] ?? '',
-                doiTuong: item['doiTuong'] ?? '',
-                linhVuc: item['linhVuc'] ?? '',
-                coQuanCongKhai: item['coQuanCongKhai'] ?? '',
-                capThucHien: item['capThucHien'] ?? '',
-                tinhTrang: item['tinhTrang'] ?? '',
-                danhSachMauDon: item['danhSachMauDon'] || []
-            };
-            return record;
-        })
-        .filter(r => r.danhSachMauDon.length > 0);
-    return records;
-};
-const createFilterOptions = (records: TTHCRecord[]): FilterOptions => {
-    const linhVucSet = new Set<string>();
-    const doiTuongSet = new Set<string>();
-    const capThucHienSet = new Set<string>();
-    const thuTucByLinhVuc: { [linhVuc: string]: string[] } = {};
-    records.forEach(record => {
-        if (record.linhVuc && record.tenTTHC) {
-            const linhVuc = record.linhVuc.trim();
-            const thuTuc = record.tenTTHC.trim();
-            linhVucSet.add(linhVuc);
-            if (!thuTucByLinhVuc[linhVuc]) {
-                thuTucByLinhVuc[linhVuc] = [];
-            }
-            if (!thuTucByLinhVuc[linhVuc].includes(thuTuc)) {
-                thuTucByLinhVuc[linhVuc].push(thuTuc);
-            }
-        }
-        // Extract doiTuong options
-        if (record.doiTuong) {
-            const doiTuongList = record.doiTuong
-                .split(';')
-                .map(dt => dt.trim())
-                .filter(dt => dt);
-            doiTuongList.forEach(dt => doiTuongSet.add(dt));
-        }
-        // Extract capThucHien options
-        if (record.capThucHien) {
-            const capThucHienList = record.capThucHien
-                .split(';')
-                .map(cth => cth.trim())
-                .filter(cth => cth);
-            capThucHienList.forEach(cth => capThucHienSet.add(cth));
-        }
-    });
-    Object.keys(thuTucByLinhVuc).forEach(linhVuc => {
-        thuTucByLinhVuc[linhVuc].sort();
-    });
-    return {
-        linhVuc: Array.from(linhVucSet).sort(),
-        doiTuong: Array.from(doiTuongSet).sort(),
-        capThucHien: Array.from(capThucHienSet).sort(),
-        thuTucByLinhVuc
-    };
-};
 const sanitizeCodeForPath = (code: string): string => (code || '').replace(/[\\/]/g, '_').trim();
 const buildDocxUrlForRecord = (record: TTHCRecord, mauDon: MauDon): string => {
     const code = sanitizeCodeForPath(record.maTTHC);
@@ -238,85 +140,6 @@ const buildDocxUrlForRecord = (record: TTHCRecord, mauDon: MauDon): string => {
     const encodedName = encodeURIComponent(templateName);
     const path = `templates_by_code/${encodedCode}/docx/${encodedName}`.replace(/\/+/g, '/');
     return `/${path}`;
-};
-const enhanceRecordsWithAvailability = async (
-    records: TTHCRecord[]
-): Promise<EnhancedTTHCRecord[]> => {
-    const enhancedRecords: EnhancedTTHCRecord[] = [];
-    for (const record of records) {
-        // Nếu có danhSachMauDon thì coi như có sẵn template
-        const selectedMauDon =
-            record.danhSachMauDon && record.danhSachMauDon.length > 0
-                ? record.danhSachMauDon[0]
-                : undefined;
-
-        enhancedRecords.push({
-            ...record,
-            selectedMauDon
-        });
-    }
-    return enhancedRecords;
-};
-const filterRecords = (
-    records: EnhancedTTHCRecord[],
-    filters: FilterState,
-    linhVucList: LinhVuc[]
-): EnhancedTTHCRecord[] => {
-    return records.filter(record => {
-        // Search text filter
-        if (filters.searchText) {
-            const searchLower = filters.searchText.toLowerCase();
-            const searchableText = [
-                record.tenTTHC,
-                record.maTTHC,
-                record.linhVuc,
-                record.doiTuong,
-                record.qdCongBo
-            ]
-                .join(' ')
-                .toLowerCase();
-            if (!searchableText.includes(searchLower)) {
-                return false;
-            }
-        }
-
-        // Lĩnh vực filter - sử dụng maLinhVuc để tìm tenLinhVuc tương ứng
-        if (filters.linhVuc) {
-            const selectedLinhVuc = linhVucList.find(lv => lv.maLinhVuc === filters.linhVuc);
-            if (selectedLinhVuc) {
-                // Nếu có maLinhVuc, kiểm tra xem record.linhVuc có chứa tenLinhVuc không
-                if (!record.linhVuc.includes(selectedLinhVuc.tenLinhVuc)) {
-                    return false;
-                }
-            } else {
-                // Fallback: nếu không tìm thấy, kiểm tra trực tiếp
-                if (!record.linhVuc.includes(filters.linhVuc)) {
-                    return false;
-                }
-            }
-        }
-
-        if (filters.doiTuong && !record.doiTuong.includes(filters.doiTuong)) {
-            return false;
-        }
-        if (filters.capThucHien && !record.capThucHien.includes(filters.capThucHien)) {
-            return false;
-        }
-        if (
-            filters.availability === 'available' &&
-            (!record.danhSachMauDon || record.danhSachMauDon.length === 0)
-        ) {
-            return false;
-        }
-        if (
-            filters.availability === 'unavailable' &&
-            record.danhSachMauDon &&
-            record.danhSachMauDon.length > 0
-        ) {
-            return false;
-        }
-        return true;
-    });
 };
 
 // Fill placeholders in Syncfusion editor: replaces {key} in body text
@@ -465,8 +288,6 @@ const TemplateCard = React.memo<{
     index: number;
     onSelect: (record: EnhancedTTHCRecord) => void;
     onSelectTemplate: (record: EnhancedTTHCRecord) => void;
-    onSetupTemplate?: (payload: { docUrl: string; code: string; htmlUrl?: string | null }) => void;
-    onNavigateProcedures?: () => void;
     hasWorkingDocuments?: boolean;
     workingDocumentsCount?: number;
 }>(
@@ -475,8 +296,6 @@ const TemplateCard = React.memo<{
         index,
         onSelect,
         onSelectTemplate,
-        onSetupTemplate,
-        onNavigateProcedures,
         hasWorkingDocuments = false,
         workingDocumentsCount = 0
     }) => {
@@ -658,160 +477,10 @@ interface DocumentState {
     selectedHtmlUrl?: string | null;
     isLoading: boolean;
     error: string | null;
-    socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error';
     generatedBlob: Blob | null;
-    processingStep:
-        | 'idle'
-        | 'loading_template'
-        | 'processing_data'
-        | 'generating_document'
-        | 'complete';
-    progress: number;
-    dataSource: 'socket' | 'scanner'; // Thêm nguồn dữ liệu
     uploadedTemplateUrl?: string | null;
     uploadedTemplateName?: string | null;
 }
-const fillWordTemplate = async (
-    templateArrayBuffer: ArrayBuffer,
-    jsonData: ProcessingData
-): Promise<Blob> => {
-    try {
-        const zip = new PizZip(templateArrayBuffer);
-        const doc = new Docxtemplater(zip, {
-            paragraphLoop: true,
-            linebreaks: true,
-            nullGetter: () => '',
-            delimiters: {
-                start: '{',
-                end: '}'
-            }
-        });
-
-        doc.setData(jsonData);
-        doc.render();
-
-        return doc.getZip().generate({
-            type: 'blob',
-            mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
-        });
-    } catch (error: any) {
-        console.error('Docxtemplater error:', error);
-        if (error.properties?.id === 'template_error') {
-            throw new Error(
-                'Lỗi cú pháp trong file mẫu Word. Vui lòng kiểm tra lại các thẻ {placeholder}.'
-            );
-        }
-        throw new Error(`Lỗi xử lý file mẫu: ${error.message}`);
-    }
-};
-const useDocumentProcessor = () => {
-    const [processingStep, setProcessingStep] = useState<
-        'idle' | 'loading_template' | 'processing_data' | 'generating_document' | 'complete'
-    >('idle');
-    const [progress, setProgress] = useState(0);
-
-    const processDocument = useCallback(
-        async (templatePath: string, data: ProcessingData): Promise<Blob> => {
-            try {
-                setProcessingStep('loading_template');
-                setProgress(10);
-
-                // Load template
-                const response = await fetch(templatePath);
-                if (!response.ok) {
-                    throw new Error(`Không thể tải file mẫu: ${response.statusText}`);
-                }
-                const templateArrayBuffer = await response.arrayBuffer();
-                setProgress(30);
-
-                setProcessingStep('processing_data');
-                setProgress(50);
-
-                // Prepare data
-                const augmentedData = { ...data };
-
-                // Xử lý ngày sinh (hỗ trợ cả ngay_sinh và ngaySinh)
-                const ngaySinh = data.ngay_sinh || data.ngaySinh;
-                if (ngaySinh && typeof ngaySinh === 'string') {
-                    augmentedData.ngay_sinh_full = ngaySinh;
-                    augmentedData.ngaySinh_full = ngaySinh;
-                    const dateParts = ngaySinh.split('/');
-                    if (dateParts.length === 3) {
-                        augmentedData.ngay = dateParts[0];
-                        augmentedData.thang = dateParts[1];
-                        augmentedData.nam = dateParts[2];
-                    }
-                }
-
-                // Xử lý ngày cấp (hỗ trợ cả ngay_cap và ngayCap)
-                const ngayCap = data.ngay_cap || data.ngayCap;
-                if (ngayCap && typeof ngayCap === 'string') {
-                    augmentedData.ngay_cap_full = ngayCap;
-                    augmentedData.ngayCap_full = ngayCap;
-                    const dateParts = ngayCap.split('/');
-                    if (dateParts.length === 3) {
-                        augmentedData.ngay_cap_ngay = dateParts[0];
-                        augmentedData.ngay_cap_thang = dateParts[1];
-                        augmentedData.ngay_cap_nam = dateParts[2];
-                    }
-                }
-                // Đảm bảo tất cả các trường đều có giá trị
-                const requiredFields = [
-                    'cccd',
-                    'cmnd',
-                    'hoTen',
-                    'ngaySinh',
-                    'gioiTinh',
-                    'diaChi',
-                    'ngayCap',
-                    'cccd',
-                    'cmnd',
-                    'ho_ten',
-                    'ngay_sinh',
-                    'gioi_tinh',
-                    'dia_chi',
-                    'ngay_cap',
-                    'noi_cu_tru' // Thêm trường noi_cu_tru
-                ];
-
-                requiredFields.forEach(field => {
-                    if (!augmentedData[field]) {
-                        augmentedData[field] = '';
-                    }
-                });
-
-                console.log('Dữ liệu đã được chuẩn bị cho template:', augmentedData);
-
-                setProcessingStep('generating_document');
-                setProgress(70);
-
-                // Generate document
-                const blob = await fillWordTemplate(templateArrayBuffer, augmentedData);
-                setProgress(100);
-                setProcessingStep('complete');
-
-                return blob;
-            } catch (error) {
-                setProcessingStep('idle');
-                setProgress(0);
-                throw error;
-            }
-        },
-        []
-    );
-
-    const resetProcessing = useCallback(() => {
-        setProcessingStep('idle');
-        setProgress(0);
-    }, []);
-
-    return {
-        processingStep,
-        progress,
-        processDocument,
-        resetProcessing
-    };
-};
 // --- UTILITY FUNCTIONS ---
 // Helper function to decode URL-encoded filenames
 const decodeFileName = (fileName: string): string => {
@@ -835,11 +504,7 @@ function TemplateProceduresComponent({
         selectedHtmlUrl: null,
         isLoading: false,
         error: null,
-        socketStatus: 'disconnected',
         generatedBlob: null,
-        processingStep: 'idle',
-        progress: 0,
-        dataSource: 'scanner', // Mặc định là scanner
         uploadedTemplateUrl: null,
         uploadedTemplateName: null
     });
@@ -849,36 +514,12 @@ function TemplateProceduresComponent({
         fileName?: string;
     }>({ open: false });
 
-    const [csvRecords, setCsvRecords] = useState<EnhancedTTHCRecord[]>([]);
-    const [filterOptions, setFilterOptions] = useState<FilterOptions>({
-        linhVuc: [],
-        doiTuong: [],
-        capThucHien: [],
-        thuTucByLinhVuc: {}
-    });
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
 
     const navigate = useNavigate();
-    const templatePathRef = useRef<string>('');
     const { history } = useRouter();
     const currentWorkingDocIdRef = useRef<number | null | undefined>(null);
-    const [selectedRecord, setSelectedRecord] = useState<LocalEnhancedTTHCRecord | null>(null);
-    const [showTemplateModal, setShowTemplateModal] = useState(false);
-
-    const handlePrintClick = async () => {
-        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            await sfContainerRef.current.documentEditor.print();
-            await window.print();
-            await history.back();
-            await navigate({
-                to: '/template-filler'
-            });
-            window.location.reload();
-        } else {
-            console.error('Document editor not ready to print.');
-        }
-    };
 
     const [filters, setFilters] = useState<FilterState>({
         searchText: '',
@@ -887,8 +528,6 @@ function TemplateProceduresComponent({
         capThucHien: '',
         availability: 'all'
     });
-    const [filteredRecords, setFilteredRecords] = useState<EnhancedTTHCRecord[]>([]);
-    const [csvLoading, setCsvLoading] = useState(false);
     const [insertFieldKey, setInsertFieldKey] = useState<string>('');
     // State cho template editor
     const [editorState, setEditorState] = useState<TemplateEditorState>({
@@ -968,7 +607,6 @@ function TemplateProceduresComponent({
         { label: 'Giới tính', key: 'gioi_tinh', placeholder: '{gioi_tinh}' },
         { label: 'Nơi cư trú', key: 'noi_cu_tru', placeholder: '{noi_cu_tru}' },
         { label: 'Ngày cấp', key: 'ngay_cap', placeholder: '{ngay_cap}' },
-        { label: 'Dân tộc', key: 'dan_toc', placeholder: '{dan_toc}' },
         { label: 'Nơi cấp', key: 'noi_cap', placeholder: '{noi_cap}' }
     ];
     const [quickInputValues, setQuickInputValues] = useState<Record<string, string>>({});
@@ -1019,14 +657,6 @@ function TemplateProceduresComponent({
     const [showFieldGuide, setShowFieldGuide] = useState(false);
     const [showQuickInsertPanel, setShowQuickInsertPanel] = useState(true);
     const [previewMode] = useState<'syncfusion'>('syncfusion');
-    const [workingDocsByCode, setWorkingDocsByCode] = useState<
-        Record<string, WorkingDocument | undefined>
-    >({});
-    const { processingStep, progress, processDocument, resetProcessing } = useDocumentProcessor();
-    const [workingDocsListByCode, setWorkingDocsListByCode] = useState<
-        Record<string, WorkingDocument[]>
-    >({});
-    const [showFilters, setShowFilters] = useState(false);
     const selectedTemplateNameFromPath = useMemo(() => {
         if (!state.selectedTemplatePath) return '';
         const parts = state.selectedTemplatePath.split('/');
@@ -1066,8 +696,7 @@ function TemplateProceduresComponent({
                 error: null
             }));
 
-            // Reset processing state
-            resetProcessing();
+            // Reset processing state - state cleared manually below
 
             // Clear any existing preview content
             if (previewMode === 'syncfusion' && sfContainerRef.current?.documentEditor) {
@@ -1081,7 +710,7 @@ function TemplateProceduresComponent({
                 severity: 'success'
             });
         },
-        [resetProcessing, previewMode]
+        [previewMode]
     );
 
     const saveWorkingDocToDb = useCallback(
@@ -1115,15 +744,7 @@ function TemplateProceduresComponent({
                         await db.workingDocumentsV2.add(updatedRecord);
                     }
 
-                    // Update local state
-                    setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: updatedRecord }));
-                    setWorkingDocsListByCode(prev => ({
-                        ...prev,
-                        [maTTHC]: [
-                            updatedRecord,
-                            ...(prev[maTTHC] || []).filter(d => d.id !== existingDoc?.id)
-                        ]
-                    }));
+                    // State managed through workingDocsState
 
                     console.log(`✅ Successfully updated existing working document in IndexedDB:`, {
                         maTTHC,
@@ -1144,12 +765,7 @@ function TemplateProceduresComponent({
 
                     await db.workingDocumentsV2.add(newRecord);
 
-                    // Update local state
-                    setWorkingDocsByCode(prev => ({ ...prev, [maTTHC]: newRecord }));
-                    setWorkingDocsListByCode(prev => ({
-                        ...prev,
-                        [maTTHC]: [newRecord, ...(prev[maTTHC] || [])]
-                    }));
+                    // State managed through workingDocsState
 
                     console.log(`✅ Successfully created new working document in IndexedDB:`, {
                         maTTHC,
@@ -1453,7 +1069,6 @@ function TemplateProceduresComponent({
         state.uploadedTemplateName,
         state.selectedTemplatePath,
         displayTemplateName,
-        saveWorkingDocToDb,
         refreshWorkingDocuments
     ]);
 
@@ -1682,7 +1297,6 @@ function TemplateProceduresComponent({
         displayTemplateName,
         previewMode,
         extractCurrentCode,
-        saveWorkingDocToDb,
         refreshWorkingDocuments
     ]);
 
@@ -1702,17 +1316,6 @@ function TemplateProceduresComponent({
 
     const sfContainerRef = useRef<DocumentEditorContainerComponent | null>(null);
     const previewContainerRef = useRef<HTMLDivElement>(null);
-    const availableTemplates = useMemo(() => {
-        return filteredRecords.filter(r => r.danhSachMauDon && r.danhSachMauDon.length > 0);
-    }, [filteredRecords]);
-    // Memoized statistics for header
-    const templateStats = useMemo(() => {
-        const available = filteredRecords.filter(
-            r => r.danhSachMauDon && r.danhSachMauDon.length > 0
-        ).length;
-        const total = filteredRecords.length;
-        return { available, total };
-    }, [filteredRecords]);
     // Event handlers
     const handleFilterChange = useCallback((filterType: keyof FilterState, value: string) => {
         setFilters(prev => {
@@ -1730,50 +1333,6 @@ function TemplateProceduresComponent({
             doiTuong: '',
             capThucHien: '',
             availability: 'all'
-        });
-    }, []);
-    //  Chọn template
-    const handleSelectTemplate = useCallback(async (record: EnhancedTTHCRecord) => {
-        console.log('🎯 Template selected:', record);
-
-        // Kiểm tra xem record có mẫu đơn nào không
-        if (!record.danhSachMauDon || record.danhSachMauDon.length === 0) {
-            setSnackbar({
-                open: true,
-                message: `Mẫu đơn "${record.tenTTHC}" chưa có sẵn trong hệ thống`,
-                severity: 'warning'
-            });
-            return;
-        }
-
-        // Nếu chỉ có 1 mẫu đơn, sử dụng trực tiếp
-        if (record.danhSachMauDon.length === 1) {
-            const singleMauDon = record.danhSachMauDon[0];
-            const updatedRecord = { ...record, selectedMauDon: singleMauDon };
-
-            // Set the current code reference for later use
-            currentCodeRef.current = record.maTTHC;
-
-            setEditorState(prev => ({
-                ...prev,
-                selectedRecord: updatedRecord,
-                showEditorModal: true,
-                syncfusionLoading: true,
-                syncfusionDocumentReady: false
-            }));
-
-            setSnackbar({
-                open: true,
-                message: `Đang tải mẫu: ${record.tenTTHC}`,
-                severity: 'info'
-            });
-            return;
-        }
-
-        // Nếu có nhiều mẫu đơn, mở modal chọn mẫu
-        setTemplateSelectionModal({
-            open: true,
-            record: record
         });
     }, []);
     const handleCloseEditor = useCallback(() => {
@@ -2284,11 +1843,6 @@ function TemplateProceduresComponent({
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [availableFieldKeys.length]);
 
-    // Filter records when filters change
-    useEffect(() => {
-        const filtered = filterRecords(csvRecords, filters, linhVucList);
-        setFilteredRecords(filtered);
-    }, [csvRecords, filters, linhVucList]);
     // Load template when editor modal opens
     useEffect(() => {
         console.log('Modal state changed:', {
@@ -2301,9 +1855,6 @@ function TemplateProceduresComponent({
             loadTemplateIntoSyncfusion(editorState.selectedRecord);
         }
     }, [editorState.showEditorModal, editorState.selectedRecord, loadTemplateIntoSyncfusion]);
-    useEffect(() => {
-        templatePathRef.current = state.selectedTemplatePath;
-    }, [state.selectedTemplatePath]);
 
     useEffect(() => {
         if (state.generatedBlob && previewContainerRef.current) {
@@ -2858,10 +2409,7 @@ function TemplateProceduresComponent({
                                 );
                                 console.log('🎯 Selected lĩnh vực:', {
                                     maLinhVuc: newValue,
-                                    tenLinhVuc: selectedLinhVuc?.tenLinhVuc,
-                                    csvMatch: filterOptions.linhVuc.includes(
-                                        selectedLinhVuc?.tenLinhVuc || ''
-                                    )
+                                    tenLinhVuc: selectedLinhVuc?.tenLinhVuc
                                 });
                             }
                         }}
@@ -2923,7 +2471,7 @@ function TemplateProceduresComponent({
                     <Autocomplete
                         size="small"
                         sx={{ minWidth: 200, maxWidth: 200 }}
-                        options={filterOptions.doiTuong}
+                        options={[]} // Temporarily empty - could be populated from API data if needed
                         value={filters.doiTuong || null}
                         onChange={(e, newValue) => handleFilterChange('doiTuong', newValue || '')}
                         renderInput={params => (
@@ -2933,7 +2481,7 @@ function TemplateProceduresComponent({
                     <Autocomplete
                         size="small"
                         sx={{ minWidth: 200, maxWidth: 200 }}
-                        options={filterOptions.capThucHien}
+                        options={[]}
                         value={filters.capThucHien || null}
                         onChange={(e, newValue) =>
                             handleFilterChange('capThucHien', newValue || '')
@@ -3292,14 +2840,6 @@ function TemplateProceduresComponent({
                                                 >
                                                     <Button
                                                         variant="outlined"
-                                                        color="info"
-                                                        startIcon={<InfoIcon />}
-                                                        onClick={() => setShowFieldGuide(true)}
-                                                    >
-                                                        Hướng dẫn chèn mẫu thiết lập
-                                                    </Button>
-                                                    <Button
-                                                        variant="outlined"
                                                         color="secondary"
                                                         startIcon={<AddCircleOutlineIcon />}
                                                         onClick={() =>
@@ -3316,13 +2856,6 @@ function TemplateProceduresComponent({
                                                         {showQuickInsertPanel ? 'Ẩn' : 'Hiện'} modal
                                                         thiết lập
                                                     </Button>
-                                                    {/* <Button
-                                                        variant="outlined"
-                                                        startIcon={<DownloadIcon />}
-                                                        onClick={handleDownloadOriginalTemplate}
-                                                    >
-                                                        Tải File gốc
-                                                    </Button> */}
                                                     <Button
                                                         component="label"
                                                         variant="outlined"
@@ -3364,8 +2897,6 @@ function TemplateProceduresComponent({
                                                             onChange={async e => {
                                                                 const selectedTemplateName =
                                                                     e.target.value;
-
-                                                                // Find the selected template in both CSV and IndexedDB templates
                                                                 const selectedTemplate =
                                                                     editorState.selectedRecord?.danhSachMauDon.find(
                                                                         template =>
@@ -3494,7 +3025,6 @@ function TemplateProceduresComponent({
                                                 </Box>
                                             </Box>
                                         </Box>
-                                        <Divider sx={{ mb: 2 }} />
                                         <Paper
                                             variant="outlined"
                                             sx={{
@@ -3540,19 +3070,17 @@ function TemplateProceduresComponent({
                                                             </Typography>
                                                         </Box>
                                                     )}
-
                                                     <DocumentEditorContainerComponent
                                                         id="sf-docx-editor-embedded"
                                                         ref={sfContainerRef}
                                                         serviceUrl={SYNCFUSION_SERVICE_URL}
-                                                        enableToolbar={true}
+                                                        enableToolbar={false}
                                                         height={'70vh'}
-                                                        width={'80vw'}
+                                                        width={'90vw'}
                                                         style={{ display: 'block' }}
                                                         toolbarMode={'Toolbar'}
                                                         locale="vi-VN"
                                                     />
-
                                                     {/* Quick Insert Field Panel */}
                                                     {syncfusionDocumentReady ||
                                                         (showQuickInsertPanel && (
@@ -3660,11 +3188,6 @@ function TemplateProceduresComponent({
                                                                             color: 'success'
                                                                         },
                                                                         {
-                                                                            label: 'Dân tộc',
-                                                                            value: '{dan_toc}',
-                                                                            color: 'warning'
-                                                                        },
-                                                                        {
                                                                             label: 'Ngày cấp',
                                                                             value: '{ngay_cap}',
                                                                             color: 'error'
@@ -3743,7 +3266,6 @@ function TemplateProceduresComponent({
                                                                     💡 Click để chèn field vào vị
                                                                     trí con trỏ
                                                                 </Typography>
-                                                                {/* Quick input box (separate fields) */}
                                                                 <Box
                                                                     sx={{
                                                                         mt: 2,
@@ -3887,15 +3409,6 @@ function TemplateProceduresComponent({
                                         sx={{ mb: 2, color: 'primary.main', fontWeight: 600 }}
                                     >
                                         Mẫu đơn
-                                        {templateSelectionModal.record.selectedMauDon
-                                            ?.isApiTemplate && (
-                                            <Chip
-                                                label="API Template"
-                                                color="primary"
-                                                size="small"
-                                                sx={{ ml: 1, fontWeight: 600 }}
-                                            />
-                                        )}
                                     </Typography>
                                     <Box
                                         sx={{
@@ -3949,7 +3462,6 @@ function TemplateProceduresComponent({
                                                             syncfusionDocumentReady: false
                                                         }));
                                                         setShowQuickInsertPanel(true);
-                                                        resetProcessing();
 
                                                         setSnackbar({
                                                             open: true,
@@ -4028,7 +3540,7 @@ function TemplateProceduresComponent({
                             hasWorkingDocuments(templateSelectionModal.record.maTTHC) && (
                                 <>
                                     <Typography
-                                        variant="h6"
+                                        variant="body2"
                                         sx={{
                                             mb: 2,
                                             color: 'success.main',
@@ -4038,12 +3550,6 @@ function TemplateProceduresComponent({
                                             gap: 1
                                         }}
                                     >
-                                        <Chip
-                                            label="Đã tùy chỉnh"
-                                            color="success"
-                                            size="small"
-                                            sx={{ fontWeight: 600 }}
-                                        />
                                         Mẫu đơn đã thiết lập (
                                         {
                                             getWorkingDocumentsForMaTTHC(
@@ -4198,7 +3704,7 @@ function TemplateProceduresComponent({
                                                                     gap: 0.5
                                                                 }}
                                                             >
-                                                                💾 Đã lưu trong IndexedDB
+                                                                💾 Đã lưu
                                                             </Typography>
                                                         </Box>
                                                     </Box>
@@ -4318,7 +3824,6 @@ function TemplateProceduresComponent({
                         </Button>
                     </DialogActions>
                 </Dialog>
-
                 {/* Snackbar for notifications */}
                 <Snackbar
                     open={snackbar.open}

@@ -60,8 +60,8 @@ class LinhVucApiService {
                     pageSize
                 }
             });
-
-            const serverData = response.data;
+            console.log('response linhVucService', response);
+            const serverData = response.data.Result;
             const transformedData: LinhVucApiResponse = {
                 items: serverData.Items.map((item: any) => ({
                     maLinhVuc: item.MaLinhVuc,

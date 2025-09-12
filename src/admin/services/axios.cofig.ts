@@ -16,7 +16,7 @@ apiService.interceptors.request.use(
 
         // Gán cứng token bạn đã cung cấp
         const token =
-            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySWQiOiI5ZjhkN2VhZS04ZTdkLTRhNWUtODJkOC01ZjQzNjYwMTczNTkiLCJUZW5EYW5nTmhhcCI6IkFkbWluIiwiZXhwIjoxNzU3NDk3Mzg1LCJpc3MiOiJOVFNPRlQiLCJhdWQiOiJOVFNPRlQifQ.vBIoSpe09yNa4rneaWIs0MCrq9OrHOUap7RuNuSkzhk';
+            'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySWQiOiIxNzgzZWQ3YS0xYzJlLTRhMzYtOWZhMi1hMjkyMGM0NzFjNDEiLCJUZW5EYW5nTmhhcCI6InZvdGFtcGh1Yzk5OTk5QGdtYWlsLmNvbSIsImV4cCI6MTc2MDE0ODU3NiwiaXNzIjoiTlRTT0ZUIiwiYXVkIjoiTlRTT0ZUIn0.kuGIdgD4u1d56kIS-VTa8i9lA1ZBihNOFMZOYee3hu4';
 
         if (token) {
             config.headers.Authorization = `Bearer ${token}`;
