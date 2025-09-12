@@ -25,9 +25,6 @@ import {
     Wc as WcIcon,
     Wifi as WifiIcon
 } from '@mui/icons-material';
-import AdfScannerIcon from '@mui/icons-material/AdfScanner';
-import PriorityHighIcon from '@mui/icons-material/PriorityHigh';
-import SmartphoneIcon from '@mui/icons-material/Smartphone';
 import {
     Alert,
     Autocomplete,
@@ -1969,7 +1966,7 @@ function TemplateFillerComponent() {
                                 {templateStats.offlineFiles > 0 && (
                                     <Chip
                                         icon={<Download />}
-                                        label={`${templateStats.offlineFiles} file offline (${(templateStats.offlineSize / 1024 / 1024).toFixed(1)} MB)`}
+                                        label={`${templateStats.offlineFiles}  (${(templateStats.offlineSize / 1024 / 1024).toFixed(1)} MB)`}
                                         color="success"
                                         size="small"
                                         sx={{ fontWeight: 600 }}
@@ -2396,12 +2393,6 @@ function TemplateFillerComponent() {
                                             gap: 1
                                         }}
                                     >
-                                        <Chip
-                                            label="Đã tùy chỉnh"
-                                            color="success"
-                                            size="small"
-                                            sx={{ fontWeight: 600 }}
-                                        />
                                         Mẫu đơn đã thiết lập (
                                         {
                                             getWorkingDocumentsForMaTTHC(
@@ -2538,7 +2529,7 @@ function TemplateFillerComponent() {
                                                                     gap: 0.5
                                                                 }}
                                                             >
-                                                                💾 Đã lưu trong IndexedDB
+                                                                💾 Đã lưu
                                                             </Typography>
                                                         </Box>
                                                     </Box>

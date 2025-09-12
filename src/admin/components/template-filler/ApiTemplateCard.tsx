@@ -291,7 +291,7 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                             color="success.main"
                                             sx={{ fontStyle: 'italic' }}
                                         >
-                                            💾 Đã lưu IndexedDB
+                                            💾 Đã lưu
                                         </Typography>
                                     </Box>
                                 </Box>

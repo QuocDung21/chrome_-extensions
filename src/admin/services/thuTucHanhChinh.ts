@@ -80,7 +80,7 @@ class ThuTucHanhChinhApiService {
                 params
             });
 
-            const serverData = response.data;
+            const serverData = response.data.Result;
 
             // MỚI: Cập nhật logic map để chuyển đổi tất cả các trường
             const transformedData: ThuTucHanhChinhApiResponse = {

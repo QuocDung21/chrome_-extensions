@@ -19,9 +19,7 @@ import { createLazyFileRoute } from '@tanstack/react-router';
 
 import TemplateFillerComponent from '../../components/procedures/TemplateProcedures';
 
-registerLicense(
-    'Ngo9BigBOggjHTQxAR8/V1JEaF1cWWhAYVJ0WmFZfVtgdVRMY1xbRnRPIiBoS35Rc0VrWHtecHVURGVZVkdxVEFd'
-);
+registerLicense(process.env.REACT_SYNCFUSION_KEY || 'Ngo9BigBOggjHTQxAR8/V1JEaF1cWWhAYVJ0WmFZfVtgdVRMY1xbRnRPIiBoS35Rc0VrWHtecHVURGVZVkdxVEFd');
 
 function ProceduresComponent() {
     return (

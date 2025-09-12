@@ -326,7 +326,6 @@ export const TemplateSelectorModal: React.FC<TemplateSelectorModalProps> = ({
                                                             'Mẫu đơn'}
                                                     </Typography>
                                                 </Box>
-
                                                 <Box
                                                     sx={{
                                                         display: 'flex',
