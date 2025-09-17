@@ -4,6 +4,7 @@ function toNumber(value: string | undefined, fallback: number): number {
 }
 
 export const ConfigConstant = {
+    API_URL: process.env.REACT_APP_API_URL ?? 'http://laptrinhid.qlns.vn',
     SOCKET_URL: process.env.REACT_APP_SOCKET_URL ?? 'http://103.162.21.146:5003',
 
     /**
