@@ -22,6 +22,7 @@ import {
     Typography
 } from '@mui/material';
 import { useNavigate } from '@tanstack/react-router';
+import { useAuth } from '../../hooks/useAuth';
 
 interface HeaderProps {
     onMenuClick: () => void;
@@ -35,6 +36,7 @@ export default function Header({
     showMenuButton = true
 }: HeaderProps): ReactElement {
     const navigate = useNavigate();
+    const { isAuthenticated, logout } = useAuth();
     const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
     const [notificationAnchor, setNotificationAnchor] = useState<null | HTMLElement>(null);
 
@@ -60,6 +62,12 @@ export default function Header({
     const handleGoToInfo = () => {
         handleProfileMenuClose();
         navigate({ to: '/info' });
+    };
+
+    const handleLogout = () => {
+        handleProfileMenuClose();
+        if (!isAuthenticated) return;
+        logout();
     };
 
     return (
@@ -153,10 +161,12 @@ export default function Header({
                     Cài đặt
                 </MenuItem>
                 <Divider />
-                <MenuItem onClick={handleProfileMenuClose}>
-                    <LogoutIcon sx={{ mr: 2 }} />
-                    Đăng xuất
-                </MenuItem>
+                {isAuthenticated && (
+                    <MenuItem onClick={handleLogout}>
+                        <LogoutIcon sx={{ mr: 2 }} />
+                        Đăng xuất
+                    </MenuItem>
+                )}
             </Menu>
 
             {/* Notification Menu */}

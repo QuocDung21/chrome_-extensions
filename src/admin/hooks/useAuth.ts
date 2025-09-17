@@ -76,7 +76,7 @@ export function useAuth(): AuthState & AuthActions {
 
             // Ensure a valid token is returned before proceeding
             if (!response?.token || response.token.trim().length === 0) {
-                throw { message: 'Đăng nhập thất bại: không nhận được token hợp lệ.' } as AuthError;
+                throw { message: 'Đăng nhập thất bại: vui lòng thử lại.' } as AuthError;
             }
 
             setState(prev => ({
