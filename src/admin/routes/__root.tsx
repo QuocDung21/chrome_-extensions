@@ -1,12 +1,10 @@
 /**
  * Root Route Component
  *
- * This component handles automatic redirects to /template-filler when:
- * 1. User visits the root path (/) or /dashboard
- * 2. User refreshes the page (F5) from any route other than /template-filler
- *
- * The redirect behavior ensures users always land on the template-filler page
- * after page refreshes, providing a consistent user experience.
+ * This component handles both admin routes (with layout) and standalone auth routes (without layout):
+ * - Signin and signup routes render without AdminLayout
+ * - All other routes render with AdminLayout
+ * - Handles automatic redirects to /dashboard for 404s
  */
 import { useEffect, useRef } from 'react';
 
@@ -28,6 +26,17 @@ function NotFound() {
 }
 
 function Layout() {
+    const location = useLocation();
+    
+    // Check if current route is a standalone auth route
+    const isAuthRoute = location.pathname === '/signin' || location.pathname === '/signup';
+    
+    if (isAuthRoute) {
+        // Render auth routes without admin layout
+        return <Outlet />;
+    }
+    
+    // Render admin routes with layout
     return (
         <AdminLayout>
             <Outlet />

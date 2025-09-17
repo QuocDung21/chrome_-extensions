@@ -11,6 +11,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as SignupRouteImport } from './routes/signup'
+import { Route as SigninRouteImport } from './routes/signin'
 
 const TemplateFillerIndexLazyRouteImport =
   createFileRoute('/template-filler/')()
@@ -26,6 +28,16 @@ const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 
+const SignupRoute = SignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SigninRoute = SigninRouteImport.update({
+  id: '/signin',
+  path: '/signin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const TemplateFillerIndexLazyRoute = TemplateFillerIndexLazyRouteImport.update({
   id: '/template-filler/',
   path: '/template-filler/',
@@ -93,6 +105,8 @@ const AnalyticsIndexLazyRoute = AnalyticsIndexLazyRouteImport.update({
 )
 
 export interface FileRoutesByFullPath {
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
@@ -105,6 +119,8 @@ export interface FileRoutesByFullPath {
   '/template-filler': typeof TemplateFillerIndexLazyRoute
 }
 export interface FileRoutesByTo {
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
@@ -118,6 +134,8 @@ export interface FileRoutesByTo {
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/signin': typeof SigninRoute
+  '/signup': typeof SignupRoute
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
   '/forms/': typeof FormsIndexLazyRoute
@@ -132,6 +150,8 @@ export interface FileRoutesById {
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
+    | '/signin'
+    | '/signup'
     | '/analytics'
     | '/dashboard'
     | '/forms'
@@ -144,6 +164,8 @@ export interface FileRouteTypes {
     | '/template-filler'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/signin'
+    | '/signup'
     | '/analytics'
     | '/dashboard'
     | '/forms'
@@ -156,6 +178,8 @@ export interface FileRouteTypes {
     | '/template-filler'
   id:
     | '__root__'
+    | '/signin'
+    | '/signup'
     | '/analytics/'
     | '/dashboard/'
     | '/forms/'
@@ -169,6 +193,8 @@ export interface FileRouteTypes {
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  SigninRoute: typeof SigninRoute
+  SignupRoute: typeof SignupRoute
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
   FormsIndexLazyRoute: typeof FormsIndexLazyRoute
@@ -183,6 +209,20 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/signup': {
+      id: '/signup'
+      path: '/signup'
+      fullPath: '/signup'
+      preLoaderRoute: typeof SignupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/signin': {
+      id: '/signin'
+      path: '/signin'
+      fullPath: '/signin'
+      preLoaderRoute: typeof SigninRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/template-filler/': {
       id: '/template-filler/'
       path: '/template-filler'
@@ -257,6 +297,8 @@ declare module '@tanstack/react-router' {
 }
 
 const rootRouteChildren: RootRouteChildren = {
+  SigninRoute: SigninRoute,
+  SignupRoute: SignupRoute,
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
   FormsIndexLazyRoute: FormsIndexLazyRoute,
