@@ -11,6 +11,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as VerifyEmailRouteImport } from './routes/verify-email'
 import { Route as SignupRouteImport } from './routes/signup'
 import { Route as SigninRouteImport } from './routes/signin'
 
@@ -28,6 +29,11 @@ const FormsIndexLazyRouteImport = createFileRoute('/forms/')()
 const DashboardIndexLazyRouteImport = createFileRoute('/dashboard/')()
 const AnalyticsIndexLazyRouteImport = createFileRoute('/analytics/')()
 
+const VerifyEmailRoute = VerifyEmailRouteImport.update({
+  id: '/verify-email',
+  path: '/verify-email',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SignupRoute = SignupRouteImport.update({
   id: '/signup',
   path: '/signup',
@@ -107,6 +113,7 @@ const AnalyticsIndexLazyRoute = AnalyticsIndexLazyRouteImport.update({
 export interface FileRoutesByFullPath {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
@@ -121,6 +128,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/analytics': typeof AnalyticsIndexLazyRoute
   '/dashboard': typeof DashboardIndexLazyRoute
   '/forms': typeof FormsIndexLazyRoute
@@ -136,6 +144,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/signin': typeof SigninRoute
   '/signup': typeof SignupRoute
+  '/verify-email': typeof VerifyEmailRoute
   '/analytics/': typeof AnalyticsIndexLazyRoute
   '/dashboard/': typeof DashboardIndexLazyRoute
   '/forms/': typeof FormsIndexLazyRoute
@@ -152,6 +161,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/signin'
     | '/signup'
+    | '/verify-email'
     | '/analytics'
     | '/dashboard'
     | '/forms'
@@ -166,6 +176,7 @@ export interface FileRouteTypes {
   to:
     | '/signin'
     | '/signup'
+    | '/verify-email'
     | '/analytics'
     | '/dashboard'
     | '/forms'
@@ -180,6 +191,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/signin'
     | '/signup'
+    | '/verify-email'
     | '/analytics/'
     | '/dashboard/'
     | '/forms/'
@@ -195,6 +207,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   SigninRoute: typeof SigninRoute
   SignupRoute: typeof SignupRoute
+  VerifyEmailRoute: typeof VerifyEmailRoute
   AnalyticsIndexLazyRoute: typeof AnalyticsIndexLazyRoute
   DashboardIndexLazyRoute: typeof DashboardIndexLazyRoute
   FormsIndexLazyRoute: typeof FormsIndexLazyRoute
@@ -209,6 +222,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/verify-email': {
+      id: '/verify-email'
+      path: '/verify-email'
+      fullPath: '/verify-email'
+      preLoaderRoute: typeof VerifyEmailRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/signup': {
       id: '/signup'
       path: '/signup'
@@ -299,6 +319,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   SigninRoute: SigninRoute,
   SignupRoute: SignupRoute,
+  VerifyEmailRoute: VerifyEmailRoute,
   AnalyticsIndexLazyRoute: AnalyticsIndexLazyRoute,
   DashboardIndexLazyRoute: DashboardIndexLazyRoute,
   FormsIndexLazyRoute: FormsIndexLazyRoute,
