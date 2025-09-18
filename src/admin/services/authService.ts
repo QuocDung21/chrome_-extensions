@@ -24,14 +24,15 @@ export interface LoginResponse {
 
 // Raw API response shape
 interface ApiLoginResponse {
-    UserId: string;
-    TokenType: string;
-    AccessToken: string;
-    ExpiresIn: number;
-    RefreshToken: string;
-    ErrorMessage?: string | null;
-    LienKetID?: string | null;
-    NhomNguoiDung?: string | null;
+    Succeeded: boolean;
+    Errors: string[];
+    Result: {
+        UserId: string;
+        TokenType: string;
+        AccessToken: string;
+        ExpiresIn: number;
+        RefreshToken: string;
+    };
 }
 
 export interface AuthError {
@@ -67,9 +68,10 @@ class AuthService {
             const data = response.data;
 
             // Handle server-returned error message even on 200
-            if (!data?.AccessToken || data?.ErrorMessage) {
+            if (!data?.Succeeded || data?.Errors?.length > 0 || !data?.Result?.AccessToken) {
+                const errorMessage = data?.Errors?.join(', ') || 'Đăng nhập thất bại';
                 throw {
-                    message: data?.ErrorMessage || 'Đăng nhập thất bại',
+                    message: errorMessage,
                     status: 400,
                     code: 'LOGIN_FAILED'
                 } as AuthError;
@@ -77,16 +79,16 @@ class AuthService {
 
             // Map API response to internal shape
             const mapped: LoginResponse = {
-                token: data.AccessToken,
-                refreshToken: data.RefreshToken,
-                expiresIn: data.ExpiresIn,
-                tokenType: data.TokenType,
+                token: data.Result.AccessToken,
+                refreshToken: data.Result.RefreshToken,
+                expiresIn: data.Result.ExpiresIn,
+                tokenType: data.Result.TokenType,
                 user: {
-                    id: data.UserId,
+                    id: data.Result.UserId,
                     name: undefined,
                     email: undefined,
-                    groupName: data.NhomNguoiDung ?? undefined,
-                    linkId: data.LienKetID ?? undefined
+                    groupName: undefined,
+                    linkId: undefined
                 }
             };
 
