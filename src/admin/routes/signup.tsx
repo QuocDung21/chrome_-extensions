@@ -1,11 +1,14 @@
-import { ReactElement, useState } from 'react';
+import { ReactElement, useEffect, useState } from 'react';
 
 import {
-    Visibility as VisibilityIcon,
-    VisibilityOff as VisibilityOffIcon,
+    Business as BusinessIcon,
     Email as EmailIcon,
+    Home as HomeIcon,
     Lock as LockIcon,
-    Person as PersonIcon
+    Person as PersonIcon,
+    Phone as PhoneIcon,
+    Visibility as VisibilityIcon,
+    VisibilityOff as VisibilityOffIcon
 } from '@mui/icons-material';
 import {
     Alert,
@@ -14,83 +17,163 @@ import {
     Button,
     Card,
     CardContent,
+    Checkbox,
     Container,
+    FormControlLabel,
     IconButton,
     InputAdornment,
+    Link as MuiLink,
     TextField,
-    Typography,
-    Link as MuiLink
+    Typography
 } from '@mui/material';
-import { createFileRoute, Link } from '@tanstack/react-router';
-import type { FileRouteTypes } from '../routeTree.gen';
+import { Link, createFileRoute } from '@tanstack/react-router';
 
 import { useRedirectIfAuthenticated } from '../hooks/useAuth';
+import type { FileRouteTypes } from '../routeTree.gen';
+import signupService, { SignupRequest } from '../services/signupService';
 
 function SignUp(): ReactElement {
     const { isAuthenticated } = useRedirectIfAuthenticated();
     const [formData, setFormData] = useState({
-        firstName: '',
-        lastName: '',
+        fullName: '',
         email: '',
+        phone: '',
+        address: '',
+        taxCode: '',
         password: '',
-        confirmPassword: ''
+        privacyPolicy: false
     });
     const [showPassword, setShowPassword] = useState(false);
-    const [showConfirmPassword, setShowConfirmPassword] = useState(false);
     const [isLoading, setIsLoading] = useState(false);
+    const [isCheckingEmail, setIsCheckingEmail] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    // Instead of a string
+    const [emailError, setEmailError] = useState<{ code?: number; message: string } | null>(null);
 
     // Redirect if already authenticated
     if (isAuthenticated) {
         return <></>;
     }
 
+    // Email validation with debouncing
+    useEffect(() => {
+        const checkEmail = async () => {
+            if (!formData.email || formData.email.length < 5) {
+                setEmailError(null);
+                setIsCheckingEmail(false);
+                return;
+            }
+
+            setIsCheckingEmail(true);
+            setEmailError(null);
+
+            try {
+                const response = await signupService.checkEmail(formData.email);
+                if (!response.Succeeded) {
+                    const msg = response.Errors.join(', ');
+                    const match = msg.match(/^(\d+)_+(.*)$/);
+                    if (match) {
+                        setEmailError({ code: parseInt(match[1], 10), message: match[2].trim() });
+                    } else {
+                        setEmailError({ message: msg });
+                    }
+                } else {
+                    setEmailError(null);
+                }
+            } catch (err: any) {
+                setEmailError({
+                    code: err.code ? parseInt(err.code, 10) : undefined,
+                    message: err.message
+                });
+            } finally {
+                setIsCheckingEmail(false);
+            }
+        };
+
+        const timeoutId = setTimeout(checkEmail, 800);
+        return () => clearTimeout(timeoutId);
+    }, [formData.email]);
+
     const handleInputChange = (field: string) => (event: React.ChangeEvent<HTMLInputElement>) => {
         setFormData(prev => ({
             ...prev,
             [field]: event.target.value
         }));
-        
+
         // Clear error when user starts typing
         if (error) {
             setError(null);
         }
     };
 
+    const handleCheckboxChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+        setFormData(prev => ({
+            ...prev,
+            privacyPolicy: event.target.checked
+        }));
+    };
+
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();
-        
+
         // Clear previous errors
         setError(null);
-        
+
         // Basic validation
-        if (!formData.firstName || !formData.lastName || !formData.email || !formData.password) {
+        if (
+            !formData.fullName ||
+            !formData.email ||
+            !formData.phone ||
+            !formData.address ||
+            !formData.taxCode ||
+            !formData.password
+        ) {
             setError('Vui lòng điền đầy đủ thông tin');
             return;
         }
-        
-        if (formData.password !== formData.confirmPassword) {
-            setError('Mật khẩu xác nhận không khớp!');
-            return;
-        }
-        
+
         if (formData.password.length < 6) {
             setError('Mật khẩu phải có ít nhất 6 ký tự!');
             return;
         }
 
+        if (!formData.privacyPolicy) {
+            setError('Vui lòng đồng ý với điều khoản và chính sách quyền riêng tư');
+            return;
+        }
+
+        if (emailError) {
+            setError('Email không hợp lệ. Vui lòng kiểm tra lại.');
+            return;
+        }
+
         setIsLoading(true);
-        
+
         try {
-            // For now, just simulate API call
-            // In a real app, you would call a signup API here
-            await new Promise(resolve => setTimeout(resolve, 1000));
-            
+            const signupData: SignupRequest = {
+                HoVaTen: formData.fullName,
+                Email: formData.email,
+                SoDienThoai: formData.phone,
+                DiaChi: formData.address,
+                MaSoThue: formData.taxCode,
+                MatMa: formData.password,
+                BaseUrl: window.location.origin,
+                ChinhSachQuyenRiengTu: formData.privacyPolicy
+            };
+
+            const response = await signupService.signup(signupData);
+
+            if (!response.Succeeded) {
+                const msg = response.Errors.join(', ');
+                const clean = msg.replace(/^\d+_+/, '');
+                setError(clean);
+                return;
+            }
+
             // After successful signup, redirect to signin
-            // In a real app, you might want to auto-login or show success message
             window.location.href = `#${'/signin' as FileRouteTypes['to']}`;
-        } catch (err) {
-            setError('Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại.');
+        } catch (err: any) {
+            setError(err.message || 'Đã xảy ra lỗi khi đăng ký. Vui lòng thử lại.');
         } finally {
             setIsLoading(false);
         }
@@ -98,10 +181,6 @@ function SignUp(): ReactElement {
 
     const togglePasswordVisibility = () => {
         setShowPassword(prev => !prev);
-    };
-
-    const toggleConfirmPasswordVisibility = () => {
-        setShowConfirmPassword(prev => !prev);
     };
 
     return (
@@ -131,48 +210,45 @@ function SignUp(): ReactElement {
                             <Typography component="h1" variant="h4" sx={{ mb: 2, fontWeight: 600 }}>
                                 Đăng ký
                             </Typography>
-                            <Typography variant="body2" color="text.secondary" sx={{ mb: 3, textAlign: 'center' }}>
+                            <Typography
+                                variant="body2"
+                                color="text.secondary"
+                                sx={{ mb: 3, textAlign: 'center' }}
+                            >
                                 Tạo tài khoản mới để bắt đầu sử dụng dịch vụ của chúng tôi.
                             </Typography>
                         </Box>
 
                         <Box component="form" onSubmit={handleSubmit} sx={{ mt: 1 }}>
                             {error && (
-                                <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
+                                <Alert
+                                    severity="error"
+                                    sx={{ mb: 2 }}
+                                    onClose={() => setError(null)}
+                                >
                                     {error}
                                 </Alert>
                             )}
-                            
-                            <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-                                <TextField
-                                    required
-                                    fullWidth
-                                    id="firstName"
-                                    label="Họ"
-                                    name="firstName"
-                                    autoComplete="given-name"
-                                    value={formData.firstName}
-                                    onChange={handleInputChange('firstName')}
-                                    InputProps={{
-                                        startAdornment: (
-                                            <InputAdornment position="start">
-                                                <PersonIcon color="action" />
-                                            </InputAdornment>
-                                        )
-                                    }}
-                                />
-                                <TextField
-                                    required
-                                    fullWidth
-                                    id="lastName"
-                                    label="Tên"
-                                    name="lastName"
-                                    autoComplete="family-name"
-                                    value={formData.lastName}
-                                    onChange={handleInputChange('lastName')}
-                                />
-                            </Box>
-                            
+
+                            <TextField
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="fullName"
+                                label="Họ và tên"
+                                name="fullName"
+                                autoComplete="name"
+                                value={formData.fullName}
+                                onChange={handleInputChange('fullName')}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <PersonIcon color="action" />
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+
                             <TextField
                                 margin="normal"
                                 required
@@ -183,6 +259,40 @@ function SignUp(): ReactElement {
                                 autoComplete="email"
                                 value={formData.email}
                                 onChange={handleInputChange('email')}
+                                error={!!emailError} // stays boolean
+                                helperText={
+                                    emailError ? (
+                                        <>
+                                            <span>{emailError.message}</span>
+                                            {emailError.code === 1 && (
+                                                <Button
+                                                    component={Link}
+                                                    to={'/signin' as FileRouteTypes['to']}
+                                                    size="small"
+                                                    sx={{ ml: 1, textTransform: 'none' }}
+                                                >
+                                                    Đăng nhập ngay
+                                                </Button>
+                                            )}
+                                            {emailError.code === 2 && (
+                                                <Button
+                                                    component={Link}
+                                                    to={
+                                                        `/verify-email?email=${encodeURIComponent(formData.email)}` as FileRouteTypes['to']
+                                                    }
+                                                    size="small"
+                                                    sx={{ ml: 1, textTransform: 'none' }}
+                                                >
+                                                    Xác thực email
+                                                </Button>
+                                            )}
+                                        </>
+                                    ) : isCheckingEmail ? (
+                                        'Đang kiểm tra email...'
+                                    ) : (
+                                        ''
+                                    )
+                                }
                                 InputProps={{
                                     startAdornment: (
                                         <InputAdornment position="start">
@@ -191,7 +301,63 @@ function SignUp(): ReactElement {
                                     )
                                 }}
                             />
-                            
+
+                            <TextField
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="phone"
+                                label="Số điện thoại"
+                                name="phone"
+                                autoComplete="tel"
+                                value={formData.phone}
+                                onChange={handleInputChange('phone')}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <PhoneIcon color="action" />
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+
+                            <TextField
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="address"
+                                label="Địa chỉ"
+                                name="address"
+                                autoComplete="address-line1"
+                                value={formData.address}
+                                onChange={handleInputChange('address')}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <HomeIcon color="action" />
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+
+                            <TextField
+                                margin="normal"
+                                required
+                                fullWidth
+                                id="taxCode"
+                                label="Mã số thuế"
+                                name="taxCode"
+                                value={formData.taxCode}
+                                onChange={handleInputChange('taxCode')}
+                                InputProps={{
+                                    startAdornment: (
+                                        <InputAdornment position="start">
+                                            <BusinessIcon color="action" />
+                                        </InputAdornment>
+                                    )
+                                }}
+                            />
+
                             <TextField
                                 margin="normal"
                                 required
@@ -216,58 +382,47 @@ function SignUp(): ReactElement {
                                                 onClick={togglePasswordVisibility}
                                                 edge="end"
                                             >
-                                                {showPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
+                                                {showPassword ? (
+                                                    <VisibilityOffIcon />
+                                                ) : (
+                                                    <VisibilityIcon />
+                                                )}
                                             </IconButton>
                                         </InputAdornment>
                                     )
                                 }}
                             />
-                            
-                            <TextField
-                                margin="normal"
-                                required
-                                fullWidth
-                                name="confirmPassword"
-                                label="Xác nhận mật khẩu"
-                                type={showConfirmPassword ? 'text' : 'password'}
-                                id="confirmPassword"
-                                autoComplete="new-password"
-                                value={formData.confirmPassword}
-                                onChange={handleInputChange('confirmPassword')}
-                                InputProps={{
-                                    startAdornment: (
-                                        <InputAdornment position="start">
-                                            <LockIcon color="action" />
-                                        </InputAdornment>
-                                    ),
-                                    endAdornment: (
-                                        <InputAdornment position="end">
-                                            <IconButton
-                                                aria-label="toggle confirm password visibility"
-                                                onClick={toggleConfirmPasswordVisibility}
-                                                edge="end"
-                                            >
-                                                {showConfirmPassword ? <VisibilityOffIcon /> : <VisibilityIcon />}
-                                            </IconButton>
-                                        </InputAdornment>
-                                    )
-                                }}
+
+                            <FormControlLabel
+                                control={
+                                    <Checkbox
+                                        checked={formData.privacyPolicy}
+                                        onChange={handleCheckboxChange}
+                                        color="primary"
+                                    />
+                                }
+                                label="Tôi đồng ý với điều khoản và dịch vụ, chính sách quyền riêng tư"
+                                sx={{ mt: 2, mb: 1 }}
                             />
-                            
+
                             <Button
                                 type="submit"
                                 fullWidth
                                 variant="contained"
-                                sx={{ mt: 3, mb: 2, py: 1.5 }}
-                                disabled={isLoading}
+                                sx={{ mt: 2, mb: 2, py: 1.5 }}
+                                disabled={isLoading || isCheckingEmail || !!emailError}
                             >
                                 {isLoading ? 'Đang tạo tài khoản...' : 'Đăng ký'}
                             </Button>
-                            
+
                             <Box sx={{ textAlign: 'center' }}>
                                 <Typography variant="body2">
                                     Đã có tài khoản?{' '}
-                                    <MuiLink component={Link} to={'/signin' as FileRouteTypes['to']} variant="body2">
+                                    <MuiLink
+                                        component={Link}
+                                        to={'/signin' as FileRouteTypes['to']}
+                                        variant="body2"
+                                    >
                                         Đăng nhập ngay
                                     </MuiLink>
                                 </Typography>
