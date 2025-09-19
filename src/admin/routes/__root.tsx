@@ -34,7 +34,7 @@ function Layout() {
     const { isAuthenticated, isLoading } = useAuth();
     
     // Check if current route is a standalone auth route
-    const isAuthRoute = location.pathname === '/signin' || location.pathname === '/signup';
+    const isAuthRoute = location.pathname === '/signin' || location.pathname === '/signup' || location.pathname === '/verify-email';
     
     if (isAuthRoute) {
         // Render auth routes without admin layout
