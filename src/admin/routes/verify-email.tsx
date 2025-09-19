@@ -6,9 +6,7 @@ import { createFileRoute, useSearch } from '@tanstack/react-router';
 import signupService from '../services/signupService';
 
 function VerifyEmail(): ReactElement {
-    const search = useSearch({ from: '/verify-email' });
-    const email = (search as any)?.email as string | undefined;
-    const auto = (search as any)?.auto as string | undefined;
+    const { email, auto } = Route.useSearch();
 
     useEffect(() => {
         const run = async () => {
@@ -57,9 +55,9 @@ function VerifyEmail(): ReactElement {
                         Chỉ còn một bước nữa thôi. Kiểm tra email {email || ''} để xác thực và bắt đầu sử dụng ngay
                         lập tức.
                     </Typography>
-                    <Button variant="contained" onClick={handleResend} sx={{ mt: 1 }}>
+                    {/* <Button variant="contained" onClick={handleResend} sx={{ mt: 1 }}>
                         Xác thực email
-                    </Button>
+                    </Button> */}
                     <Button variant="outlined" onClick={handleOpenGmail}>
                         Mở Gmail
                     </Button>
