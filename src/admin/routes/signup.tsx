@@ -26,7 +26,7 @@ import {
     TextField,
     Typography
 } from '@mui/material';
-import { Link, createFileRoute } from '@tanstack/react-router';
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router';
 
 import { useRedirectIfAuthenticated } from '../hooks/useAuth';
 import type { FileRouteTypes } from '../routeTree.gen';
@@ -34,6 +34,7 @@ import signupService, { SignupRequest } from '../services/signupService';
 
 function SignUp(): ReactElement {
     const { isAuthenticated } = useRedirectIfAuthenticated();
+    const navigate = useNavigate();
     const [formData, setFormData] = useState({
         fullName: '',
         email: '',
@@ -183,6 +184,25 @@ function SignUp(): ReactElement {
         setShowPassword(prev => !prev);
     };
 
+    const handleVerifyEmailClick = async () => {
+        console.log("handleVerifyEmailClick");
+        if (!formData.email) return;
+        
+        try {
+            const response = await signupService.resendVerification(formData.email);
+            if (response.Succeeded === true) {
+                navigate({
+                    to: '/verify-email' as FileRouteTypes['to'],
+                    search: { email: formData.email }
+                });
+            } else {
+                setError('Không thể gửi email xác thực. Vui lòng thử lại.');
+            }
+        } catch (error: any) {
+            setError('Đã xảy ra lỗi khi gửi email xác thực. Vui lòng thử lại.');
+        }
+    };
+
     return (
         <Container component="main" maxWidth="sm">
             <Box
@@ -276,10 +296,7 @@ function SignUp(): ReactElement {
                                             )}
                                             {emailError.code === 2 && (
                                                 <Button
-                                                    component={Link}
-                                                    to={
-                                                        `/verify-email?email=${encodeURIComponent(formData.email)}` as FileRouteTypes['to']
-                                                    }
+                                                    onClick={handleVerifyEmailClick}
                                                     size="small"
                                                     sx={{ ml: 1, textTransform: 'none' }}
                                                 >
