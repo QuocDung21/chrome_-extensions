@@ -84,6 +84,7 @@ import { WorkingDocument, db } from '@/admin/db/db';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { thuTucHCRepository } from '@/admin/repository/ThuTucHCRepository';
+import { chuyenDoiApiService } from '@/admin/services/chuyenDoiService';
 import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
@@ -295,6 +296,11 @@ const createFilterOptionsFromIndexDB = (
         thuTucByLinhVuc
     };
 };
+
+// Tạo filter options cho lĩnh vực từ linhVucList trực tiếp
+const createLinhVucFilterOptions = (linhVucList: LinhVuc[]): string[] => {
+    return linhVucList.map(lv => lv.tenLinhVuc).sort();
+};
 const sanitizeCodeForPath = (code: string): string => (code || '').replace(/[\\/]/g, '_').trim();
 const buildDocxUrlForRecord = (record: TTHCRecord, mauDon: MauDon): string => {
     const code = sanitizeCodeForPath(record.maTTHC);
@@ -378,6 +384,32 @@ const processDataIntelligently = (data: string): any => {
             return { cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap };
         }
         throw new Error('Định dạng dữ liệu không được hỗ trợ');
+    }
+};
+
+// Hàm chuyển đổi địa chỉ sử dụng API
+const convertAddress = async (address: string): Promise<string> => {
+    if (!address || address.trim() === '') {
+        return address;
+    }
+
+    try {
+        console.log('🔄 Converting address:', address);
+        const result = await chuyenDoiApiService.chuyenDoiDiaBan(address);
+
+        if (result.success && result.data?.Succeeded) {
+            console.log('✅ Address converted successfully:', result.data.Result);
+            return result.data.Result;
+        } else {
+            console.warn(
+                '⚠️ Address conversion failed, using original address:',
+                result.error?.message
+            );
+            return address;
+        }
+    } catch (error) {
+        console.error('❌ Error converting address:', error);
+        return address; // Return original address if conversion fails
     }
 };
 
@@ -617,6 +649,10 @@ const applyDataToSyncfusion = async (
         }
         const { day: dayCurrent, month: monthCurent, year: yearCurrent } = getCurrentDateParts();
 
+        // Convert address before applying
+        const originalAddress = data.diaChi || data.noiCuTru || data.noi_cu_tru || '';
+        const convertedAddress = await convertAddress(originalAddress);
+
         // Create replace map for exact placeholder matching with optional target suffix
         const suffix = targetSuffix ? `_${targetSuffix}` : '';
         const replaceMap: Record<string, string> = {
@@ -625,7 +661,7 @@ const applyDataToSyncfusion = async (
             [`{so_cmnd${suffix}}`]: data.so_cmnd || data.cmnd || '',
             [`{ngay_sinh${suffix}}`]: data.ngaySinh || data.ngay_sinh || '',
             [`{gioi_tinh${suffix}}`]: data.gioiTinh || data.gioi_tinh || '',
-            [`{noi_cu_tru${suffix}}`]: data.diaChi || data.noiCuTru || data.noi_cu_tru || '',
+            [`{noi_cu_tru${suffix}}`]: convertedAddress,
             [`{ngay_cap${suffix}}`]: data.ngayCap || data.ngay_cap || '',
             // Current date time
             '{ngay_hientai}': dayCurrent.toString() || '',
@@ -673,6 +709,12 @@ function TemplateFillerComponent() {
     const [linhVucLoading, setLinhVucLoading] = useState(false);
     const [isDataSynced, setIsDataSynced] = useState(false);
     const [showSyncPanel, setShowSyncPanel] = useState(false);
+
+    const testData = db.linhVuc.toArray();
+
+    useEffect(() => {
+        console.log('testData', testData);
+    }, [testData]);
 
     // Add currentCodeRef for template management
     const currentCodeRef = useRef<string>('');
@@ -1367,12 +1409,17 @@ function TemplateFillerComponent() {
     const memoizedFilterOptions = useMemo(() => {
         if (thuTucHcList.length > 0 && linhVucList.length > 0) {
             const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
+            // Sử dụng linhVucList trực tiếp cho combo box lĩnh vực
+            const linhVucOptions = createLinhVucFilterOptions(linhVucList);
             console.log('✅ Updated filter options from IndexedDB data:', {
-                linhVuc: options.linhVuc.length,
+                linhVuc: linhVucOptions.length,
                 doiTuong: options.doiTuong.length,
                 capThucHien: options.capThucHien.length
             });
-            return options;
+            return {
+                ...options,
+                linhVuc: linhVucOptions
+            };
         }
         return {
             linhVuc: [],
@@ -1380,7 +1427,7 @@ function TemplateFillerComponent() {
             capThucHien: [],
             thuTucByLinhVuc: {}
         };
-    }, [thuTucHcList.length, linhVucList.length]);
+    }, [thuTucHcList, linhVucList]);
 
     // Update filter options only when memoized value changes
     useEffect(() => {
@@ -1464,11 +1511,11 @@ function TemplateFillerComponent() {
                 }
 
                 // Show success message
-                setSnackbar({
-                    open: true,
-                    message: `Đã tải lĩnh vực từ ${synced ? 'IndexedDB' : 'cơ sở dữ liệu'}`,
-                    severity: 'success'
-                });
+                // setSnackbar({
+                //     open: true,
+                //     message: `Đã tải lĩnh vực từ ${synced ? 'IndexedDB' : 'cơ sở dữ liệu'}`,
+                //     severity: 'success'
+                // });
             } catch (error) {
                 console.error('❌ Error loading lĩnh vực:', error);
                 setSnackbar({
@@ -1544,6 +1591,13 @@ function TemplateFillerComponent() {
                     console.log('🎯 Current selected target:', targetState.selectedTarget);
                     const processingData = Utils.convertScannedInfoToProcessingData(data);
                     console.log('🔄 Converted mobile data to ProcessingData:', processingData);
+                    console.log(
+                        'first',
+                        processingData.diaChi ||
+                            processingData.noiCuTru ||
+                            processingData.noi_cu_tru
+                    );
+
                     const success = await applyDataToSyncfusion(
                         sfContainerRef.current,
                         processingData,
@@ -1719,6 +1773,22 @@ function TemplateFillerComponent() {
                 ngaySinh: formatDDMMYYYY(scannedInfo.ngaySinh),
                 ngayCap: formatDDMMYYYY(scannedInfo.ngayCap)
             });
+
+            // Convert address if present
+            if (processingData.diaChi || processingData.noiCuTru || processingData.noi_cu_tru) {
+                const originalAddress =
+                    processingData.diaChi ||
+                    processingData.noiCuTru ||
+                    processingData.noi_cu_tru ||
+                    '';
+                const convertedAddress = await convertAddress(originalAddress);
+
+                // Update the processing data with converted address
+                processingData.diaChi = convertedAddress;
+                processingData.noiCuTru = convertedAddress;
+                processingData.noi_cu_tru = convertedAddress;
+            }
+
             setScanState(prev => ({
                 ...prev,
                 extractedData: processingData,
