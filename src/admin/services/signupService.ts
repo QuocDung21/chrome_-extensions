@@ -121,8 +121,8 @@ class SignupService {
             if (rawDetail) {
                 const match = rawDetail.match(/^(\d+)[\s_]+(.+)$/);
                 if (match) {
-                    code = match[1];       // "1"
-                    message = match[2];    // "Tài khoản chưa được kích hoạt."
+                    code = match[1];
+                    message = match[2]; 
                 } else {
                     message = rawDetail;
                 }
