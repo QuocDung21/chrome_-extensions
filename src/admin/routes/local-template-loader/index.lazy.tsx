@@ -167,7 +167,6 @@ function LocalTemplateLoaderComponent() {
 
     useEffect(() => {
         const restoreDirectory = async () => {
-            console.log('🔄 Đang cố gắng khôi phục thư mục từ IndexedDB...');
             const savedHandle = await getDirectoryHandle();
             if (savedHandle) {
                 console.log('✅ Tìm thấy thư mục đã lưu. Đang xác minh quyền...');

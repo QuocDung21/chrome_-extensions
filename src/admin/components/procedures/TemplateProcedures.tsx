@@ -3,10 +3,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { renderAsync } from 'docx-preview';
 import { saveAs } from 'file-saver';
 
-// --- THƯ VIỆN ---
-
-// --- ICON ---
-
 import {
     AddCircleOutline as AddCircleOutlineIcon,
     Close,
@@ -68,9 +64,11 @@ import { createLazyFileRoute, useNavigate, useRouter } from '@tanstack/react-rou
 
 import { ConfigConstant } from '@/admin/constant/config.constant';
 import { WorkingDocument, db } from '@/admin/db/db';
+import { doiTuongThucHienRepository } from '@/admin/repository/DoiTuongThucHienRepository';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { dataSyncService } from '@/admin/services/dataSyncService';
+import { DoiTuongThucHien } from '@/admin/services/doiTuongService';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
 import { ThuTucHanhChinh, thuTucHanhChinhApiService } from '@/admin/services/thuTucHanhChinh';
 
@@ -300,6 +298,7 @@ const TemplateCard = React.memo<{
         workingDocumentsCount = 0
     }) => {
         const hasTemplates = record.danhSachMauDon && record.danhSachMauDon.length > 0;
+
         return (
             <Card
                 variant="outlined"
@@ -508,6 +507,23 @@ function TemplateProceduresComponent({
         uploadedTemplateUrl: null,
         uploadedTemplateName: null
     });
+    const [doiTuongThucHienList, setDoiTuongThucHienList] = useState<DoiTuongThucHien[]>([]);
+
+    const [doiTuongDict, setDoiTuongDict] = useState<Record<string, string>>({});
+    const [doiTuongList, setDoiTuongList] = useState<string[]>([]);
+
+    useEffect(() => {
+        (async () => {
+            const items = await doiTuongThucHienRepository.getAll();
+            // dict: mã -> tên
+            setDoiTuongDict(
+                Object.fromEntries(items.map(i => [i.maDoiTuongThucHien, i.tenDoiTuongThucHien]))
+            );
+            // list: chỉ tên (phục vụ Autocomplete nếu cần)
+            setDoiTuongList(items.map(i => i.tenDoiTuongThucHien));
+        })();
+    }, []);
+
     const [confirmDialog, setConfirmDialog] = useState<{
         open: boolean;
         id?: number;
@@ -1804,6 +1820,40 @@ function TemplateProceduresComponent({
 
     // Load lĩnh vực data from repository
     useEffect(() => {
+        const loadDoiTuongThucHien = async () => {
+            const data = await doiTuongThucHienRepository.getAll();
+            setDoiTuongThucHienList(data);
+            console.log('loadDoiTuongThucHien', data);
+            try {
+                const synced = await dataSyncService.isDataSynced();
+                if (synced) {
+                    const data = await db.doiTuongThucHien.toArray();
+                    setDoiTuongThucHienList(data);
+                    console.log(
+                        '✅ Loaded đối tượng thực hiện from IndexedDB:',
+                        data.length,
+                        'items'
+                    );
+                } else {
+                    const data = await doiTuongThucHienRepository.getAll();
+                    setDoiTuongThucHienList(data);
+                    console.log(
+                        '📡 Loaded đối tượng thực hiện from repository:',
+                        data.length,
+                        'items'
+                    );
+                }
+            } catch (error) {
+                console.error('❌ Error loading lđối tượng thực hiện:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể tải danh sách đối tượng thực hiện',
+                    severity: 'error'
+                });
+            } finally {
+                setLinhVucLoading(false);
+            }
+        };
         const loadLinhVuc = async () => {
             setLinhVucLoading(true);
             try {
@@ -1828,8 +1878,8 @@ function TemplateProceduresComponent({
                 setLinhVucLoading(false);
             }
         };
-
         loadLinhVuc();
+        loadDoiTuongThucHien();
     }, []);
 
     // Load working documents from IndexedDB on component mount
@@ -2467,31 +2517,38 @@ function TemplateProceduresComponent({
                             );
                         }}
                     />
-
                     <Autocomplete
                         size="small"
-                        sx={{ minWidth: 200, maxWidth: 200 }}
-                        options={[]} // Temporarily empty - could be populated from API data if needed
-                        value={filters.doiTuong || null}
-                        onChange={(e, newValue) => handleFilterChange('doiTuong', newValue || '')}
-                        renderInput={params => (
-                            <TextField {...params} label="Đối tượng" placeholder="Tất cả" />
-                        )}
-                    />
-                    <Autocomplete
-                        size="small"
-                        sx={{ minWidth: 200, maxWidth: 200 }}
-                        options={[]}
-                        value={filters.capThucHien || null}
+                        options={doiTuongThucHienList.map(dt => ({
+                            label: dt.tenDoiTuongThucHien,
+                            value: dt.maDoiTuongThucHien
+                        }))}
+                        getOptionLabel={option => option.label}
+                        value={
+                            filters.doiTuong
+                                ? {
+                                      label:
+                                          doiTuongThucHienList.find(
+                                              dt => dt.maDoiTuongThucHien === filters.doiTuong
+                                          )?.tenDoiTuongThucHien || '',
+                                      value: filters.doiTuong
+                                  }
+                                : null
+                        }
                         onChange={(e, newValue) =>
-                            handleFilterChange('capThucHien', newValue || '')
+                            handleFilterChange('doiTuong', newValue?.value || '')
                         }
                         renderInput={params => (
-                            <TextField {...params} label="Cấp thực hiện" placeholder="Tất cả" />
+                            <TextField
+                                {...params}
+                                label="Đối tượng thực hiện"
+                                placeholder="Chọn đối tượng..."
+                                variant="outlined"
+                            />
                         )}
+                        sx={{ minWidth: 220 }}
                     />
                 </Box>
-                {/* Template List */}
                 <Card
                     sx={{
                         borderRadius: 1,
@@ -2652,6 +2709,7 @@ function TemplateProceduresComponent({
                                             hasWorkingDocuments={hasWorkingDocuments(
                                                 data.maThuTucHanhChinh
                                             )}
+                                            doiTuongDict={doiTuongDict}
                                             workingDocumentsCount={
                                                 getWorkingDocumentsForMaTTHC(data.maThuTucHanhChinh)
                                                     .length

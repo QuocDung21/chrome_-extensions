@@ -64,6 +64,8 @@ import '@syncfusion/ej2-inputs/styles/material.css';
 import '@syncfusion/ej2-lists/styles/material.css';
 import '@syncfusion/ej2-navigations/styles/material.css';
 import '@syncfusion/ej2-popups/styles/material.css';
+// + ADD
+
 import {
     DocumentEditorComponent,
     DocumentEditorContainerComponent,
@@ -80,10 +82,12 @@ import { ApiTemplateCard } from '@/admin/components/template-filler/ApiTemplateC
 import { DataSyncPanel } from '@/admin/components/template-filler/DataSyncPanel';
 import { SyncfusionEditorModal } from '@/admin/components/template-filler/SyncfusionEditorModal';
 import { ConfigConstant } from '@/admin/constant/config.constant';
-import { WorkingDocument, db } from '@/admin/db/db';
+import { DoiTuongThucHien, WorkingDocument, db } from '@/admin/db/db';
+import { doiTuongThucHienRepository } from '@/admin/repository/DoiTuongThucHienRepository';
 import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { thuTucHCRepository } from '@/admin/repository/ThuTucHCRepository';
+import authService from '@/admin/services/authService';
 import { chuyenDoiApiService } from '@/admin/services/chuyenDoiService';
 import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc, linhVucApiService } from '@/admin/services/linhVucService';
@@ -100,17 +104,14 @@ interface MauDon {
     tenGiayTo: string | null;
     tenFile: string;
     duongDan: string;
-    // Optional properties for IndexedDB support
     isFromIndexedDB?: boolean;
     workingDocument?: WorkingDocument;
-    // Optional properties for API template support
     isApiTemplate?: boolean;
     duongDanTepDinhKem?: string;
     tenThanhPhan?: string;
     soBanChinh?: string;
     soBanSao?: string;
     ghiChu?: string | null;
-    // Optional property for offline support
     isFromOffline?: boolean;
     thanhPhanHoSoTTHCID?: string;
 }
@@ -149,7 +150,7 @@ interface TemplateEditorState {
     syncfusionDocumentReady: boolean;
     socketStatus: 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
 }
-
+type SocketStatus = 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
 // --- CUSTOM HOOKS ---
 const useSocketConnection = (apiUrl: string) => {
     const [socketStatus, setSocketStatus] = useState<
@@ -159,31 +160,43 @@ const useSocketConnection = (apiUrl: string) => {
     const socketRef = useRef<Socket | null>(null);
 
     const connect = useCallback(() => {
-        // Check if socket URL is valid
         if (!apiUrl || apiUrl.trim() === '') {
             console.warn('⚠️ Socket URL is not configured, disabling socket connection');
             setSocketStatus('disabled');
             return;
         }
-
         if (socketRef.current?.connected) return;
-
-        console.log(`🔌 Attempting to connect to socket: ${apiUrl}`);
         setSocketStatus('connecting');
-
         try {
-            socketRef.current = io(apiUrl, {
-                transports: ['websocket'],
+            // socketRef.current = io(apiUrl, {
+            //     transports: ['websocket'],
+            //     timeout: 10000,
+            //     reconnection: true,
+            //     reconnectionAttempts: ConfigConstant.SOCKET_RECONNECT_ATTEMPTS,
+            //     reconnectionDelay: ConfigConstant.SOCKET_RECONNECT_DELAY
+            // });
+            const token = authService.getToken() ?? '';
+
+            // const token =
+            //     'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJVc2VySWQiOiJmOWMyZGY1OS0zZDg4LTQwYjUtYThmMS1iN2Y2NmY3YzZiZmMiLCJUZW5EYW5nTmhhcCI6InF1b2NkdW5nMTEyMDAxQGdtYWlsLmNvbSIsImV4cCI6MTc2MjY1NTEyMywiaXNzIjoiTlRTT0ZUIiwiYXVkIjoiTlRTT0ZUIn0.6rC-0BI0iIoxPjo70XkR6rUMqMziPWCOhDaR3isnPsY';
+            const urlWithQuery = `${apiUrl.replace(/\/$/, '')}?token=${encodeURIComponent(token)}`;
+            socketRef.current = io(urlWithQuery, {
+                transports: ['polling', 'websocket'], // polling first để handshake truyền qua query tốt hơn
                 timeout: 10000,
                 reconnection: true,
                 reconnectionAttempts: ConfigConstant.SOCKET_RECONNECT_ATTEMPTS,
-                reconnectionDelay: ConfigConstant.SOCKET_RECONNECT_DELAY
+                reconnectionDelay: ConfigConstant.SOCKET_RECONNECT_DELAY,
+                auth: { token },
+                autoConnect: true
             });
 
             socketRef.current.on('connect', () => {
-                console.log('✅ Socket connected successfully');
+                console.log('✅ Socket connected successfully, id=', socketRef.current?.id);
                 setSocketStatus('connected');
                 setReconnectAttempts(0);
+                if (token) {
+                    socketRef.current?.emit('authenticate', { token });
+                }
             });
 
             socketRef.current.on('disconnect', reason => {
@@ -251,11 +264,18 @@ const createFilterOptionsFromIndexDB = (
     const doiTuongSet = new Set<string>();
     const capThucHienSet = new Set<string>();
     const thuTucByLinhVuc: { [linhVuc: string]: string[] } = {};
-
+    console.log('thuTucHcList', thuTucHcList);
     thuTucHcList.forEach(thuTucHC => {
-        // Get linhVuc name from maLinhVuc
-        const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
-        const linhVucName = linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc;
+        let linhVucName = '';
+
+        // Ưu tiên sử dụng linhVuc object từ API mới
+        if (thuTucHC.linhVuc && thuTucHC.linhVuc.tenLinhVuc) {
+            linhVucName = thuTucHC.linhVuc.tenLinhVuc;
+        } else {
+            // Fallback: tìm trong linhVucList
+            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
+            linhVucName = linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc;
+        }
 
         if (linhVucName && thuTucHC.tenThuTucHanhChinh) {
             const tenLinhVuc = linhVucName.trim();
@@ -279,10 +299,12 @@ const createFilterOptionsFromIndexDB = (
             doiTuongList.forEach(dt => doiTuongSet.add(dt));
         }
 
+        console.log('🔍 ThuTucHC:', thuTucHC);
+
         // Extract capThucHien options
-        if (thuTucHC.maCapHanhChinh) {
-            capThucHienSet.add(thuTucHC.maCapHanhChinh.trim());
-        }
+        // if (thuTucHC.maCapHanhChinh) {
+        //     capThucHienSet.add(thuTucHC.maCapHanhChinh.trim());
+        // }
     });
 
     Object.keys(thuTucByLinhVuc).forEach(linhVuc => {
@@ -335,20 +357,29 @@ const filterThuTucHanhChinh = (
             }
         }
 
+        if (filters.doiTuong) {
+            const raw = thuTucHC.doiTuongThucHien || '';
+            if (!raw.includes(filters.doiTuong)) {
+                return false;
+            }
+        }
+
         // Lĩnh vực filter - filters.linhVuc chứa tenLinhVuc, cần map về maLinhVuc để so sánh
         if (filters.linhVuc) {
-            // Tìm lĩnh vực từ tenLinhVuc để lấy maLinhVuc
-            const selectedLinhVuc = linhVucList.find(lv => lv.tenLinhVuc === filters.linhVuc);
-            if (selectedLinhVuc) {
-                // So sánh maLinhVuc của thuTucHC với maLinhVuc của lĩnh vực được chọn
-                if (thuTucHC.maLinhVuc !== selectedLinhVuc.maLinhVuc) {
-                    return false;
-                }
+            let thuTucLinhVucName = '';
+
+            // Ưu tiên sử dụng linhVuc object từ API mới
+            if (thuTucHC.linhVuc && thuTucHC.linhVuc.tenLinhVuc) {
+                thuTucLinhVucName = thuTucHC.linhVuc.tenLinhVuc;
             } else {
-                // Fallback: nếu không tìm thấy, có thể filters.linhVuc là maLinhVuc
-                if (thuTucHC.maLinhVuc !== filters.linhVuc) {
-                    return false;
-                }
+                // Fallback: tìm trong linhVucList
+                const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
+                thuTucLinhVucName = linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc;
+            }
+
+            // So sánh tenLinhVuc
+            if (thuTucLinhVucName !== filters.linhVuc) {
+                return false;
             }
         }
 
@@ -695,7 +726,6 @@ const applyDataToSyncfusion = async (
         return false;
     }
 };
-// #region --- COMPONENT CHÍNH ---
 function TemplateFillerComponent() {
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
@@ -704,35 +734,72 @@ function TemplateFillerComponent() {
         thuTucByLinhVuc: {}
     });
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
+    const [doiTuongThucHienList, setDoiTuongThucHienList] = useState<DoiTuongThucHien[]>([]);
     const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [filteredThuTucHcList, setFilteredThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [linhVucLoading, setLinhVucLoading] = useState(false);
+
     const [isDataSynced, setIsDataSynced] = useState(false);
     const [showSyncPanel, setShowSyncPanel] = useState(false);
-
-    const testData = db.linhVuc.toArray();
-
-    useEffect(() => {
-        console.log('testData', testData);
-    }, [testData]);
-
-    // Add currentCodeRef for template management
-    const currentCodeRef = useRef<string>('');
-
     const navigate = useNavigate();
     const { history } = useRouter();
+    const PLACEHOLDER_REGEX = /\{[a-zA-Z0-9_]+(?:_[0-9]+)?\}/g;
+    const EXCLUDED_KEYS = new Set<string>(['{ngay_hientai}', '{thang_hientai}', '{nam_hientai}']);
 
+    function findRemainingPlaceholders(sfdt: string): string[] {
+        const matches = sfdt.match(PLACEHOLDER_REGEX) ?? [];
+        return Array.from(new Set(matches)).filter(k => !EXCLUDED_KEYS.has(k));
+    }
+
+    function replacePlaceholdersInSfdt(
+        sfdt: string,
+        placeholders: string[],
+        replacement: string
+    ): string {
+        let out = sfdt;
+        for (const ph of placeholders) {
+            const rx = new RegExp(ph.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g');
+            out = out.replace(rx, replacement);
+        }
+        return out;
+    }
     const handlePrintClick = async () => {
-        if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
-            await sfContainerRef.current.documentEditor.print(window);
-            await window.print();
-            await history.back();
-            await navigate({
-                to: '/template-filler'
-            });
-            window.location.reload();
-        } else {
+        const editor = sfContainerRef.current?.documentEditor;
+        if (!editor) {
             console.error('Document editor not ready to print.');
+            return;
+        }
+
+        // Lấy SFDT hiện tại
+        const currentSfdt = editor.serialize();
+        if (!currentSfdt) {
+            console.error('Cannot serialize document.');
+            return;
+        }
+        const remain = findRemainingPlaceholders(currentSfdt);
+        const prevOnAfterPrint = window.onafterprint;
+        window.onafterprint = () => {
+            navigate({ to: '/template-filler' });
+            window.onafterprint = prevOnAfterPrint || null;
+        };
+
+        if (remain.length > 0) {
+            const REPLACEMENT = '.......';
+            const modified = replacePlaceholdersInSfdt(currentSfdt, remain, REPLACEMENT);
+            editor.open(modified);
+            if (sfContainerRef.current && sfContainerRef.current.documentEditor) {
+                await sfContainerRef.current.documentEditor.print(window);
+                await window.print();
+                await history.back();
+                await navigate({
+                    to: '/template-filler'
+                });
+                window.location.reload();
+            } else {
+                console.error('Document editor not ready to print.');
+            }
+        } else {
+            editor.print();
         }
     };
 
@@ -746,7 +813,7 @@ function TemplateFillerComponent() {
     };
     const [filters, setFilters] = useState<FilterState>({
         searchText: '',
-        linhVuc: '', // Sẽ lưu tenLinhVuc để dễ hiểu và hiển thị
+        linhVuc: '',
         doiTuong: '',
         capThucHien: '',
         availability: 'all'
@@ -849,7 +916,6 @@ function TemplateFillerComponent() {
         [workingDocsState.workingDocsListByCode]
     );
 
-    // Refresh offline files information
     const refreshOfflineFiles = useCallback(async () => {
         try {
             const stats = await thanhPhanHoSoTTHCRepository.getStorageStats();
@@ -895,7 +961,6 @@ function TemplateFillerComponent() {
             offlineSize: offlineFilesState.totalSize
         };
     }, [filteredThuTucHcList, offlineFilesState]);
-    // Event handlers
     const handleFilterChange = useCallback((filterType: keyof FilterState, value: string) => {
         setFilters(prev => {
             const newFilters = {
@@ -917,8 +982,6 @@ function TemplateFillerComponent() {
     //  Chọn template
     const handleSelectTemplate = useCallback(async (record: EnhancedTTHCRecord) => {
         console.log('🎯 Template selected:', record);
-
-        // Kiểm tra xem record có mẫu đơn nào không
         if (!record.danhSachMauDon || record.danhSachMauDon.length === 0) {
             setSnackbar({
                 open: true,
@@ -955,6 +1018,7 @@ function TemplateFillerComponent() {
             record: record
         });
     }, []);
+
     const handleResetDocument = useCallback(async () => {
         try {
             const resetSuccess = await resetDocumentToOriginal(
@@ -1409,7 +1473,6 @@ function TemplateFillerComponent() {
     const memoizedFilterOptions = useMemo(() => {
         if (thuTucHcList.length > 0 && linhVucList.length > 0) {
             const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
-            // Sử dụng linhVucList trực tiếp cho combo box lĩnh vực
             const linhVucOptions = createLinhVucFilterOptions(linhVucList);
             console.log('✅ Updated filter options from IndexedDB data:', {
                 linhVuc: linhVucOptions.length,
@@ -1450,7 +1513,7 @@ function TemplateFillerComponent() {
 
                 setSnackbar({
                     open: true,
-                    message: `Đã tải ${data.length} thủ tục hành chính từ IndexedDB`,
+                    message: `Đã tải ${data.length} thủ tục hành chính`,
                     severity: 'success'
                 });
             } else {
@@ -1481,26 +1544,17 @@ function TemplateFillerComponent() {
     }, []);
 
     const handleSelectThuTucHanhChinh = (record: ThuTucHanhChinh) => {
-        // Mở rộng: Thêm logic xử lý khi người dùng nhấn "Chi tiết"
-        // Ví dụ: Mở một modal hiển thị đầy đủ thông tin hoặc điều hướng sang trang khác
         alert(
             `Bạn đã chọn thủ tục:\n\nID: ${record.thuTucHanhChinhID}\nTên: ${record.tenThuTucHanhChinh}`
         );
     };
 
-    // Removed old handleApiTemplateSelect - using new one above
-    //#endregion
-
-    //#region LOAD LINH VUC
     useEffect(() => {
         const loadLinhVuc = async () => {
             setLinhVucLoading(true);
             try {
-                // Kiểm tra xem dữ liệu đã được đồng bộ chưa
                 const synced = await dataSyncService.isDataSynced();
-
                 if (synced) {
-                    // Sử dụng dữ liệu từ IndexedDB
                     const data = await db.linhVuc.toArray();
                     setLinhVucList(data);
                     console.log('✅ Loaded lĩnh vực from IndexedDB:', data.length, 'items');
@@ -1509,13 +1563,6 @@ function TemplateFillerComponent() {
                     setLinhVucList(data);
                     console.log('📡 Loaded lĩnh vực from repository:', data.length, 'items');
                 }
-
-                // Show success message
-                // setSnackbar({
-                //     open: true,
-                //     message: `Đã tải lĩnh vực từ ${synced ? 'IndexedDB' : 'cơ sở dữ liệu'}`,
-                //     severity: 'success'
-                // });
             } catch (error) {
                 console.error('❌ Error loading lĩnh vực:', error);
                 setSnackbar({
@@ -1527,9 +1574,43 @@ function TemplateFillerComponent() {
                 setLinhVucLoading(false);
             }
         };
+        const loadDoiTuongThucHien = async () => {
+            const data = await doiTuongThucHienRepository.getAll();
+            setDoiTuongThucHienList(data);
+            console.log('loadDoiTuongThucHien', data);
+            try {
+                const synced = await dataSyncService.isDataSynced();
+                if (synced) {
+                    const data = await db.doiTuongThucHien.toArray();
+                    setDoiTuongThucHienList(data);
+                    console.log(
+                        '✅ Loaded đối tượng thực hiện from IndexedDB:',
+                        data.length,
+                        'items'
+                    );
+                } else {
+                    const data = await doiTuongThucHienRepository.getAll();
+                    setDoiTuongThucHienList(data);
+                    console.log(
+                        '📡 Loaded đối tượng thực hiện from repository:',
+                        data.length,
+                        'items'
+                    );
+                }
+            } catch (error) {
+                console.error('❌ Error loading lđối tượng thực hiện:', error);
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể tải danh sách đối tượng thực hiện',
+                    severity: 'error'
+                });
+            } finally {
+                setLinhVucLoading(false);
+            }
+        };
         loadLinhVuc();
+        loadDoiTuongThucHien();
     }, [isDataSynced]);
-    //#endregion
 
     // Load working documents from IndexedDB on component mount
     useEffect(() => {
@@ -1540,6 +1621,21 @@ function TemplateFillerComponent() {
     useEffect(() => {
         refreshOfflineFiles();
     }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+    const [doiTuongDict, setDoiTuongDict] = useState<Record<string, string>>({});
+    const [doiTuongList, setDoiTuongList] = useState<string[]>([]);
+
+    useEffect(() => {
+        (async () => {
+            const items = await doiTuongThucHienRepository.getAll();
+            // dict: mã -> tên
+            setDoiTuongDict(
+                Object.fromEntries(items.map(i => [i.maDoiTuongThucHien, i.tenDoiTuongThucHien]))
+            );
+            // list: chỉ tên (phục vụ Autocomplete nếu cần)
+            setDoiTuongList(items.map(i => i.tenDoiTuongThucHien));
+        })();
+    }, []);
 
     // Memoized filtered data to prevent unnecessary filtering
     const memoizedFilteredData = useMemo(() => {
@@ -1988,7 +2084,7 @@ function TemplateFillerComponent() {
                             );
                         }}
                     />
-                    <Autocomplete
+                    {/* <Autocomplete
                         size="small"
                         sx={{ minWidth: 200, maxWidth: 200 }}
                         options={filterOptions.doiTuong}
@@ -1997,8 +2093,39 @@ function TemplateFillerComponent() {
                         renderInput={params => (
                             <TextField {...params} label="Đối tượng" placeholder="Tất cả" />
                         )}
-                    />
+                    /> */}
                     <Autocomplete
+                        size="small"
+                        options={doiTuongThucHienList.map(dt => ({
+                            label: dt.tenDoiTuongThucHien,
+                            value: dt.maDoiTuongThucHien
+                        }))}
+                        getOptionLabel={option => option.label}
+                        value={
+                            filters.doiTuong
+                                ? {
+                                      label:
+                                          doiTuongThucHienList.find(
+                                              dt => dt.maDoiTuongThucHien === filters.doiTuong
+                                          )?.tenDoiTuongThucHien || '',
+                                      value: filters.doiTuong
+                                  }
+                                : null
+                        }
+                        onChange={(e, newValue) =>
+                            handleFilterChange('doiTuong', newValue?.value || '')
+                        }
+                        renderInput={params => (
+                            <TextField
+                                {...params}
+                                label="Đối tượng thực hiện"
+                                placeholder="Chọn đối tượng..."
+                                variant="outlined"
+                            />
+                        )}
+                        sx={{ minWidth: 220 }}
+                    />
+                    {/* <Autocomplete
                         size="small"
                         sx={{ minWidth: 200, maxWidth: 200 }}
                         options={filterOptions.capThucHien}
@@ -2009,7 +2136,7 @@ function TemplateFillerComponent() {
                         renderInput={params => (
                             <TextField {...params} label="Cấp thực hiện" placeholder="Tất cả" />
                         )}
-                    />
+                    /> */}
                 </Box>
 
                 {/* Data Sync Panel */}
@@ -2178,6 +2305,7 @@ function TemplateFillerComponent() {
                                         key={`${data.thuTucHanhChinhID}-${index}`}
                                         record={data}
                                         linhVucList={linhVucList}
+                                        doiTuongDict={doiTuongDict}
                                         onSelect={handleSelectThuTucHanhChinh}
                                         onTemplateSelect={handleApiTemplateSelect}
                                         hasWorkingDocuments={hasWorkingDocuments(
@@ -2658,7 +2786,6 @@ function TemplateFillerComponent() {
                                     </Typography>
                                     <Typography variant="body2" color="text.secondary">
                                         Không tìm thấy mẫu đơn nào cho thủ tục này trong hệ thống
-                                        hoặc IndexedDB.
                                     </Typography>
                                 </Card>
                             )}

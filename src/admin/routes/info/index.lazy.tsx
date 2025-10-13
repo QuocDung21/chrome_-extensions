@@ -1019,13 +1019,13 @@ function InfoPage() {
             <Card elevation={2}>
                 <CardHeader
                     avatar={<InfoIcon color="primary" />}
-                    title="Thông tin gói dịch vụ"
+                    title="Thiết lập"
                     sx={{ pb: 1 }}
                 />
                 <Divider />
                 <CardContent>
                     <Stack spacing={3}>
-                        <Box>
+                        {/* <Box>
                             <Typography variant="subtitle2" color="text.secondary" gutterBottom>
                                 Tên gói dịch vụ
                             </Typography>
@@ -1035,7 +1035,7 @@ function InfoPage() {
                             >
                                 Chưa có thông tin
                             </Typography>
-                        </Box>
+                        </Box> */}
 
                         <Box>
                             <Typography
@@ -1511,10 +1511,10 @@ function InfoPage() {
                     <Tab
                         icon={<BusinessIcon />}
                         iconPosition="start"
-                        label="Thông tin gói dịch vụ"
+                        label="Thiết lập"
                         {...a11yProps(0)}
                     />
-                    <Tab
+                    {/* <Tab
                         icon={<SettingsIcon />}
                         iconPosition="start"
                         label="Thiết lập dữ liệu đầu vào"
@@ -1525,18 +1525,18 @@ function InfoPage() {
                         iconPosition="start"
                         label="Thiết lập mẫu"
                         {...a11yProps(2)}
-                    />
+                    /> */}
                 </Tabs>
 
                 <TabPanel value={tabValue} index={0}>
                     <PackageInfoTab />
                 </TabPanel>
-                <TabPanel value={tabValue} index={1}>
+                {/* <TabPanel value={tabValue} index={1}>
                     <DataSetupTab />
                 </TabPanel>
                 <TabPanel value={tabValue} index={2}>
                     <Box />
-                </TabPanel>
+                </TabPanel> */}
             </Paper>
         </Box>
     );

@@ -28,6 +28,7 @@ import {
 } from '@mui/material';
 
 import { db } from '@/admin/db/db';
+import { doiTuongThucHienRepository } from '@/admin/repository/DoiTuongThucHienRepository';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc } from '@/admin/services/linhVucService';
@@ -38,6 +39,7 @@ interface ApiTemplateCardProps {
     record: ThuTucHanhChinh;
     linhVucList: LinhVuc[];
     onSelect: (record: ThuTucHanhChinh) => void;
+    doiTuongDict: Record<string, string>;
     onTemplateSelect?: (templateData: {
         record: ThuTucHanhChinh;
         template: ThanhPhanHoSoTTHC;
@@ -53,13 +55,40 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
         onSelect,
         onTemplateSelect,
         hasWorkingDocuments = false,
-        workingDocumentsCount = 0
+        workingDocumentsCount = 0,
+        doiTuongDict
     }) => {
         // Find linhVuc name from maLinhVuc for performance
         const linhVucName = React.useMemo(() => {
-            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === record.maLinhVuc);
-            return linhVuc ? linhVuc.tenLinhVuc : record.maLinhVuc;
-        }, [linhVucList, record.maLinhVuc]);
+            console.log('🔍 ApiTemplateCard - Finding linhVuc for record:', {
+                recordMaLinhVuc: record.maLinhVuc,
+                hasLinhVucObject: !!record.linhVuc,
+                linhVucObject: record.linhVuc,
+                linhVucListLength: linhVucList.length
+            });
+
+            // Ưu tiên sử dụng linhVuc object từ API mới
+            if (record.linhVuc && record.linhVuc.tenLinhVuc) {
+                console.log(
+                    '✅ ApiTemplateCard - Using linhVuc from API object:',
+                    record.linhVuc.tenLinhVuc
+                );
+                return record.linhVuc.tenLinhVuc;
+            }
+
+            // Fallback: tìm trong linhVucList
+            if (linhVucList && linhVucList.length > 0) {
+                const linhVuc = linhVucList.find(lv => lv.maLinhVuc === record.maLinhVuc);
+                if (linhVuc) {
+                    console.log('✅ ApiTemplateCard - Found in linhVucList:', linhVuc.tenLinhVuc);
+                    return linhVuc.tenLinhVuc;
+                }
+            }
+
+            // Fallback cuối cùng: sử dụng maLinhVuc
+            console.log('⚠️ ApiTemplateCard - Using maLinhVuc as fallback:', record.maLinhVuc);
+            return record.maLinhVuc || 'Chưa xác định';
+        }, [linhVucList, record.maLinhVuc, record.linhVuc]);
 
         const [modalState, setModalState] = useState({
             open: false,
@@ -268,7 +297,21 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                     Đối tượng:
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                                    {record.doiTuongThucHien || 'Công dân Việt Nam'}
+                                    {(() => {
+                                        const raw = record.doiTuongThucHien || '';
+                                        let codes: string[] = [];
+                                        try {
+                                            const parsed = JSON.parse(raw);
+                                            if (Array.isArray(parsed)) codes = parsed.map(String);
+                                        } catch {
+                                            codes = raw
+                                                .split(/[;,]/)
+                                                .map(s => s.trim())
+                                                .filter(Boolean);
+                                        }
+                                        const names = codes.map(code => doiTuongDict[code] || code);
+                                        return names.length ? names.join(', ') : 'Chưa xác định';
+                                    })()}
                                 </Typography>
                             </Box>
                             {hasWorkingDocuments && (

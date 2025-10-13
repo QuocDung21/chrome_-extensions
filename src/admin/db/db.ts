@@ -9,6 +9,13 @@ export interface LinhVuc {
     moTa: string;
 }
 
+export interface DoiTuongThucHien {
+    maDoiTuongThucHien: string;   // primary key
+    tenDoiTuongThucHien: string;
+}
+
+
+
 // Định nghĩa interface cho tài liệu làm việc được lưu theo Mã TTHC
 export interface WorkingDocument {
     id?: number; // primary key (auto)
@@ -86,6 +93,7 @@ export class AppDatabase extends Dexie {
     thuTucHanhChinh!: Table<ThuTucHanhChinh, string>;
     thanhPhanHoSoTTHC!: Table<ThanhPhanHoSoTTHC, string>;
     thanhPhanHoSoTTHCLocal!: Table<ThanhPhanHoSoTTHCLocal, number>;
+    doiTuongThucHien!: Table<DoiTuongThucHien, string>;
     constructor() {
         super('DocumentAI_DB');
         this.version(1).stores({
@@ -124,7 +132,7 @@ export class AppDatabase extends Dexie {
                             updatedAt: d.updatedAt
                         });
                     }
-                } catch {}
+                } catch { }
             });
 
         this.version(5).stores({
@@ -137,6 +145,10 @@ export class AppDatabase extends Dexie {
         // Version 7: Add table for locally stored files
         this.version(7).stores({
             thanhPhanHoSoTTHCLocal: '++id, thanhPhanHoSoTTHCID, duongDanTepDinhKem, downloadedAt'
+        });
+
+        this.version(8).stores({
+            doiTuongThucHien: 'maDoiTuongThucHien, tenDoiTuongThucHien'
         });
     }
 }

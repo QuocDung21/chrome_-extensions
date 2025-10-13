@@ -1,33 +1,61 @@
 /**
  * Root Route Component
- *
- * This component handles automatic redirects to /template-filler when:
- * 1. User visits the root path (/) or /dashboard
- * 2. User refreshes the page (F5) from any route other than /template-filler
- *
- * The redirect behavior ensures users always land on the template-filler page
- * after page refreshes, providing a consistent user experience.
  */
-import { useEffect, useRef } from 'react';
+import { useEffect } from 'react';
 
 import { Outlet, createRootRoute, useLocation, useNavigate } from '@tanstack/react-router';
 
 import AdminLayout from '../components/layout/AdminLayout';
+import { useAuth } from '../hooks/useAuth';
+import type { FileRouteTypes } from '../routeTree.gen';
 
 function NotFound() {
     const navigate = useNavigate();
+    const { isAuthenticated, isLoading } = useAuth();
 
     useEffect(() => {
+        if (isLoading) return;
         navigate({
-            to: '/dashboard'
+            to: (isAuthenticated ? '/template-filler' : '/signin') as FileRouteTypes['to'],
+            replace: true
         });
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
+    }, [isAuthenticated, isLoading, navigate]);
 
+    // Có thể hiển thị loader nhỏ
     return null;
 }
 
 function Layout() {
+    const location = useLocation();
+    const navigate = useNavigate();
+    const { isAuthenticated, isLoading } = useAuth();
+
+    // Các route auth không cần AdminLayout
+    const isAuthRoute =
+        location.pathname === '/signin' ||
+        location.pathname === '/signup' ||
+        location.pathname === '/verify-email';
+
+    if (isAuthRoute) {
+        return <Outlet />;
+    }
+
+    // Chờ đọc trạng thái đăng nhập từ storage
+    if (isLoading) {
+        return null; // hoặc spinner
+    }
+
+    // Không điều hướng trực tiếp trong render!
+    useEffect(() => {
+        if (!isAuthenticated) {
+            navigate({ to: '/signin' as FileRouteTypes['to'], replace: true });
+        }
+    }, [isAuthenticated, navigate]);
+
+    if (!isAuthenticated) {
+        return null; // chờ effect redirect
+    }
+
     return (
         <AdminLayout>
             <Outlet />

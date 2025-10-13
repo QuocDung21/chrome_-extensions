@@ -12,7 +12,13 @@ export interface ThuTucHanhChinh {
     tenThuTucHanhChinh: string;
     maCapHanhChinh: string;
     loaiThuTucHanhChinh: number;
-    maLinhVuc: string;
+    maLinhVuc: string; // Để backward compatibility
+    linhVuc?: {
+        maLinhVuc: string;
+        tenLinhVuc: string;
+        maNganh: string;
+        moTa: string;
+    }; // Mới: object LinhVuc từ API
     trinhTuThucHien: string;
     cachThucHien: string;
     doiTuongThucHien: string;
@@ -84,23 +90,40 @@ class ThuTucHanhChinhApiService {
 
             // MỚI: Cập nhật logic map để chuyển đổi tất cả các trường
             const transformedData: ThuTucHanhChinhApiResponse = {
-                items: serverData.Items.map((item: any) => ({
-                    thuTucHanhChinhID: item.ThuTucHanhChinhID,
-                    maThuTucHanhChinh: item.MaThuTucHanhChinh,
-                    tenThuTucHanhChinh: item.TenThuTucHanhChinh,
-                    maCapHanhChinh: item.MaCapHanhChinh,
-                    loaiThuTucHanhChinh: item.LoaiThuTucHanhChinh,
-                    maLinhVuc: item.MaLinhVuc,
-                    trinhTuThucHien: item.TrinhTuThucHien,
-                    cachThucHien: item.CachThucHien,
-                    doiTuongThucHien: item.DoiTuongThucHien,
-                    diaChiTiepNhan: item.DiaChiTiepNhan,
-                    yeuCau: item.YeuCau,
-                    ketQuaThucHien: item.KetQuaThucHien,
-                    moTa: item.MoTa,
-                    canCuPhapLy: item.CanCuPhapLy,
-                    vanBanID: item.VanBanID
-                })),
+                items: serverData.Items.map((item: any) => {
+                    console.log('🔄 Mapping ThuTucHanhChinh item:', {
+                        hasLinhVucObject: !!item.LinhVuc,
+                        linhVucObject: item.LinhVuc,
+                        oldMaLinhVuc: item.MaLinhVuc
+                    });
+
+                    return {
+                        thuTucHanhChinhID: item.ThuTucHanhChinhID,
+                        maThuTucHanhChinh: item.MaThuTucHanhChinh,
+                        tenThuTucHanhChinh: item.TenThuTucHanhChinh,
+                        maCapHanhChinh: item.MaCapHanhChinh || item.CapHanhChinh,
+                        loaiThuTucHanhChinh: item.LoaiThuTucHanhChinh,
+                        // Xử lý cả old format (MaLinhVuc string) và new format (LinhVuc object)
+                        maLinhVuc: item.LinhVuc?.MaLinhVuc || item.MaLinhVuc,
+                        linhVuc: item.LinhVuc
+                            ? {
+                                  maLinhVuc: item.LinhVuc.MaLinhVuc,
+                                  tenLinhVuc: item.LinhVuc.TenLinhVuc,
+                                  maNganh: item.LinhVuc.MaNganh,
+                                  moTa: item.LinhVuc.MoTa
+                              }
+                            : undefined,
+                        trinhTuThucHien: item.TrinhTuThucHien,
+                        cachThucHien: item.CachThucHien,
+                        doiTuongThucHien: item.DoiTuongThucHien,
+                        diaChiTiepNhan: item.DiaChiTiepNhan,
+                        yeuCau: item.YeuCau,
+                        ketQuaThucHien: item.KetQuaThucHien,
+                        moTa: item.MoTa,
+                        canCuPhapLy: item.CanCuPhapLy,
+                        vanBanID: item.VanBanID
+                    };
+                }),
                 totalCount: serverData.TotalCount,
                 pageNumber: serverData.PageNumber,
                 pageSize: serverData.PageSize,

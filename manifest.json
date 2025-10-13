@@ -7,32 +7,7 @@
         "34": "assets/icons/LOGO_NTSOFT.png",
         "128": "assets/icons/LOGO_NTSOFT.png"
     },
-    "action": {
-        "default_title": "Chrome Extension React",
-        "default_icon": "assets/icons/LOGO_NTSOFT.png"
-    },
     "options_page": "src/admin/index.html",
-    "content_scripts": [
-        {
-            "js": ["src/content/index.ts"],
-            "matches": ["*://*/*"],
-            "run_at": "document_end"
-        }
-    ],
-    "background": {
-        "service_worker": "src/background/index.ts"
-    },
-    "web_accessible_resources": [
-        {
-            "resources": ["assets/icons/*.png", "src/admin/index.html"],
-            "matches": [],
-            "extension_ids": []
-        },
-        {
-            "resources": ["src/injected/vue-injector.js", "src/content/styles/floating-ui.css"],
-            "matches": ["*://*/*"]
-        }
-    ],
-    "permissions": ["storage", "tabs", "activeTab", "notifications"],
-    "host_permissions": ["https://*/*", "http://*/*"]
+    "permissions": ["storage",  "notifications"],
+    "host_permissions": ["http://laptrinhid.qlns.vn/*", "http://laptrinhid.qlns.vn/*","https://rapidly-daring-magpie.ngrok-free.app/*"]
 }

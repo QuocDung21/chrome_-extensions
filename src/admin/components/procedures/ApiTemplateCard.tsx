@@ -44,6 +44,7 @@ interface ApiTemplateCardProps {
     }) => void;
     hasWorkingDocuments?: boolean;
     workingDocumentsCount?: number;
+    doiTuongDict: Record<string, string>;
 }
 
 export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
@@ -53,9 +54,9 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
         onSelect,
         onTemplateSelect,
         hasWorkingDocuments = false,
-        workingDocumentsCount = 0
+        workingDocumentsCount = 0,
+        doiTuongDict
     }) => {
-        // Find linhVuc name from maLinhVuc for performance
         const linhVucName = React.useMemo(() => {
             const linhVuc = linhVucList.find(lv => lv.maLinhVuc === record.maLinhVuc);
             return linhVuc ? linhVuc.tenLinhVuc : record.maLinhVuc;
@@ -283,7 +284,21 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                     Đối tượng:
                                 </Typography>
                                 <Typography variant="body2" sx={{ fontWeight: '500' }}>
-                                    {record.doiTuongThucHien || 'Công dân Việt Nam'}
+                                    {(() => {
+                                        const raw = record.doiTuongThucHien || '';
+                                        let codes: string[] = [];
+                                        try {
+                                            const parsed = JSON.parse(raw);
+                                            if (Array.isArray(parsed)) codes = parsed.map(String);
+                                        } catch {
+                                            codes = raw
+                                                .split(/[;,]/)
+                                                .map(s => s.trim())
+                                                .filter(Boolean);
+                                        }
+                                        const names = codes.map(code => doiTuongDict[code] || code);
+                                        return names.length ? names.join(', ') : 'Chưa xác định';
+                                    })()}
                                 </Typography>
                             </Box>
                             {hasWorkingDocuments && (

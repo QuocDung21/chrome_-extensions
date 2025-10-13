@@ -6,7 +6,6 @@ class ThuTucHCRepository {
         const cachedCount = await db.thuTucHC.count();
 
         if (cachedCount > 0) {
-            console.log('CACHE HIT: Dữ liệu ThuTucHC đã có, đọc từ IndexedDB.');
             return db.thuTucHC.toArray();
         }
 

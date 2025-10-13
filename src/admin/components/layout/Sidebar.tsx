@@ -14,6 +14,7 @@ import {
     QrCode as QRIcon,
     AppRegistration as RegisterIcon,
     RoomService as ServiceIcon,
+    Settings,
     DriveFileRenameOutline as TemplateFillerIcon,
     CloudUpload as UploadIcon,
     EditNote as WordMapperIcon,
@@ -61,8 +62,8 @@ const scanningItems: NavigationItem[] = [
         id: 'qr-cccd',
         label: 'Quét QR CCCD',
         icon: <QRIcon />,
-        path: '/qr-cccd'
-    },
+        path: '/template-filler'
+    }
     // {
     //     id: 'word-mapper',
     //     label: 'Mẫu đơn, tờ khai',
@@ -70,12 +71,12 @@ const scanningItems: NavigationItem[] = [
     //     path: '/forms'
     //     // badge: 'NEW'
     // },
-    {
-        id: 'template-filler',
-        label: 'Soạn thảo mẫu',
-        icon: <TemplateFillerIcon />,
-        path: '/template-filler'
-    }
+    // {
+    //     id: 'template-filler',
+    //     label: 'Soạn thảo mẫu',
+    //     icon: <TemplateFillerIcon />,
+    //     path: '/template-filler'
+    // }
 ];
 
 const documentsItems: NavigationItem[] = [
@@ -112,22 +113,22 @@ const documentsItems: NavigationItem[] = [
 ];
 
 const systemItems: NavigationItem[] = [
-    {
-        id: 'register',
-        label: 'Đăng ký sử dụng',
-        icon: <RegisterIcon />,
-        path: '/register'
-    },
-    {
-        id: 'services',
-        label: 'Gói dịch vụ',
-        icon: <ServiceIcon />,
-        path: '/services'
-    },
+    // {
+    //     id: 'register',
+    //     label: 'Đăng ký sử dụng',
+    //     icon: <RegisterIcon />,
+    //     path: '/register'
+    // },
+    // {
+    //     id: 'services',
+    //     label: 'Gói dịch vụ',
+    //     icon: <ServiceIcon />,
+    //     path: '/services'
+    // },
     {
         id: 'info',
-        label: 'Thông tin ứng dụng',
-        icon: <InfoIcon />,
+        label: 'Thông tin / Thiết lập',
+        icon: <Settings />,
         path: '/info'
     }
 ];
@@ -224,12 +225,12 @@ function NavigationSection({ title, items }: NavigationSectionProps): ReactEleme
 export default function Sidebar(): ReactElement {
     return (
         <Box sx={{ py: 1 }}>
-            <NavigationSection title="Chính" items={mainItems} />
-            <Divider sx={{ mx: 2, my: 1 }} />
+            {/* <NavigationSection title="Chính" items={mainItems} />
+            <Divider sx={{ mx: 2, my: 1 }} /> */}
             <NavigationSection title="Quét & Nhận dạng" items={scanningItems} />
             <Divider sx={{ mx: 2, my: 1 }} />
-            <NavigationSection title="Quản lý tài liệu" items={documentsItems} />
-            <Divider sx={{ mx: 2, my: 1 }} />
+            {/* <NavigationSection title="Quản lý tài liệu" items={documentsItems} />
+            <Divider sx={{ mx: 2, my: 1 }} /> */}
             <NavigationSection title="Hệ thống" items={systemItems} />
         </Box>
     );

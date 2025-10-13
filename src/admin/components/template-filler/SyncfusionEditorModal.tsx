@@ -48,6 +48,7 @@ import '@syncfusion/ej2-splitbuttons/styles/material.css';
 
 import { ConfigConstant } from '@/admin/constant/config.constant';
 import { WorkingDocument } from '@/admin/db/db';
+import { doiTuongThucHienRepository } from '@/admin/repository/DoiTuongThucHienRepository';
 import { LinhVuc } from '@/admin/services/linhVucService';
 import { getCurrentDateParts } from '@/admin/utils/formatDate';
 
@@ -157,6 +158,47 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
     const handleSnackbarClose = useCallback(() => {
         setSnackbar(prev => ({ ...prev, open: false }));
     }, []);
+
+    // Đối tượng thực hiện: load dict và hàm map hiển thị
+    const [doiTuongDict, setDoiTuongDict] = useState<Record<string, string>>({});
+
+    React.useEffect(() => {
+        let mounted = true;
+        (async () => {
+            try {
+                const dict = await doiTuongThucHienRepository.getDict();
+                if (mounted && !Array.isArray(dict)) {
+                    setDoiTuongDict(dict);
+                }
+            } catch (e) {
+                console.error('❌ Error loading đối tượng dict:', e);
+            }
+        })();
+        return () => {
+            mounted = false;
+        };
+    }, []);
+
+    const mapDoiTuong = (raw: string | undefined | null): string => {
+        if (!raw) return '— Chưa chọn mẫu —';
+        let codes: string[] = [];
+        // Thử JSON trước: ví dụ '["10","2","3"]' hoặc [10,2,3]
+        try {
+            const parsed = JSON.parse(raw);
+            if (Array.isArray(parsed)) {
+                codes = parsed.map(String);
+            }
+        } catch {
+            // Fallback: tách theo ; hoặc , hoặc khoảng trắng
+            codes = raw
+                .split(/[;,]/)
+                .map(s => s.replace(/^[\[\s"]+|[\]\s"]+$/g, '').trim())
+                .filter(Boolean);
+        }
+        if (codes.length === 0) return raw;
+        const names = codes.map(c => doiTuongDict[c] || c);
+        return names.join(', ');
+    };
 
     return (
         <>
@@ -661,26 +703,12 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                         },
                                         {
                                             label: 'Đối tượng thực hiện',
-                                            value:
-                                                editorState.selectedRecord?.doiTuong ||
-                                                '— Chưa chọn mẫu —'
+                                            value: mapDoiTuong(editorState.selectedRecord?.doiTuong)
                                         },
                                         {
                                             label: 'Mã thủ tục',
                                             value:
                                                 editorState.selectedRecord?.maTTHC ||
-                                                '— Chưa chọn mẫu —'
-                                        },
-                                        {
-                                            label: 'Cấp thực hiện',
-                                            value:
-                                                editorState.selectedRecord?.capThucHien ||
-                                                '— Chưa chọn mẫu —'
-                                        },
-                                        {
-                                            label: 'Quyết định công bố',
-                                            value:
-                                                editorState.selectedRecord?.qdCongBo ||
                                                 '— Chưa chọn mẫu —'
                                         }
                                     ].map((field, index) => (
