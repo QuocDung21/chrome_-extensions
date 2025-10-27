@@ -7,6 +7,7 @@
 const prettierConfig = {
     plugins: ['@trivago/prettier-plugin-sort-imports'],
     // Code style
+
     semi: true,
     tabWidth: 4,
     printWidth: 100,

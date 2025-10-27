@@ -192,7 +192,7 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
             // Fallback: tách theo ; hoặc , hoặc khoảng trắng
             codes = raw
                 .split(/[;,]/)
-                .map(s => s.replace(/^[\[\s"]+|[\]\s"]+$/g, '').trim())
+                .map(s => s.replace(/^[[\s"]+|[\]\s"]+$/g, '').trim())
                 .filter(Boolean);
         }
         if (codes.length === 0) return raw;

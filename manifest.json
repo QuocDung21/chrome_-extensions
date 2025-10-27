@@ -1,13 +1,20 @@
 {
     "manifest_version": 3,
-    "name": "NTS DocumentAI",
-    "version": "1",
-    "description": "NTS DocumentAI biến tài liệu giấy thành dữ liệu thông minh",
+    "name": "NTSoft DocumentAI",
+    "short_name": "NTSoft DocumentAI",
+    "version": "1.0.1",
+    "description": "Biến tài liệu giấy thành dữ liệu có cấu trúc để tìm kiếm, trích xuất và in ấn.",
     "icons": {
-        "34": "assets/icons/LOGO_NTSOFT.png",
-        "128": "assets/icons/LOGO_NTSOFT.png"
+        "16": "assets/icons/logo_optimized_16.png",
+        "32": "assets/icons/logo_optimized_32.png",
+        "48": "assets/icons/logo_optimized_48.png",
+        "128": "assets/icons/logo_optimized_128.png"
     },
     "options_page": "src/admin/index.html",
-    "permissions": ["storage",  "notifications"],
-    "host_permissions": ["http://laptrinhid.qlns.vn/*", "http://laptrinhid.qlns.vn/*","https://rapidly-daring-magpie.ngrok-free.app/*"]
+    "permissions": ["storage"],
+    "action": {
+        "default_title": "NTSoft DocumentAI"
+    },
+    "homepage_url": "http://laptrinhid.qlns.vn/*",
+    "host_permissions": ["http://laptrinhid.qlns.vn/*"]
 }

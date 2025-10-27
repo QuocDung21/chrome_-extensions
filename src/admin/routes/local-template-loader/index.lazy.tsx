@@ -117,6 +117,7 @@ function LocalTemplateLoaderComponent() {
             for await (const procedureHandle of handle.values()) {
                 if (procedureHandle.kind === 'directory') {
                     try {
+                        // eslint-disable-next-line @typescript-eslint/ban-ts-comment
                         // @ts-expect-error
                         const docxFolderHandle = await procedureHandle.getDirectoryHandle('docx');
                         for await (const fileHandle of docxFolderHandle.values()) {

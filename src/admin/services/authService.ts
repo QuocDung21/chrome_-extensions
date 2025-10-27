@@ -59,7 +59,7 @@ class AuthService {
                 {
                     headers: {
                         'Content-Type': 'application/json',
-                        'accept': 'application/json'
+                        accept: 'application/json'
                     },
                     timeout: 10000
                 }
@@ -93,6 +93,7 @@ class AuthService {
             };
 
             return mapped;
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             throw this.handleError(error);
         }
@@ -132,6 +133,7 @@ class AuthService {
     /**
      * Get stored user data
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getUserData(): any | null {
         const userData = localStorage.getItem('user_data');
         return userData ? JSON.parse(userData) : null;
@@ -148,11 +150,15 @@ class AuthService {
     /**
      * Handle API errors
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private handleError(error: any): AuthError {
         if (error.response) {
             // Server responded with error status
             const status = error.response.status;
-            const message = error.response.data?.message || error.response.data?.error || 'Đã xảy ra lỗi từ server';
+            const message =
+                error.response.data?.message ||
+                error.response.data?.error ||
+                'Đã xảy ra lỗi từ server';
 
             return {
                 message: this.getErrorMessage(status, message),

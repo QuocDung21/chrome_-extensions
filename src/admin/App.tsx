@@ -9,6 +9,7 @@ import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react
 
 import AlertSnackbar from './components/common/AlertSnackbar';
 import LoadingSpinner from './components/common/LoadingSpinner';
+import { ConfigConstant } from './constant/config.constant';
 import { routeTree } from './routeTree.gen';
 
 // Create hash history for Chrome extension compatibility
@@ -20,9 +21,7 @@ const router = createRouter({
     history: hashHistory
 });
 
-registerLicense(
-    'Ngo9BigBOggjHTQxAR8/V1JEaF1cWWhAYVJ0WmFZfVtgdVRMY1xbRnRPIiBoS35Rc0VrWHtecHVURGVZVkdxVEFd'
-);
+registerLicense(ConfigConstant.SYNCFUSION_SERVICE_KEY);
 
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {

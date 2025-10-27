@@ -12,16 +12,8 @@ import { createFileRoute } from '@tanstack/react-router'
 
 import { Route as rootRouteImport } from './routes/__root'
 
-const ProductsIndexLazyRouteImport = createFileRoute('/products/')()
 const HomePageIndexLazyRouteImport = createFileRoute('/home-page/')()
 
-const ProductsIndexLazyRoute = ProductsIndexLazyRouteImport.update({
-  id: '/products/',
-  path: '/products/',
-  getParentRoute: () => rootRouteImport,
-} as any).lazy(() =>
-  import('./routes/products/index.lazy').then((d) => d.Route),
-)
 const HomePageIndexLazyRoute = HomePageIndexLazyRouteImport.update({
   id: '/home-page/',
   path: '/home-page/',
@@ -32,39 +24,28 @@ const HomePageIndexLazyRoute = HomePageIndexLazyRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/home-page': typeof HomePageIndexLazyRoute
-  '/products': typeof ProductsIndexLazyRoute
 }
 export interface FileRoutesByTo {
   '/home-page': typeof HomePageIndexLazyRoute
-  '/products': typeof ProductsIndexLazyRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/home-page/': typeof HomePageIndexLazyRoute
-  '/products/': typeof ProductsIndexLazyRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/home-page' | '/products'
+  fullPaths: '/home-page'
   fileRoutesByTo: FileRoutesByTo
-  to: '/home-page' | '/products'
-  id: '__root__' | '/home-page/' | '/products/'
+  to: '/home-page'
+  id: '__root__' | '/home-page/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   HomePageIndexLazyRoute: typeof HomePageIndexLazyRoute
-  ProductsIndexLazyRoute: typeof ProductsIndexLazyRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
-    '/products/': {
-      id: '/products/'
-      path: '/products'
-      fullPath: '/products'
-      preLoaderRoute: typeof ProductsIndexLazyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/home-page/': {
       id: '/home-page/'
       path: '/home-page'
@@ -77,7 +58,6 @@ declare module '@tanstack/react-router' {
 
 const rootRouteChildren: RootRouteChildren = {
   HomePageIndexLazyRoute: HomePageIndexLazyRoute,
-  ProductsIndexLazyRoute: ProductsIndexLazyRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

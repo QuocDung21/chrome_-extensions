@@ -2971,7 +2971,7 @@ function TemplateProceduresComponent({
                                                                     );
 
                                                                 if (selectedTemplate) {
-                                                                    let updatedRecord = {
+                                                                    const updatedRecord = {
                                                                         ...editorState.selectedRecord!
                                                                     };
 
