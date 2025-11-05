@@ -41,18 +41,13 @@ import {
     ToggleButtonGroup,
     Typography
 } from '@mui/material';
-import {
-    DocumentEditorContainerComponent,
-    Ribbon,
-    Toolbar
-} from '@syncfusion/ej2-react-documenteditor';
 import { useNavigate } from '@tanstack/react-router';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
 import checkUrlExists from '@/utils/checkUrlExists';
 import { getXPath } from '@/utils/getXPath';
 
-DocumentEditorContainerComponent.Inject(Toolbar, Ribbon);
+// (Removed Syncfusion DocumentEditor imports and injection)
 
 interface ServiceInfo {
     name: string;
@@ -812,6 +807,7 @@ function InfoPage() {
                                     />
                                 </Box>
                                 <Button
+                                    disabled
                                     variant="contained"
                                     startIcon={<AddIcon />}
                                     sx={{

@@ -1,4 +1,5 @@
-import { db, DoiTuongThucHien } from '@/admin/db/db';
+import { DoiTuongThucHien, db } from '@/admin/db/db';
+
 import { doiTuongThucHienApiService } from '../services/doiTuongService';
 
 class DoiTuongThucHienRepository {
@@ -10,9 +11,7 @@ class DoiTuongThucHienRepository {
         }));
     }
 
-    async getDict(
-        codes?: string[]
-    ): Promise<Record<string, string> | string[]> {
+    async getDict(codes?: string[]): Promise<Record<string, string> | string[]> {
         const dict: Record<string, string> = {};
         const list = await this.getAll();
 

@@ -61,19 +61,15 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
     }) => {
         // Find linhVuc name from maLinhVuc for performance
         const linhVucName = React.useMemo(() => {
-            console.log('🔍 ApiTemplateCard - Finding linhVuc for record:', {
-                recordMaLinhVuc: record.maLinhVuc,
-                hasLinhVucObject: !!record.linhVuc,
-                linhVucObject: record.linhVuc,
-                linhVucListLength: linhVucList.length
-            });
+            // console.log('🔍 ApiTemplateCard - Finding linhVuc for record:', {
+            //     recordMaLinhVuc: record.maLinhVuc,
+            //     hasLinhVucObject: !!record.linhVuc,
+            //     linhVucObject: record.linhVuc,
+            //     linhVucListLength: linhVucList.length
+            // });
 
             // Ưu tiên sử dụng linhVuc object từ API mới
             if (record.linhVuc && record.linhVuc.tenLinhVuc) {
-                console.log(
-                    '✅ ApiTemplateCard - Using linhVuc from API object:',
-                    record.linhVuc.tenLinhVuc
-                );
                 return record.linhVuc.tenLinhVuc;
             }
 
@@ -81,13 +77,13 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
             if (linhVucList && linhVucList.length > 0) {
                 const linhVuc = linhVucList.find(lv => lv.maLinhVuc === record.maLinhVuc);
                 if (linhVuc) {
-                    console.log('✅ ApiTemplateCard - Found in linhVucList:', linhVuc.tenLinhVuc);
+                    // console.log('✅ ApiTemplateCard - Found in linhVucList:', linhVuc.tenLinhVuc);
                     return linhVuc.tenLinhVuc;
                 }
             }
 
             // Fallback cuối cùng: sử dụng maLinhVuc
-            console.log('⚠️ ApiTemplateCard - Using maLinhVuc as fallback:', record.maLinhVuc);
+            // console.log('⚠️ ApiTemplateCard - Using maLinhVuc as fallback:', record.maLinhVuc);
             return record.maLinhVuc || 'Chưa xác định';
         }, [linhVucList, record.maLinhVuc, record.linhVuc]);
 

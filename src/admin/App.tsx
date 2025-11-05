@@ -4,7 +4,6 @@ import { SnackbarProvider } from 'notistack';
 
 import CssBaseline from '@mui/material/CssBaseline';
 import { ThemeProvider, createTheme } from '@mui/material/styles';
-import { registerLicense } from '@syncfusion/ej2-base';
 import { RouterProvider, createHashHistory, createRouter } from '@tanstack/react-router';
 
 import AlertSnackbar from './components/common/AlertSnackbar';
@@ -20,8 +19,6 @@ const router = createRouter({
     routeTree: routeTree,
     history: hashHistory
 });
-
-registerLicense(ConfigConstant.SYNCFUSION_SERVICE_KEY);
 
 // Register the router instance for type safety
 declare module '@tanstack/react-router' {

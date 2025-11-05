@@ -16,5 +16,9 @@
         "default_title": "NTSoft DocumentAI"
     },
     "homepage_url": "http://laptrinhid.qlns.vn/*",
-    "host_permissions": ["http://laptrinhid.qlns.vn/*"]
+    "host_permissions": [
+        "http://laptrinhid.qlns.vn/*",
+        "https://rapidly-daring-magpie.ngrok-free.app/*",
+        "https://calibre-ebook.com"
+    ]
 }

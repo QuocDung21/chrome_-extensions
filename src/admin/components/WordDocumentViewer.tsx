@@ -1,33 +1,35 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import {
-    Box,
-    Paper,
-    Typography,
-    Button,
-    Dialog,
-    DialogTitle,
-    DialogContent,
-    DialogActions,
-    TextField,
-    Select,
-    MenuItem,
-    FormControl,
-    InputLabel,
-    Chip,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemSecondaryAction,
-    IconButton,
-    Grid,
-    Divider
-} from '@mui/material';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+
 import {
     Delete as DeleteIcon,
-    Edit as EditIcon,
     DragIndicator as DragIcon,
+    Edit as EditIcon,
     Save as SaveIcon
 } from '@mui/icons-material';
+import {
+    Box,
+    Button,
+    Chip,
+    Dialog,
+    DialogActions,
+    DialogContent,
+    DialogTitle,
+    Divider,
+    FormControl,
+    Grid,
+    IconButton,
+    InputLabel,
+    List,
+    ListItem,
+    ListItemSecondaryAction,
+    ListItemText,
+    MenuItem,
+    Paper,
+    Select,
+    TextField,
+    Typography
+} from '@mui/material';
+
 import { FieldMapping } from '../services/documentService';
 
 interface WordDocumentViewerProps {
@@ -90,10 +92,10 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
             // Set canvas size to match image
             canvas.width = img.width;
             canvas.height = img.height;
-            
+
             // Draw image
             ctx.drawImage(img, 0, 0);
-            
+
             // Draw existing field mappings
             drawFieldMappings(ctx);
         };
@@ -106,18 +108,14 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
             ctx.strokeStyle = '#1976d2';
             ctx.lineWidth = 2;
             ctx.strokeRect(mapping.x, mapping.y, mapping.width, mapping.height);
-            
+
             // Draw mapping label
             ctx.fillStyle = '#1976d2';
             ctx.fillRect(mapping.x, mapping.y - 20, mapping.width, 20);
-            
+
             ctx.fillStyle = 'white';
             ctx.font = '12px Arial';
-            ctx.fillText(
-                `${mapping.fieldName} (${mapping.dataKey})`,
-                mapping.x + 4,
-                mapping.y - 6
-            );
+            ctx.fillText(`${mapping.fieldName} (${mapping.dataKey})`, mapping.x + 4, mapping.y - 6);
         });
     };
 
@@ -138,51 +136,54 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
         });
     }, []);
 
-    const handleCanvasMouseMove = useCallback((event: React.MouseEvent<HTMLCanvasElement>) => {
-        if (!dragState.isDragging) return;
+    const handleCanvasMouseMove = useCallback(
+        (event: React.MouseEvent<HTMLCanvasElement>) => {
+            if (!dragState.isDragging) return;
 
-        const canvas = canvasRef.current;
-        if (!canvas) return;
+            const canvas = canvasRef.current;
+            if (!canvas) return;
 
-        const rect = canvas.getBoundingClientRect();
-        const x = event.clientX - rect.left;
-        const y = event.clientY - rect.top;
+            const rect = canvas.getBoundingClientRect();
+            const x = event.clientX - rect.left;
+            const y = event.clientY - rect.top;
 
-        setDragState(prev => ({
-            ...prev,
-            currentX: x,
-            currentY: y
-        }));
+            setDragState(prev => ({
+                ...prev,
+                currentX: x,
+                currentY: y
+            }));
 
-        // Redraw canvas with selection rectangle
-        const ctx = canvas.getContext('2d');
-        if (!ctx) return;
+            // Redraw canvas with selection rectangle
+            const ctx = canvas.getContext('2d');
+            if (!ctx) return;
 
-        // Clear and redraw
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-        
-        // Redraw document image
-        if (documentImageUrl) {
-            const img = new Image();
-            img.onload = () => {
-                ctx.drawImage(img, 0, 0);
-                drawFieldMappings(ctx);
-                
-                // Draw current selection
-                ctx.strokeStyle = '#ff4444';
-                ctx.lineWidth = 2;
-                ctx.setLineDash([5, 5]);
-                ctx.strokeRect(
-                    Math.min(dragState.startX, x),
-                    Math.min(dragState.startY, y),
-                    Math.abs(x - dragState.startX),
-                    Math.abs(y - dragState.startY)
-                );
-                ctx.setLineDash([]);
-            };
-            img.src = documentImageUrl;
-        }
-    }, [dragState, documentImageUrl, fieldMappings]);
+            // Clear and redraw
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Redraw document image
+            if (documentImageUrl) {
+                const img = new Image();
+                img.onload = () => {
+                    ctx.drawImage(img, 0, 0);
+                    drawFieldMappings(ctx);
+
+                    // Draw current selection
+                    ctx.strokeStyle = '#ff4444';
+                    ctx.lineWidth = 2;
+                    ctx.setLineDash([5, 5]);
+                    ctx.strokeRect(
+                        Math.min(dragState.startX, x),
+                        Math.min(dragState.startY, y),
+                        Math.abs(x - dragState.startX),
+                        Math.abs(y - dragState.startY)
+                    );
+                    ctx.setLineDash([]);
+                };
+                img.src = documentImageUrl;
+            }
+        },
+        [dragState, documentImageUrl, fieldMappings]
+    );
 
     const handleCanvasMouseUp = useCallback(() => {
         if (!dragState.isDragging) return;
@@ -239,7 +240,7 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
             <Typography variant="h6" gutterBottom>
                 Word Document Field Mapping
             </Typography>
-            
+
             <Grid container spacing={3}>
                 {/* Document Canvas */}
                 <Grid item xs={8}>
@@ -247,17 +248,19 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
                         <Typography variant="subtitle1" gutterBottom>
                             Document Preview
                         </Typography>
-                        
+
                         {documentFile && documentImageUrl ? (
-                            <Box sx={{ 
-                                border: '1px solid #ccc', 
-                                borderRadius: 1,
-                                overflow: 'auto',
-                                maxHeight: '600px'
-                            }}>
+                            <Box
+                                sx={{
+                                    border: '1px solid #ccc',
+                                    borderRadius: 1,
+                                    overflow: 'auto',
+                                    maxHeight: '600px'
+                                }}
+                            >
                                 <canvas
                                     ref={canvasRef}
-                                    style={{ 
+                                    style={{
                                         cursor: 'crosshair',
                                         display: 'block',
                                         maxWidth: '100%'
@@ -268,14 +271,16 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
                                 />
                             </Box>
                         ) : (
-                            <Box sx={{ 
-                                height: 400, 
-                                display: 'flex', 
-                                alignItems: 'center', 
-                                justifyContent: 'center',
-                                border: '2px dashed #ccc',
-                                borderRadius: 1
-                            }}>
+                            <Box
+                                sx={{
+                                    height: 400,
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    border: '2px dashed #ccc',
+                                    borderRadius: 1
+                                }}
+                            >
                                 <Typography color="textSecondary">
                                     Upload a Word document to start mapping fields
                                 </Typography>
@@ -290,9 +295,9 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
                         <Typography variant="subtitle1" gutterBottom>
                             Field Mappings ({fieldMappings.length})
                         </Typography>
-                        
+
                         <List dense>
-                            {fieldMappings.map((mapping) => (
+                            {fieldMappings.map(mapping => (
                                 <ListItem key={mapping.id} divider>
                                     <DragIcon sx={{ mr: 1, color: 'text.secondary' }} />
                                     <ListItemText
@@ -314,24 +319,20 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
 
                         {fieldMappings.length === 0 && (
                             <Typography color="textSecondary" sx={{ textAlign: 'center', py: 2 }}>
-                                No field mappings yet. Click and drag on the document to create mappings.
+                                No field mappings yet. Click and drag on the document to create
+                                mappings.
                             </Typography>
                         )}
 
                         <Divider sx={{ my: 2 }} />
-                        
+
                         <Typography variant="subtitle2" gutterBottom>
                             Available Data Fields
                         </Typography>
-                        
+
                         <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-                            {availableDataFields.map((field) => (
-                                <Chip
-                                    key={field}
-                                    label={field}
-                                    size="small"
-                                    variant="outlined"
-                                />
+                            {availableDataFields.map(field => (
+                                <Chip key={field} label={field} size="small" variant="outlined" />
                             ))}
                         </Box>
                     </Paper>
@@ -339,7 +340,12 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
             </Grid>
 
             {/* Field Mapping Dialog */}
-            <Dialog open={mappingDialog} onClose={() => setMappingDialog(false)} maxWidth="sm" fullWidth>
+            <Dialog
+                open={mappingDialog}
+                onClose={() => setMappingDialog(false)}
+                maxWidth="sm"
+                fullWidth
+            >
                 <DialogTitle>Create Field Mapping</DialogTitle>
                 <DialogContent>
                     <Box sx={{ pt: 1 }}>
@@ -347,33 +353,43 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
                             label="Field Name"
                             fullWidth
                             value={newMapping.fieldName}
-                            onChange={(e) => setNewMapping(prev => ({ ...prev, fieldName: e.target.value }))}
+                            onChange={e =>
+                                setNewMapping(prev => ({ ...prev, fieldName: e.target.value }))
+                            }
                             sx={{ mb: 2 }}
                             placeholder="e.g., Full Name, Date of Birth"
                         />
-                        
+
                         <FormControl fullWidth sx={{ mb: 2 }}>
                             <InputLabel>Data Key</InputLabel>
                             <Select
                                 value={newMapping.dataKey}
-                                onChange={(e) => setNewMapping(prev => ({ ...prev, dataKey: e.target.value }))}
+                                onChange={e =>
+                                    setNewMapping(prev => ({ ...prev, dataKey: e.target.value }))
+                                }
                             >
-                                {availableDataFields.map((field) => (
+                                {availableDataFields.map(field => (
                                     <MenuItem key={field} value={field}>
                                         {field}
                                     </MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
-                        
+
                         <FormControl fullWidth>
                             <InputLabel>Field Type</InputLabel>
                             <Select
                                 value={newMapping.fieldType}
-                                onChange={(e) => setNewMapping(prev => ({ 
-                                    ...prev, 
-                                    fieldType: e.target.value as 'text' | 'number' | 'date' | 'checkbox'
-                                }))}
+                                onChange={e =>
+                                    setNewMapping(prev => ({
+                                        ...prev,
+                                        fieldType: e.target.value as
+                                            | 'text'
+                                            | 'number'
+                                            | 'date'
+                                            | 'checkbox'
+                                    }))
+                                }
                             >
                                 <MenuItem value="text">Text</MenuItem>
                                 <MenuItem value="number">Number</MenuItem>
@@ -385,7 +401,7 @@ export const WordDocumentViewer: React.FC<WordDocumentViewerProps> = ({
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setMappingDialog(false)}>Cancel</Button>
-                    <Button 
+                    <Button
                         onClick={handleSaveMapping}
                         variant="contained"
                         disabled={!newMapping.fieldName || !newMapping.dataKey}

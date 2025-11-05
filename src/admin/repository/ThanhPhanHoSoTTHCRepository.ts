@@ -1,5 +1,6 @@
 import axios from 'axios';
 
+import { ConfigConstant } from '../constant/config.constant';
 import { ThanhPhanHoSoTTHC, ThanhPhanHoSoTTHCLocal, db } from '../db/db';
 import { thanhPhanHoSoTTHCApiService } from '../services/thanhPhanHoSoService';
 
@@ -11,6 +12,24 @@ class ThanhPhanHoSoTTHCRepository {
         'https://laptrinhid.qlns.vn/uploads/tthc/',
         'https://laptrinhid.qlns.vn/uploads/'
     ];
+
+    private getCandidateBaseUrls(): string[] {
+        const bases = [this.baseDownloadUrl, ...this.alternativeBaseUrls];
+        const unique = Array.from(new Set(bases.filter(Boolean)));
+        return unique.sort((a, b) => {
+            const aHttps = a.startsWith('https');
+            const bHttps = b.startsWith('https');
+            if (aHttps === bHttps) return 0;
+            return aHttps ? -1 : 1;
+        });
+    }
+
+    private combineUrl(base: string, path: string): string {
+        const normalizedBase = base.replace(/\/+$/, '');
+        const normalizedPath = path.replace(/^\/+/, '').replace(/^\\+/, '');
+        if (/^https?:\/\//i.test(path)) return path;
+        return `${normalizedBase}/${normalizedPath}`;
+    }
 
     /**
      * Download and store file locally in IndexedDB
@@ -30,7 +49,6 @@ class ThanhPhanHoSoTTHCRepository {
                 return existingFile.id?.toString() || null;
             }
 
-            // Try multiple URL patterns
             const urlsToTry = [
                 `${this.baseDownloadUrl}${item.duongDanTepDinhKem}`,
                 ...this.alternativeBaseUrls.map(base => `${base}${item.duongDanTepDinhKem}`)
@@ -43,16 +61,15 @@ class ThanhPhanHoSoTTHCRepository {
                 urlsToTry
             });
 
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let response: any = null;
             let successfulUrl = '';
 
             for (const downloadUrl of urlsToTry) {
                 try {
-                    console.log(`📥 Trying to download from: ${downloadUrl}`);
-
                     response = await axios.get(downloadUrl, {
                         responseType: 'blob',
-                        timeout: 10000, // 10 second timeout per attempt
+                        timeout: 10000,
                         onDownloadProgress: progressEvent => {
                             const percentCompleted = Math.round(
                                 (progressEvent.loaded * 100) / (progressEvent.total || 1)
@@ -66,6 +83,7 @@ class ThanhPhanHoSoTTHCRepository {
                         console.log(`✅ Successfully downloaded from: ${downloadUrl}`);
                         break;
                     }
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 } catch (error: any) {
                     console.log(
                         `❌ Failed to download from ${downloadUrl}: ${error.response?.status || error.message}`
@@ -125,6 +143,7 @@ class ThanhPhanHoSoTTHCRepository {
             });
 
             return fileId.toString();
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
         } catch (error: any) {
             if (error.response?.status === 404) {
                 console.error(`❌ File not found (404) for ${item.thanhPhanHoSoTTHCID}:`, {
@@ -432,6 +451,119 @@ class ThanhPhanHoSoTTHCRepository {
         }
     }
 
+    private extractFileNameFromDisposition(disposition?: string | null): string | null {
+        if (!disposition) return null;
+        const matches = disposition.match(/filename\*?=(?:UTF-8'')?"?([^;"\n]+)/i);
+        if (!matches || matches.length < 2) return null;
+        try {
+            const value = matches[1].trim().replace(/^"(.*)"$/, '$1');
+            return decodeURIComponent(value);
+        } catch {
+            return matches[1].trim();
+        }
+    }
+
+    private ensureDocxFileName(original?: string | null): string {
+        const base = (original || 'document').replace(/\.[^.]+$/, '');
+        return `${base || 'document'}.docx`;
+    }
+
+    // Xóa for khỏi test (Notes)
+    async convertRemoteFileToDocx(
+        sourceUrl: string,
+        originalFileName?: string
+    ): Promise<{ blob: Blob; fileName: string } | null> {
+        const endpoints = [ConfigConstant.SOCKET_URL, ConfigConstant.API_URL]
+            .filter(Boolean)
+            .map(base => `${base.replace(/\/$/, '')}/template/render-docx`);
+
+        for (const endpoint of endpoints) {
+            try {
+                const response = await axios.post(
+                    endpoint,
+                    {
+                        templateUrl: sourceUrl,
+                        context: {},
+                        inline: true,
+                        clean: false
+                    },
+                    {
+                        responseType: 'blob',
+                        withCredentials: true
+                    }
+                );
+
+                if (response.status >= 200 && response.status < 300 && response.data) {
+                    const contentType = response.headers['content-type'] || '';
+                    if (
+                        !contentType
+                            .toLowerCase()
+                            .includes(
+                                'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+                            )
+                    ) {
+                        const text = await response.data.text();
+                        console.warn('⚠️ DOCX conversion endpoint returned unexpected payload', {
+                            endpoint,
+                            contentType,
+                            text
+                        });
+                        continue;
+                    }
+
+                    const disposition = response.headers['content-disposition'];
+                    const detectedName =
+                        this.extractFileNameFromDisposition(
+                            Array.isArray(disposition) ? disposition[0] : disposition
+                        ) || this.ensureDocxFileName(originalFileName);
+
+                    return { blob: response.data, fileName: detectedName };
+                }
+
+                console.warn('⚠️ Unexpected DOCX conversion response', {
+                    endpoint,
+                    status: response.status,
+                    data: response.data
+                });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } catch (error: any) {
+                const status = error?.response?.status;
+                const data = error?.response?.data;
+                console.error(`❌ Failed to convert DOC to DOCX via ${endpoint}:`, {
+                    status,
+                    data,
+                    message: error?.message
+                });
+            }
+        }
+
+        return null;
+    }
+
+    async getFileUrlForUse(
+        thanhPhanHoSoTTHCID: string,
+        duongDanTepDinhKem?: string
+    ): Promise<string | null> {
+        try {
+            const localInfo = await this.getLocalFileInfo(thanhPhanHoSoTTHCID);
+            if (localInfo?.downloadUrl) return localInfo.downloadUrl;
+
+            const dbItem = await db.thanhPhanHoSoTTHC.get(thanhPhanHoSoTTHCID);
+            const relativePath = duongDanTepDinhKem || dbItem?.duongDanTepDinhKem;
+            if (!relativePath) return null;
+
+            if (/^https?:\/\//i.test(relativePath)) return relativePath;
+
+            const candidateBases = this.getCandidateBaseUrls();
+            if (!candidateBases.length) return null;
+
+            return this.combineUrl(candidateBases[0], relativePath);
+        } catch (error) {
+            console.error(`❌ Failed to get file URL for ${thanhPhanHoSoTTHCID}:`, error);
+            return null;
+        }
+    }
+
     /**
      * Get storage statistics
      * @returns Promise<{totalFiles: number, totalSize: number}>
@@ -464,7 +596,6 @@ class ThanhPhanHoSoTTHCRepository {
                     itemsNeedingDownload.push(item);
                 }
             }
-
             if (itemsNeedingDownload.length > 0) {
                 console.log(`Found ${itemsNeedingDownload.length} files to download`);
                 await this.downloadAllFiles(itemsNeedingDownload);
@@ -472,6 +603,65 @@ class ThanhPhanHoSoTTHCRepository {
         } catch (error) {
             console.error('❌ Error in downloadMissingFiles:', error);
         }
+    }
+
+    async renderPdfFromBlob(blob: Blob): Promise<Blob | null> {
+        const createPayload = async () => {
+            const fd = new FormData();
+            const arrayBuf = await blob.arrayBuffer();
+            const fileName = 'document.docx';
+            const file = new File([arrayBuf], fileName, {
+                type:
+                    blob.type ||
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+            });
+            fd.append('file', file);
+            fd.append('inline', 'true');
+            return fd;
+        };
+
+        const endpoints = [ConfigConstant.API_URL, ConfigConstant.SOCKET_URL]
+            .filter(Boolean)
+            .map(base => `${base.replace(/\/$/, '')}/convert/pdf`);
+
+        for (const endpoint of endpoints) {
+            try {
+                const formData = await createPayload();
+                const response = await axios.post(endpoint, formData, {
+                    responseType: 'blob',
+                    withCredentials: true
+                });
+                if (response.status >= 200 && response.status < 300 && response.data) {
+                    const contentType = response.headers['content-type'] || '';
+                    if (!contentType.toLowerCase().includes('pdf')) {
+                        const text = await response.data.text();
+                        console.warn('⚠️ PDF endpoint returned non-PDF payload', {
+                            endpoint,
+                            contentType,
+                            text
+                        });
+                        continue;
+                    }
+                    return response.data;
+                }
+                console.warn('⚠️ Unexpected PDF render response', {
+                    endpoint,
+                    status: response.status,
+                    data: response.data
+                });
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } catch (error: any) {
+                const status = error?.response?.status;
+                const data = error?.response?.data;
+                console.error(`❌ Failed to render PDF from blob via ${endpoint}:`, {
+                    status,
+                    data,
+                    message: error?.message
+                });
+            }
+        }
+
+        return null;
     }
 }
 
