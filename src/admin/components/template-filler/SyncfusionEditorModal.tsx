@@ -7,8 +7,10 @@ import { flushSync } from 'react-dom';
 
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import CloseIcon from '@mui/icons-material/Close';
+import ContentPasteIcon from '@mui/icons-material/ContentPaste';
 import DownloadIcon from '@mui/icons-material/Download';
 import EditIcon from '@mui/icons-material/Edit';
+import ImageIcon from '@mui/icons-material/Image';
 import InfoIcon from '@mui/icons-material/Info';
 import RestartAltIcon from '@mui/icons-material/RestartAlt';
 import SmartphoneIcon from '@mui/icons-material/Smartphone';
@@ -138,7 +140,10 @@ const ALIAS_TO_CANON: Record<string, keyof Canon> = {
     dia_chi: 'address',
     diaChi: 'address',
     ngay_cap: 'issueDate',
-    ngayCap: 'issueDate'
+    ngayCap: 'issueDate',
+    //
+    so_cccd: 'cccd',
+    noi_cu_tru: 'address'
 };
 
 const normDate = (raw?: string) => {
@@ -195,6 +200,187 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
         severity: 'info' as 'success' | 'error' | 'warning' | 'info'
     });
     const handleSnackbarClose = () => setSnackbar(prev => ({ ...prev, open: false }));
+
+    ///////////
+
+    // ===== OCR Giấy chứng nhận =====
+    const [ocrDialogOpen, setOcrDialogOpen] = React.useState(false);
+    const [ocrFile, setOcrFile] = React.useState<File | null>(null);
+    const [ocrLoading, setOcrLoading] = React.useState(false);
+    const [ocrRaw, setOcrRaw] = React.useState('');
+    const [ocrParsed, setOcrParsed] = React.useState<any | null>(null);
+
+    const handleOcrDialogOpen = () => {
+        setOcrDialogOpen(true);
+        setOcrFile(null);
+        setOcrParsed(null);
+        setOcrRaw('');
+        setOcrLoading(false);
+    };
+
+    const handleOcrDialogClose = () => {
+        setOcrDialogOpen(false);
+        setOcrFile(null);
+        setOcrParsed(null);
+        setOcrRaw('');
+        setOcrLoading(false);
+    };
+
+    const handleOcrFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0] ?? null;
+        setOcrFile(file);
+    };
+
+    const handleFetchGiayChungNhan = async () => {
+        if (!ocrFile) {
+            setSnackbar({
+                open: true,
+                message: 'Vui lòng chọn file ảnh/PDF trước.',
+                severity: 'warning'
+            });
+            return;
+        }
+
+        setOcrLoading(true);
+        try {
+            const formData = new FormData();
+            formData.append('file', ocrFile);
+
+            const resp = await fetch('http://127.0.0.1:5003/ocr/extract?type=GiayChungNhan', {
+                method: 'POST',
+                body: formData
+            });
+
+            if (!resp.ok) {
+                throw new Error(`HTTP ${resp.status}`);
+            }
+
+            const json = await resp.json();
+            setOcrParsed(json);
+            setOcrRaw(JSON.stringify(json, null, 2));
+
+            setSnackbar({
+                open: true,
+                message: 'Đã nhận dữ liệu OCR Giấy chứng nhận.',
+                severity: 'success'
+            });
+        } catch (err) {
+            console.error('OCR GiayChungNhan error:', err);
+            setSnackbar({
+                open: true,
+                message: 'Gọi OCR Giấy chứng nhận thất bại.',
+                severity: 'error'
+            });
+        } finally {
+            setOcrLoading(false);
+        }
+    };
+
+    const handlePasteGiayChungNhan = async () => {
+        let payload: any = ocrParsed;
+
+        if (!payload) {
+            if (!ocrRaw.trim()) {
+                setSnackbar({
+                    open: true,
+                    message: 'Không có dữ liệu OCR để dán.',
+                    severity: 'warning'
+                });
+                return;
+            }
+            try {
+                payload = JSON.parse(ocrRaw);
+            } catch (err) {
+                console.error('Parse OCR JSON error:', err);
+                setSnackbar({
+                    open: true,
+                    message: 'JSON OCR không hợp lệ.',
+                    severity: 'error'
+                });
+                return;
+            }
+        }
+
+        const getCanon = (root: any, key: string): string | undefined => {
+            const cf = root?.canonical_fields?.[key];
+            if (Array.isArray(cf) && cf.length > 0) {
+                const v = cf[0]?.value ?? cf[0]?.Value;
+                if (typeof v === 'string' && v.trim()) return v.trim();
+            }
+
+            const gcn = root?.giay_chung_nhan;
+            if (gcn && typeof gcn[key] === 'string' && gcn[key].trim()) {
+                return gcn[key].trim();
+            }
+
+            return undefined;
+        };
+
+        const so_cccd = getCanon(payload, 'CMND') ?? '';
+        const ho_ten = getCanon(payload, 'HoTenNguoiSuDungDat') ?? getCanon(payload, 'HoTen') ?? '';
+        const noi_cu_tru =
+            getCanon(payload, 'DiaChiThuongTru') ?? getCanon(payload, 'NoiCuTru') ?? '';
+
+        if (!so_cccd && !ho_ten && !noi_cu_tru) {
+            setSnackbar({
+                open: true,
+                message:
+                    'Không tìm thấy CMND / HoTenNguoiSuDungDat / DiaChiThuongTru trong canonical_fields.',
+                severity: 'warning'
+            });
+            return;
+        }
+
+        // >>> KEY CHANGE: build object with the fields your converter already understands
+        const payloadForParent = {
+            so_cccd: so_cccd,
+            ho_ten: ho_ten,
+            noi_cu_tru: noi_cu_tru
+        };
+
+        // Optional: show it in the text area for debugging
+        try {
+            setScanInput(JSON.stringify(payloadForParent, null, 2));
+        } catch {
+            setScanInput(
+                `{ "so_cccd": "${so_cccd}", "ho_ten": "${ho_ten}", "noi_cu_tru": "${noi_cu_tru}" }`
+            );
+        }
+
+        // Prefer the handheld-scan pipeline if provided (TemplateFiller passes fillFromHandheldScan here)
+        if (typeof onHandheldScan === 'function') {
+            try {
+                await onHandheldScan(payloadForParent);
+                handleOcrDialogClose();
+                return;
+            } catch (err) {
+                console.error('onHandheldScan (GiayChungNhan) error:', err);
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể chèn dữ liệu từ Giấy chứng nhận.',
+                    severity: 'error'
+                });
+                return;
+            }
+        }
+
+        // Fallback: keep old normalized string path if you really want
+        const canon: Canon = {
+            cccd: so_cccd || undefined,
+            fullName: ho_ten || undefined,
+            address: noi_cu_tru || undefined
+        };
+        const normalized = toPipe(canon);
+
+        try {
+            await proceedWithFill(normalized);
+            handleOcrDialogClose();
+        } catch (err) {
+            console.error('Paste GiayChungNhan fallback error:', err);
+        }
+    };
+
+    ///////////
 
     // input mode tabs
     const [inputMode, setInputMode] = React.useState<'ntsoft' | 'scanner'>('ntsoft');
@@ -774,6 +960,19 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                     Mẫu đơn/tờ khai
                                 </Typography>
                                 <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Tooltip title="OCR Giấy chứng nhận từ ảnh/PDF">
+                                        <Button
+                                            variant="outlined"
+                                            color="primary"
+                                            size="small"
+                                            onClick={handleOcrDialogOpen}
+                                            startIcon={<AdfScannerIcon />}
+                                            sx={{ textTransform: 'none' }}
+                                        >
+                                            OCR Giấy chứng nhận
+                                        </Button>
+                                    </Tooltip>
+
                                     {onResetDocument && (
                                         <Tooltip title="Làm mới tài liệu về mặc định">
                                             <Button
@@ -1212,6 +1411,71 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                         </Card>
                     </Box>
                 </DialogContent>
+            </Dialog>
+
+            <Dialog open={ocrDialogOpen} onClose={handleOcrDialogClose} maxWidth="sm" fullWidth>
+                <DialogTitle>OCR Giấy chứng nhận</DialogTitle>
+                <DialogContent dividers>
+                    <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 2 }}>
+                        <Button
+                            variant="outlined"
+                            component="label"
+                            startIcon={<ImageIcon />}
+                            disabled={ocrLoading}
+                        >
+                            Chọn ảnh/PDF
+                            <input
+                                type="file"
+                                hidden
+                                accept="image/*,application/pdf"
+                                onChange={handleOcrFileChange}
+                            />
+                        </Button>
+                        {ocrFile && (
+                            <Typography variant="body2" sx={{ fontStyle: 'italic' }}>
+                                {ocrFile.name}
+                            </Typography>
+                        )}
+                    </Box>
+
+                    <Box sx={{ mb: 2, display: 'flex', justifyContent: 'flex-start', gap: 1 }}>
+                        <Button
+                            variant="contained"
+                            onClick={() => void handleFetchGiayChungNhan()}
+                            startIcon={<AdfScannerIcon />}
+                            disabled={ocrLoading || !ocrFile}
+                        >
+                            {ocrLoading ? 'Đang OCR…' : 'Gửi OCR (type=GiayChungNhan)'}
+                        </Button>
+                    </Box>
+
+                    <TextField
+                        label="Kết quả JSON từ OCR (có thể chỉnh tay)"
+                        multiline
+                        rows={10}
+                        fullWidth
+                        value={ocrRaw}
+                        onChange={e => setOcrRaw(e.target.value)}
+                        variant="outlined"
+                        sx={{
+                            '& .MuiOutlinedInput-root': {
+                                fontFamily: 'Monaco, "Lucida Console", monospace',
+                                fontSize: '0.85rem'
+                            }
+                        }}
+                    />
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleOcrDialogClose}>Đóng</Button>
+                    <Button
+                        variant="contained"
+                        startIcon={<ContentPasteIcon />}
+                        onClick={() => void handlePasteGiayChungNhan()}
+                        disabled={!ocrRaw.trim()}
+                    >
+                        Dán dữ liệu
+                    </Button>
+                </DialogActions>
             </Dialog>
 
             {/* Index selection dialog */}
