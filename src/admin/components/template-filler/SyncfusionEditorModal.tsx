@@ -1,9 +1,7 @@
-import React, { useCallback } from 'react';
+import React from 'react';
 
 import { renderAsync } from 'docx-preview';
 import PizZip from 'pizzip';
-// thêm import
-import { flushSync } from 'react-dom';
 
 import AdfScannerIcon from '@mui/icons-material/AdfScanner';
 import CloseIcon from '@mui/icons-material/Close';
@@ -29,7 +27,6 @@ import {
     FormControl,
     FormControlLabel,
     IconButton,
-    MenuItem,
     Radio,
     RadioGroup,
     Snackbar,
@@ -61,38 +58,11 @@ interface PreviewState {
     loading: boolean;
 }
 
-interface SyncfusionEditorModalProps {
-    open: boolean;
-    onClose: () => void;
-    record: EnhancedTTHCRecord | null;
-    linhVucList: LinhVuc[];
-    socketStatus?: 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
-    preview: PreviewState;
-    onDownloadCurrent: () => void | Promise<void>;
-    onPreviewApiTemplate: () => void | Promise<void>;
-    workingDocs: WorkingDocument[];
-    onPreviewWorkingDoc: (wd: WorkingDocument) => void;
-    onDownloadWorkingDoc: (wd: WorkingDocument) => void;
-    scanInput: string;
-    setScanInput: (text: string) => void;
-    // trong interface props
-    onHandheldScan?: (
-        raw: string | Record<string, any>
-    ) => Promise<boolean | void> | boolean | void;
-    onAnalyzeAndFill: (args: {
-        normalized: string;
-        placeholderIndex: PlaceholderIndexChoice;
-        record: EnhancedTTHCRecord | null;
-    }) => void | Promise<void>;
-    onTestInsertNoiCuTru?: () => void;
-    isProcessingFill: boolean;
-    onChangeTemplate?: () => void;
-    onResetDocument?: () => void;
-    onPrintDocument?: () => void;
-    isGeneratingPrint?: boolean;
-    selectedPlaceholderIndex?: PlaceholderIndexChoice;
-    onPlaceholderIndexChange?: (index: PlaceholderIndexChoice) => void;
-    onPlaceholderSummaryChange?: (summary: PlaceholderSummary[]) => void;
+export type PlaceholderIndexChoice = number | 'default';
+
+export interface PlaceholderSummary {
+    baseKey: string;
+    variants: string[];
 }
 
 interface PlaceholderVariant {
@@ -105,13 +75,6 @@ interface PlaceholderGroup {
     variants: PlaceholderVariant[];
 }
 
-export type PlaceholderIndexChoice = number | 'default';
-
-export interface PlaceholderSummary {
-    baseKey: string;
-    variants: string[];
-}
-
 type Canon = {
     cmnd?: string;
     cccd?: string;
@@ -122,7 +85,43 @@ type Canon = {
     issueDate?: string; // ddMMyyyy
 };
 
-const SCAN_AUTO_SUBMIT_PIPE_THRESHOLD = 6;
+interface SyncfusionEditorModalProps {
+    open: boolean;
+    onClose: () => void;
+    record: EnhancedTTHCRecord | null;
+    linhVucList: LinhVuc[];
+    socketStatus?: 'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled';
+    preview: PreviewState;
+    onPreviewApiTemplate?: () => Promise<void> | void;
+    onDownloadCurrent: () => void | Promise<void>;
+    workingDocs: WorkingDocument[];
+    onPreviewWorkingDoc: (wd: WorkingDocument) => void;
+    onDownloadWorkingDoc: (wd: WorkingDocument) => void;
+
+    scanInput: string;
+    setScanInput: (text: string) => void;
+
+    // ưu tiên handheld trước; trả về true/void. Nếu throw thì fallback local fill.
+    onHandheldScan?: (
+        raw: string | Record<string, any>
+    ) => Promise<boolean | void> | boolean | void;
+
+    onAnalyzeAndFill: (args: {
+        normalized: string;
+        placeholderIndex: PlaceholderIndexChoice;
+        record: EnhancedTTHCRecord | null;
+    }) => void | Promise<void>;
+
+    onTestInsertNoiCuTru?: () => void;
+    isProcessingFill: boolean;
+    onChangeTemplate?: () => void;
+    onResetDocument?: () => void;
+    onPrintDocument?: () => void;
+    isGeneratingPrint?: boolean;
+    selectedPlaceholderIndex?: PlaceholderIndexChoice;
+    onPlaceholderIndexChange?: (index: PlaceholderIndexChoice) => void;
+    onPlaceholderSummaryChange?: (summary: PlaceholderSummary[]) => void;
+}
 
 const ALIAS_TO_CANON: Record<string, keyof Canon> = {
     cmnd: 'cmnd',
@@ -171,7 +170,6 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
     socketStatus = 'disabled',
     preview,
     onDownloadCurrent,
-    onPreviewApiTemplate,
     workingDocs,
     onPreviewWorkingDoc,
     onDownloadWorkingDoc,
@@ -233,7 +231,7 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
             const parsed = JSON.parse(raw);
             if (Array.isArray(parsed)) return parsed.join(', ');
         } catch {
-            /* empty */
+            /* noop */
         }
         return raw;
     };
@@ -353,7 +351,6 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
     }>({ loading: false, groups: [], error: undefined });
     const [selectedPlaceholderIndex, setSelectedPlaceholderIndex] =
         React.useState<PlaceholderIndexChoice>(externalPlaceholderIndex ?? 'default');
-    const scanSubmitTimeoutRef = React.useRef<number | null>(null);
 
     const updateSelectedIndex = React.useCallback(
         (value: PlaceholderIndexChoice) => {
@@ -361,13 +358,6 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
             onPlaceholderIndexChange?.(value);
         },
         [onPlaceholderIndexChange]
-    );
-
-    React.useEffect(
-        () => () => {
-            if (scanSubmitTimeoutRef.current) window.clearTimeout(scanSubmitTimeoutRef.current);
-        },
-        []
     );
 
     React.useEffect(() => {
@@ -618,24 +608,16 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
             c.issueDate ?? ''
         ].join('|');
 
-    // submit pipeline (with optional index confirmation)
-    const [indexDialogOpen, setIndexDialogOpen] = React.useState(false);
-    const [pendingNormalized, setPendingNormalized] = React.useState<string | null>(null);
-    const [pendingIndexChoice, setPendingIndexChoice] =
-        React.useState<PlaceholderIndexChoice>('default');
-
-    // fill vào
+    // fill vào (local)
     const proceedWithFill = React.useCallback(
         async (normalized: string) => {
             try {
                 setScanInput(normalized);
-
                 await onAnalyzeAndFill({
                     normalized,
                     placeholderIndex: selectedPlaceholderIndex,
                     record
                 });
-
                 setSnackbar({
                     open: true,
                     message: 'Đã điền vào mẫu từ máy quét.',
@@ -648,6 +630,40 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
         },
         [onAnalyzeAndFill, setScanInput, selectedPlaceholderIndex, record]
     );
+
+    const submitFromSocket = React.useCallback(async () => {
+        const s = (scanInput || '').trim();
+        if (!s) {
+            setSnackbar({
+                open: true,
+                message: 'Chưa có dữ liệu từ máy scan.',
+                severity: 'warning'
+            });
+            return;
+        }
+        try {
+            if (typeof onHandheldScan === 'function') {
+                await onHandheldScan(s);
+                return; // parent đã queue/fill nếu cần
+            }
+            const { canon } = parseScannerPayload(s);
+            if (canon) await proceedWithFill(toPipe(canon));
+            else
+                setSnackbar({
+                    open: true,
+                    message: 'Không thể xử lý dữ liệu nhận được.',
+                    severity: 'error'
+                });
+        } catch (e) {
+            console.error('submitFromSocket error:', e);
+            setSnackbar({
+                open: true,
+                message: 'Lỗi khi chèn dữ liệu từ máy scan.',
+                severity: 'error'
+            });
+        }
+    }, [scanInput, onHandheldScan, proceedWithFill]);
+
     const submitScannerPayload = React.useCallback(async () => {
         const { canon, error } = parseScannerPayload(scanInput);
         if (error) {
@@ -662,28 +678,21 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
             });
             return;
         }
+
         const normalized = toPipe(canon);
+
         if (typeof onHandheldScan === 'function') {
             try {
                 await onHandheldScan(normalized);
+                // parent sẽ tự queue/fill nếu cần
                 return;
             } catch (e) {
                 console.error('onHandheldScan error, fallback local fill:', e);
             }
         }
+
         await proceedWithFill(normalized);
     }, [scanInput, onHandheldScan, proceedWithFill, setSnackbar]);
-
-    const confirmIndexAndFill = async () => {
-        if (pendingIndexChoice !== undefined) {
-            updateSelectedIndex(pendingIndexChoice);
-        }
-        setIndexDialogOpen(false);
-        if (pendingNormalized) {
-            await proceedWithFill(pendingNormalized);
-            setPendingNormalized(null);
-        }
-    };
 
     // ===== UI =====
     return (
@@ -960,7 +969,7 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                             }}
                                         >
                                             <Chip
-                                                icon={<WifiIcon sx={{ color: 'white' }} />}
+                                                icon={<WifiIcon color={'action'} />}
                                                 label={
                                                     socketStatus === 'connected'
                                                         ? 'Đã kết nối'
@@ -1012,17 +1021,15 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                 </Box>
 
                                 {/* Scanner Input */}
-                                <Box sx={{ mb: 3 }}>
+                                {/* <Box sx={{ mb: 3 }}>
                                     <TextField
                                         multiline
                                         rows={5}
                                         fullWidth
                                         value={scanInput}
                                         onChange={e => setScanInput(e.target.value)}
-                                        // onKeyDown={() => handleScanInputKeyDown}
-                                        // onPaste={onScannerPaste}
                                         inputRef={scanInputRef}
-                                        placeholder="Dán/Quét: cmnd|cccd|Họ tên|Ngày sinh|Giới tính|Địa chỉ|Ngày cấp (có thể kèm dòng header)"
+                                        placeholder="Dán/Quét: cmnd|cccd|Họ tên|Ngày sinh|Giới tính|Địa chỉ|Ngày cấp"
                                         variant="outlined"
                                         sx={{
                                             '& .MuiOutlinedInput-root': {
@@ -1057,8 +1064,124 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                             Điền vào mẫu
                                         </Button>
                                     </Box>
-                                </Box>
+                                </Box> */}
+                                {/* Scanner Input */}
+                                <Box sx={{ mb: 3 }}>
+                                    {inputMode !== 'ntsoft' ? (
+                                        <>
+                                            <TextField
+                                                multiline
+                                                rows={5}
+                                                fullWidth
+                                                value={scanInput}
+                                                onChange={e => setScanInput(e.target.value)}
+                                                inputRef={scanInputRef}
+                                                placeholder="Dán/Quét: cmnd|cccd|Họ tên|Ngày sinh|Giới tính|Địa chỉ|Ngày cấp"
+                                                variant="outlined"
+                                                sx={{
+                                                    '& .MuiOutlinedInput-root': {
+                                                        borderRadius: 1,
+                                                        background:
+                                                            'linear-gradient(135deg, #ffffff 0%, #f8f9fa 100%)'
+                                                    },
+                                                    '& .MuiInputBase-input': {
+                                                        fontSize: '0.9rem',
+                                                        fontFamily:
+                                                            'Monaco, "Lucida Console", monospace',
+                                                        lineHeight: 1.6
+                                                    }
+                                                }}
+                                            />
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    justifyContent: 'flex-end',
+                                                    mt: 1,
+                                                    gap: 1
+                                                }}
+                                            >
+                                                <Button
+                                                    variant="outlined"
+                                                    onClick={() => setScanInput('')}
+                                                >
+                                                    Xóa
+                                                </Button>
+                                                <Button
+                                                    variant="contained"
+                                                    onClick={() => void submitScannerPayload()}
+                                                    startIcon={<AdfScannerIcon />}
+                                                    disabled={!scanInput.trim()}
+                                                >
+                                                    Điền vào mẫu
+                                                </Button>
+                                            </Box>
+                                        </>
+                                    ) : (
+                                        // TAB "Scanner" dùng socket: không cần ô input
+                                        <Card variant="outlined" sx={{ p: 2, borderRadius: 1 }}>
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    alignItems: 'center',
+                                                    justifyContent: 'center',
+                                                    gap: 1,
+                                                    mb: 1
+                                                }}
+                                            >
+                                                <Typography variant="body2" color="text.secondary">
+                                                    Dữ liệu sẽ tự động chèn ứng dụng NTS DocumentAI.
+                                                </Typography>
+                                            </Box>
 
+                                            <Box
+                                                sx={{
+                                                    display: 'flex',
+                                                    gap: 1,
+                                                    mt: 1,
+                                                    flexWrap: 'wrap'
+                                                }}
+                                            >
+                                                <Button
+                                                    variant="contained"
+                                                    startIcon={<AdfScannerIcon />}
+                                                    onClick={() => void submitFromSocket()}
+                                                    disabled={!scanInput.trim()}
+                                                >
+                                                    Chèn dữ liệu vừa nhận
+                                                </Button>
+                                                <Button
+                                                    variant="outlined"
+                                                    onClick={() => setScanInput('')}
+                                                    disabled={!scanInput.trim()}
+                                                >
+                                                    Xóa dữ liệu tạm
+                                                </Button>
+                                            </Box>
+
+                                            {!!scanInput.trim() && (
+                                                <Box
+                                                    sx={{
+                                                        mt: 1.5,
+                                                        p: 1.5,
+                                                        bgcolor: 'rgba(0,0,0,0.03)',
+                                                        border: '1px dashed rgba(0,0,0,0.12)',
+                                                        borderRadius: 1,
+                                                        maxHeight: 160,
+                                                        overflow: 'auto',
+                                                        fontFamily:
+                                                            'Monaco, "Lucida Console", monospace',
+                                                        fontSize: '0.8rem',
+                                                        whiteSpace: 'pre-wrap'
+                                                    }}
+                                                >
+                                                    {scanInput.length > 200
+                                                        ? `${scanInput.slice(0, 200)}…`
+                                                        : scanInput}
+                                                </Box>
+                                            )}
+                                        </Card>
+                                    )}
+                                </Box>
                                 {/* Info Section */}
                                 <Box sx={{ my: 2 }}>
                                     <Divider
@@ -1214,50 +1337,18 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                 </DialogContent>
             </Dialog>
 
-            {/* Index selection dialog */}
-            <Dialog
-                open={indexDialogOpen}
-                onClose={() => setIndexDialogOpen(false)}
-                maxWidth="xs"
-                fullWidth
-            >
+            {/* (Giữ nguyên dialog chọn index nếu sau này cần bật lại)
+          Nếu chắc chắn không dùng, bạn có thể xoá FormControl/Radio/… imports ở trên. */}
+            <Dialog open={false} onClose={() => {}} maxWidth="xs" fullWidth>
                 <DialogTitle>Chọn nhóm placeholder</DialogTitle>
                 <DialogContent>
-                    {placeholderIndexes.length === 0 ? (
-                        <Typography variant="body2">
-                            Không có biến thể đánh số. Sẽ dùng mặc định.
-                        </Typography>
-                    ) : (
-                        <FormControl>
-                            <RadioGroup
-                                value={String(pendingIndexChoice)}
-                                onChange={e => {
-                                    const v = e.target.value;
-                                    setPendingIndexChoice(v === 'default' ? 'default' : Number(v));
-                                }}
-                            >
-                                <FormControlLabel
-                                    value={'default'}
-                                    control={<Radio />}
-                                    label={'Mặc định'}
-                                />
-                                {placeholderIndexes.map(idx => (
-                                    <FormControlLabel
-                                        key={idx}
-                                        value={String(idx)}
-                                        control={<Radio />}
-                                        label={`Index _${idx}`}
-                                    />
-                                ))}
-                            </RadioGroup>
-                        </FormControl>
-                    )}
+                    <Typography variant="body2">
+                        Không có biến thể đánh số. Sẽ dùng mặc định.
+                    </Typography>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setIndexDialogOpen(false)}>Hủy</Button>
-                    <Button variant="contained" onClick={() => void confirmIndexAndFill()}>
-                        Xác nhận
-                    </Button>
+                    <Button>Hủy</Button>
+                    <Button variant="contained">Xác nhận</Button>
                 </DialogActions>
             </Dialog>
 

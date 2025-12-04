@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { saveAs } from 'file-saver';
 import { Socket, io } from 'socket.io-client';
@@ -43,12 +43,17 @@ import { linhVucRepository } from '@/admin/repository/LinhVucRepository';
 import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 import { thuTucHCRepository } from '@/admin/repository/ThuTucHCRepository';
 import authService from '@/admin/services/authService';
+import { chuyenDoiApiService } from '@/admin/services/chuyenDoiService';
 import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc } from '@/admin/services/linhVucService';
 import { ThanhPhanHoSoTTHC } from '@/admin/services/thanhPhanHoSoService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
 import { formatDDMMYYYY } from '@/admin/utils/formatDate';
 import Utils from '@/admin/utils/utils';
+
+/* =========================
+   Types & utils (pure)
+   ========================= */
 
 interface ProcessingData {
     [key: string]: any;
@@ -141,11 +146,11 @@ const createFilterOptionsFromIndexDB = (
     thuTucHcList.forEach(thuTucHC => {
         let linhVucName = '';
 
-        if (thuTucHC.linhVuc && thuTucHC.linhVuc.tenLinhVuc) {
+        if (thuTucHC.linhVuc?.tenLinhVuc) {
             linhVucName = thuTucHC.linhVuc.tenLinhVuc;
         } else {
-            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
-            linhVucName = linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc;
+            const lv = linhVucList.find(x => x.maLinhVuc === thuTucHC.maLinhVuc);
+            linhVucName = lv?.tenLinhVuc || thuTucHC.maLinhVuc;
         }
 
         if (linhVucName && thuTucHC.tenThuTucHanhChinh) {
@@ -158,11 +163,11 @@ const createFilterOptionsFromIndexDB = (
         }
 
         if (thuTucHC.doiTuongThucHien) {
-            const dtList = thuTucHC.doiTuongThucHien
+            thuTucHC.doiTuongThucHien
                 .split(';')
                 .map(dt => dt.trim())
-                .filter(Boolean);
-            dtList.forEach(dt => doiTuongSet.add(dt));
+                .filter(Boolean)
+                .forEach(dt => doiTuongSet.add(dt));
         }
         if (thuTucHC.maCapHanhChinh) {
             capThucHienSet.add(thuTucHC.maCapHanhChinh.trim());
@@ -186,20 +191,21 @@ const filterThuTucHanhChinh = (
     thuTucHcList: ThuTucHanhChinh[],
     filters: FilterState,
     linhVucList: LinhVuc[]
-): ThuTucHanhChinh[] => {
-    return thuTucHcList.filter(thuTucHC => {
+): ThuTucHanhChinh[] =>
+    thuTucHcList.filter(thuTucHC => {
         if (filters.searchText) {
             const searchLower = filters.searchText.toLowerCase();
-            const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
+            const lv = linhVucList.find(x => x.maLinhVuc === thuTucHC.maLinhVuc);
             const searchableText = [
                 thuTucHC.tenThuTucHanhChinh,
                 thuTucHC.maThuTucHanhChinh,
-                linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc,
+                lv?.tenLinhVuc || thuTucHC.maLinhVuc,
                 thuTucHC.doiTuongThucHien,
                 thuTucHC.moTa
             ]
                 .join(' ')
                 .toLowerCase();
+
             if (!searchLower.split(' ').every(word => searchableText.includes(word))) return false;
         }
 
@@ -210,11 +216,11 @@ const filterThuTucHanhChinh = (
 
         if (filters.linhVuc) {
             let thuTucLinhVucName = '';
-            if (thuTucHC.linhVuc && thuTucHC.linhVuc.tenLinhVuc) {
+            if (thuTucHC.linhVuc?.tenLinhVuc) {
                 thuTucLinhVucName = thuTucHC.linhVuc.tenLinhVuc;
             } else {
-                const linhVuc = linhVucList.find(lv => lv.maLinhVuc === thuTucHC.maLinhVuc);
-                thuTucLinhVucName = linhVuc?.tenLinhVuc || thuTucHC.maLinhVuc;
+                const lv = linhVucList.find(x => x.maLinhVuc === thuTucHC.maLinhVuc);
+                thuTucLinhVucName = lv?.tenLinhVuc || thuTucHC.maLinhVuc;
             }
             if (thuTucLinhVucName !== filters.linhVuc) return false;
         }
@@ -224,7 +230,6 @@ const filterThuTucHanhChinh = (
 
         return true;
     });
-};
 
 const LEGACY_FIELD_COUNT = 7;
 
@@ -351,14 +356,10 @@ const parseLegacyDelimitedInput = (input: string): Record<string, string> => {
     }
 
     const pipeParts = normalizedInput.split('|').map(part => part.trim());
-    if (pipeParts.length >= LEGACY_FIELD_COUNT) {
-        return createRecordFromParts(pipeParts);
-    }
+    if (pipeParts.length >= LEGACY_FIELD_COUNT) return createRecordFromParts(pipeParts);
 
     const commaParts = normalizedInput.split(',').map(part => part.trim());
-    if (commaParts.length >= LEGACY_FIELD_COUNT) {
-        return createRecordFromParts(commaParts);
-    }
+    if (commaParts.length >= LEGACY_FIELD_COUNT) return createRecordFromParts(commaParts);
 
     return { ...defaults, raw: input };
 };
@@ -369,9 +370,7 @@ const parseScanInputValue = (input: string): Record<string, any> => {
 
     try {
         const parsed = JSON.parse(trimmed);
-        if (Array.isArray(parsed)) {
-            return { data: parsed };
-        }
+        if (Array.isArray(parsed)) return { data: parsed };
         if (isObjectRecord(parsed)) return parsed;
         return { value: parsed };
     } catch {
@@ -379,13 +378,11 @@ const parseScanInputValue = (input: string): Record<string, any> => {
         if (sanitized !== trimmed) {
             try {
                 const reparsed = JSON.parse(sanitized);
-                if (Array.isArray(reparsed)) {
-                    return { data: reparsed };
-                }
+                if (Array.isArray(reparsed)) return { data: reparsed };
                 if (isObjectRecord(reparsed)) return reparsed;
                 return { value: reparsed };
             } catch {
-                /* fallthrough */
+                /* noop */
             }
         }
         return parseLegacyDelimitedInput(trimmed);
@@ -397,29 +394,26 @@ const buildProcessingPayload = (
 ): { raw: any; processingData: ProcessingData | null } => {
     let rawValue: any = source;
 
-    if (typeof source === 'string') {
-        rawValue = parseScanInputValue(source);
-    } else if (Array.isArray(source)) {
-        rawValue = { data: source };
-    } else if (!isObjectRecord(source)) {
-        rawValue = { value: source };
-    }
+    if (typeof source === 'string') rawValue = parseScanInputValue(source);
+    else if (Array.isArray(source)) rawValue = { data: source };
+    else if (!isObjectRecord(source)) rawValue = { value: source };
 
-    if (!isObjectRecord(rawValue)) {
-        return { raw: rawValue, processingData: null };
-    }
+    if (!isObjectRecord(rawValue)) return { raw: rawValue, processingData: null };
 
     const normalized = { ...rawValue };
-
     if (normalized.ngaySinh) normalized.ngaySinh = normalizeDateIfNeeded(normalized.ngaySinh);
     if (normalized.ngayCap) normalized.ngayCap = normalizeDateIfNeeded(normalized.ngayCap);
     if (normalized.ngay_sinh) normalized.ngay_sinh = normalizeDateIfNeeded(normalized.ngay_sinh);
     if (normalized.ngay_cap) normalized.ngay_cap = normalizeDateIfNeeded(normalized.ngay_cap);
 
     const processingData = Utils.convertScannedInfoToProcessingData(normalized) as ProcessingData;
-
     return { raw: rawValue, processingData };
 };
+
+/* =========================
+   Socket hook (isolated)
+   ========================= */
+
 const useSocketConnection = (apiUrl: string) => {
     const [socketStatus, setSocketStatus] = useState<
         'connected' | 'disconnected' | 'connecting' | 'error' | 'disabled'
@@ -434,6 +428,7 @@ const useSocketConnection = (apiUrl: string) => {
             return;
         }
         if (socketRef.current?.connected) return;
+
         setSocketStatus('connecting');
         try {
             const token = authService.getToken() ?? '';
@@ -452,9 +447,7 @@ const useSocketConnection = (apiUrl: string) => {
                 console.log('✅ Socket connected successfully, id=', socketRef.current?.id);
                 setSocketStatus('connected');
                 setReconnectAttempts(0);
-                if (token) {
-                    socketRef.current?.emit('authenticate', { token });
-                }
+                if (token) socketRef.current?.emit('authenticate', { token });
             });
 
             socketRef.current.on('disconnect', reason => {
@@ -483,6 +476,7 @@ const useSocketConnection = (apiUrl: string) => {
             setSocketStatus('error');
         }
     }, [apiUrl]);
+
     const disconnect = useCallback(() => {
         if (socketRef.current) {
             socketRef.current.disconnect();
@@ -490,29 +484,27 @@ const useSocketConnection = (apiUrl: string) => {
         }
         setSocketStatus('disconnected');
     }, []);
+
     const on = useCallback((event: string, callback: (...args: any[]) => void) => {
-        if (socketRef.current) {
-            socketRef.current.on(event, callback);
-        }
+        if (socketRef.current) socketRef.current.on(event, callback);
     }, []);
+
     const off = useCallback((event: string, callback?: (...args: any[]) => void) => {
-        if (socketRef.current) {
-            socketRef.current.off(event, callback);
-        }
+        if (socketRef.current) socketRef.current.off(event, callback);
     }, []);
+
     useEffect(() => {
         connect();
         return () => disconnect();
     }, [connect, disconnect]);
-    return {
-        socketStatus,
-        reconnectAttempts,
-        connect,
-        disconnect,
-        on,
-        off
-    };
+
+    return { socketStatus, reconnectAttempts, connect, disconnect, on, off };
 };
+
+/* =========================
+   Component
+   ========================= */
+
 function TemplateFillerComponent() {
     const [filterOptions, setFilterOptions] = useState<FilterOptions>({
         linhVuc: [],
@@ -523,7 +515,7 @@ function TemplateFillerComponent() {
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [filteredThuTucHcList, setFilteredThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
-    const [linhVucLoading, setLinhVucLoading] = useState(false);
+    const [linhVucLoading] = useState(false); // hiện chưa set true ở đâu -> giữ false
 
     const [isDataSynced, setIsDataSynced] = useState(false);
     const [showSyncPanel, setShowSyncPanel] = useState(false);
@@ -553,7 +545,7 @@ function TemplateFillerComponent() {
         url: null
     });
 
-    // Working documents state (IndexedDB)
+    // Working documents
     const [workingDocsState, setWorkingDocsState] = useState({
         workingDocsListByCode: {} as { [maTTHC: string]: WorkingDocument[] },
         isLoading: false
@@ -563,14 +555,12 @@ function TemplateFillerComponent() {
         try {
             setWorkingDocsState(prev => ({ ...prev, isLoading: true }));
             const allWorking = await db.workingDocumentsV2.orderBy('updatedAt').reverse().toArray();
-
             const listByCode: { [maTTHC: string]: WorkingDocument[] } = {};
             allWorking.forEach(doc => {
                 if (!doc.maTTHC) return;
                 if (!listByCode[doc.maTTHC]) listByCode[doc.maTTHC] = [];
                 listByCode[doc.maTTHC].push(doc);
             });
-
             setWorkingDocsState({ workingDocsListByCode: listByCode, isLoading: false });
         } catch (e) {
             console.error('❌ Failed to refresh working documents:', e);
@@ -587,12 +577,13 @@ function TemplateFillerComponent() {
         [workingDocsState.workingDocsListByCode]
     );
 
-    // Modal chọn mẫu (API + bản sao tùy chỉnh)
+    // Modal chọn mẫu
     const [templateSelectionModal, setTemplateSelectionModal] = useState({
         open: false,
         record: null as EnhancedTTHCRecord | null
     });
-    // Preview state for react-doc-viewer
+
+    // Preview state
     const [previewState, setPreviewState] = useState<{
         url: string | null;
         fileName: string;
@@ -613,6 +604,7 @@ function TemplateFillerComponent() {
         useState<PlaceholderIndexChoice>('default');
     const [placeholderSummary, setPlaceholderSummary] = useState<PlaceholderSummary[]>([]);
     const [placeholderSummaryInitialized, setPlaceholderSummaryInitialized] = useState(false);
+
     const handlePlaceholderSummaryChange = useCallback(
         (summary: PlaceholderSummary[]) => {
             setPlaceholderSummaryInitialized(true);
@@ -624,6 +616,7 @@ function TemplateFillerComponent() {
         },
         [previewState.isTemplate]
     );
+
     const availablePlaceholderIndexes = useMemo(() => {
         const indexes = new Set<number>();
         placeholderSummary.forEach(group => {
@@ -634,6 +627,7 @@ function TemplateFillerComponent() {
         });
         return Array.from(indexes).sort((a, b) => a - b);
     }, [placeholderSummary]);
+
     const placeholderKeySet = useMemo(() => {
         const keys = new Set<string>();
         placeholderSummary.forEach(group => {
@@ -642,11 +636,13 @@ function TemplateFillerComponent() {
         });
         return keys;
     }, [placeholderSummary]);
+
     const [placeholderSelectionDialogOpen, setPlaceholderSelectionDialogOpen] = useState(false);
     const [pendingPlaceholderData, setPendingPlaceholderData] = useState<{
         data: ProcessingData;
         options?: FillOptions;
     } | null>(null);
+
     const currentFillDataRef = useRef<ProcessingData>({});
     const templateBlobRef = useRef<Blob | null>(null);
 
@@ -660,7 +656,7 @@ function TemplateFillerComponent() {
         templateBlobRef.current = null;
     }, []);
 
-    // Keep a ref to the current object URL so we can clean up when switching sources
+    // Object URLs cleanup
     const previewUrlRef = useRef<string | null>(null);
     const previewLoadRequestRef = useRef(0);
     const pdfPreviewUrlRef = useRef<string | null>(null);
@@ -673,7 +669,7 @@ function TemplateFillerComponent() {
             setPlaceholderSelectionDialogOpen(false);
             setPendingPlaceholderData(null);
         }
-    }, [placeholderSelectionDialogOpen, placeholderSummary, setPendingPlaceholderData]);
+    }, [placeholderSelectionDialogOpen, placeholderSummary]);
 
     const clearPreviewObjectUrl = useCallback(() => {
         if (previewUrlRef.current) {
@@ -772,7 +768,7 @@ function TemplateFillerComponent() {
                 isTemplate: true
             });
         },
-        [clearPreviewObjectUrl, setSnackbar, thanhPhanHoSoTTHCRepository]
+        [clearPreviewObjectUrl, setSnackbar]
     );
 
     const setPreviewFromBlob = useCallback(
@@ -790,9 +786,7 @@ function TemplateFillerComponent() {
                 loading: false,
                 isTemplate: Boolean(options?.isTemplate)
             });
-            if (options?.isTemplate) {
-                templateBlobRef.current = blob;
-            }
+            if (options?.isTemplate) templateBlobRef.current = blob;
         },
         [clearPreviewObjectUrl]
     );
@@ -836,14 +830,12 @@ function TemplateFillerComponent() {
         }
 
         if (!previewState.url) return { blob: null, error: 'missing' };
-
         return { blob: null, error: 'fetch_failed' };
     }, [
         previewState.blob,
         previewState.fileName,
         previewState.url,
         setPreviewFromBlob,
-        setPreviewState,
         templateSelectionModal.record
     ]);
 
@@ -876,12 +868,11 @@ function TemplateFillerComponent() {
                     targetKey =
                         group.variants.find(key => key === expectedSuffixKey) ||
                         group.variants.find(key => {
-                            const match = key.match(/_(\d+)$/);
-                            return match && Number(match[1]) === selection;
+                            const m = key.match(/_(\d+)$/);
+                            return m && Number(m[1]) === selection;
                         }) ||
                         expectedSuffixKey;
                 }
-
                 if (!targetKey) return;
 
                 const candidateKeys: string[] = [];
@@ -892,23 +883,18 @@ function TemplateFillerComponent() {
                 });
 
                 const resolvedValue = candidateKeys.reduce<unknown>((acc, key) => {
-                    if (typeof key === 'undefined' || key === null) return acc;
                     if (typeof acc !== 'undefined') return acc;
                     return typeof data[key] !== 'undefined' ? data[key] : acc;
                 }, undefined);
 
-                if (typeof resolvedValue !== 'undefined') {
-                    result[targetKey] = resolvedValue;
-                }
+                if (typeof resolvedValue !== 'undefined') result[targetKey] = resolvedValue;
 
                 if (restrictToSelection) {
                     const ensurePlaceholderText = (key: string | undefined) => {
-                        if (!key) return;
-                        if (key === targetKey) return;
+                        if (!key || key === targetKey) return;
                         if (typeof result[key] !== 'undefined') return;
                         result[key] = `{${key}}`;
                     };
-
                     group.variants.forEach(variantKey => ensurePlaceholderText(variantKey));
                     ensurePlaceholderText(group.baseKey);
                 }
@@ -928,7 +914,129 @@ function TemplateFillerComponent() {
         },
         [placeholderIndexSelection, placeholderSummary]
     );
+    const ADDRESS_KEYS = [
+        'diaChi',
+        'dia_chi',
+        'noi_cu_tru',
+        'noiCuTru',
+        'diaChiThuongTru',
+        'thuongTru',
+        'tam_tru',
+        'tamTru',
+        'address'
+    ] as const;
 
+    const normalizeAddressFields = async (data: ProcessingData): Promise<ProcessingData> => {
+        const out: ProcessingData = { ...data };
+
+        await Promise.all(
+            ADDRESS_KEYS.map(async key => {
+                const val = out[key as keyof ProcessingData];
+                if (typeof val !== 'string' || !val.trim()) return;
+
+                try {
+                    const resp = await chuyenDoiApiService.chuyenDoiDiaBan(val.trim());
+                    if (resp.success && resp.data?.Succeeded && resp.data.Result) {
+                        out[`${String(key)}_raw`] = val;
+                        out[String(key)] = resp.data.Result;
+                        if (key === 'diaChi' && !out['dia_chi']) out['dia_chi'] = resp.data.Result;
+                        if (key === 'noiCuTru' && !out['noi_cu_tru'])
+                            out['noi_cu_tru'] = resp.data.Result;
+                    }
+                } catch (e) {
+                    console.warn('⚠️ Chuẩn hoá địa chỉ thất bại cho', key, e);
+                }
+            })
+        );
+
+        return out;
+    };
+    // const performFill = useCallback(
+    //     async (
+    //         processingData: ProcessingData,
+    //         options?: FillOptions,
+    //         selectionOverride?: PlaceholderIndexChoice
+    //     ) => {
+    //         if (isProcessingFill) return false;
+
+    //         setIsProcessingFill(true);
+    //         try {
+    //             const { blob: workingBlob, error: workingBlobError } = await ensureWorkingBlob();
+    //             if (!workingBlob) {
+    //                 setSnackbar({
+    //                     open: true,
+    //                     message:
+    //                         workingBlobError === 'fetch_failed'
+    //                             ? 'Không thể chuẩn bị tài liệu để chèn dữ liệu'
+    //                             : 'Chưa có tài liệu để chèn dữ liệu',
+    //                     severity: workingBlobError === 'fetch_failed' ? 'error' : 'warning'
+    //                 });
+    //                 return false;
+    //             }
+
+    //             const adjusted = applyPlaceholderSelection(processingData, selectionOverride);
+    //             const prepared = prepareTemplateData(adjusted);
+
+    //             const scopedUpdates = applyPlaceholderSelection(prepared, selectionOverride, {
+    //                 restrictToSelection: true
+    //             });
+    //             Object.keys(scopedUpdates).forEach(key => {
+    //                 const value = scopedUpdates[key];
+    //                 if (
+    //                     typeof currentFillDataRef.current[key] !== 'undefined' &&
+    //                     value === `{${key}}`
+    //                 ) {
+    //                     delete scopedUpdates[key];
+    //                 }
+    //             });
+
+    //             const globalUpdates: ProcessingData = {};
+    //             Object.entries(prepared).forEach(([key, value]) => {
+    //                 if (placeholderKeySet.has(key)) return;
+    //                 if (typeof value === 'undefined') return;
+    //                 globalUpdates[key] = value;
+    //             });
+
+    //             const mergedData: ProcessingData = {
+    //                 ...currentFillDataRef.current,
+    //                 ...globalUpdates,
+    //                 ...scopedUpdates
+    //             };
+    //             const templateBlob = templateBlobRef.current ?? workingBlob;
+    //             const arrayBuffer = await templateBlob.arrayBuffer();
+    //             const filledBlob = await processWordTemplate(arrayBuffer, mergedData);
+
+    //             currentFillDataRef.current = mergedData;
+    //             setPreviewFromBlob(filledBlob, previewState.fileName || 'document.docx');
+
+    //             setSnackbar({
+    //                 open: true,
+    //                 message: options?.successMessage ?? 'Đã chèn dữ liệu vào tài liệu',
+    //                 severity: 'success'
+    //             });
+    //             options?.onFilled?.();
+    //             return true;
+    //         } catch (error: any) {
+    //             console.error('Fill error:', error);
+    //             setSnackbar({
+    //                 open: true,
+    //                 message: error?.message || 'Lỗi khi chèn dữ liệu',
+    //                 severity: 'error'
+    //             });
+    //             return false;
+    //         } finally {
+    //             setIsProcessingFill(false);
+    //         }
+    //     },
+    //     [
+    //         ensureWorkingBlob,
+    //         isProcessingFill,
+    //         applyPlaceholderSelection,
+    //         previewState.fileName,
+    //         placeholderKeySet,
+    //         setPreviewFromBlob
+    //     ]
+    // );
     const performFill = useCallback(
         async (
             processingData: ProcessingData,
@@ -953,11 +1061,13 @@ function TemplateFillerComponent() {
                     return false;
                 }
 
-                const adjusted = applyPlaceholderSelection(processingData, selectionOverride);
+                const withNormalizedAddr = await normalizeAddressFields(processingData);
+                const adjusted = applyPlaceholderSelection(withNormalizedAddr, selectionOverride);
                 const prepared = prepareTemplateData(adjusted);
                 const scopedUpdates = applyPlaceholderSelection(prepared, selectionOverride, {
                     restrictToSelection: true
                 });
+
                 Object.keys(scopedUpdates).forEach(key => {
                     const value = scopedUpdates[key];
                     if (
@@ -967,22 +1077,27 @@ function TemplateFillerComponent() {
                         delete scopedUpdates[key];
                     }
                 });
+
                 const globalUpdates: ProcessingData = {};
                 Object.entries(prepared).forEach(([key, value]) => {
                     if (placeholderKeySet.has(key)) return;
                     if (typeof value === 'undefined') return;
                     globalUpdates[key] = value;
                 });
+
                 const mergedData: ProcessingData = {
                     ...currentFillDataRef.current,
                     ...globalUpdates,
                     ...scopedUpdates
                 };
+
                 const templateBlob = templateBlobRef.current ?? workingBlob;
                 const arrayBuffer = await templateBlob.arrayBuffer();
                 const filledBlob = await processWordTemplate(arrayBuffer, mergedData);
+
                 currentFillDataRef.current = mergedData;
                 setPreviewFromBlob(filledBlob, previewState.fileName || 'document.docx');
+
                 setSnackbar({
                     open: true,
                     message: options?.successMessage ?? 'Đã chèn dữ liệu vào tài liệu',
@@ -1012,11 +1127,9 @@ function TemplateFillerComponent() {
             setSnackbar
         ]
     );
-
     const fillDocumentWithProcessingData = useCallback(
         async (processingData: ProcessingData | null, options?: FillOptions) => {
-            if (!processingData) return false;
-            if (isProcessingFill) return false;
+            if (!processingData || isProcessingFill) return false;
 
             if (!placeholderSummaryInitialized) {
                 setPendingPlaceholderData({ data: processingData, options });
@@ -1036,15 +1149,7 @@ function TemplateFillerComponent() {
 
             return performFill(processingData, options);
         },
-        [
-            isProcessingFill,
-            placeholderSummaryInitialized,
-            placeholderSummary,
-            performFill,
-            setSnackbar,
-            setPendingPlaceholderData,
-            setPlaceholderSelectionDialogOpen
-        ]
+        [isProcessingFill, placeholderSummaryInitialized, placeholderSummary, performFill]
     );
 
     const handlePlaceholderSelectionChoice = useCallback(
@@ -1061,8 +1166,7 @@ function TemplateFillerComponent() {
     );
 
     useEffect(() => {
-        if (!pendingPlaceholderData) return;
-        if (!placeholderSummaryInitialized) return;
+        if (!pendingPlaceholderData || !placeholderSummaryInitialized) return;
         const needsChoice = placeholderSummary.some(group => group.variants.length > 1);
         if (needsChoice) {
             if (!placeholderSelectionDialogOpen) {
@@ -1075,28 +1179,26 @@ function TemplateFillerComponent() {
             }
             return;
         }
-
         const { data, options } = pendingPlaceholderData;
         setPendingPlaceholderData(null);
         setPlaceholderSelectionDialogOpen(false);
-        performFill(data, options);
+        void performFill(data, options);
     }, [
         pendingPlaceholderData,
         placeholderSummaryInitialized,
         placeholderSummary,
         placeholderSelectionDialogOpen,
-        performFill,
-        setPendingPlaceholderData,
-        setPlaceholderSelectionDialogOpen,
-        setSnackbar
+        performFill
     ]);
 
-    useEffect(() => {
-        return () => {
+    useEffect(
+        () => () => {
             clearPreviewObjectUrl();
-        };
-    }, [clearPreviewObjectUrl]);
+        },
+        [clearPreviewObjectUrl]
+    );
 
+    // Load preview when modal opens
     useEffect(() => {
         let cancelled = false;
         (async () => {
@@ -1110,11 +1212,11 @@ function TemplateFillerComponent() {
                     md.duongDanTepDinhKem
                 );
                 let blob: Blob | null = null;
-                if (!url) {
+                if (!url)
                     blob = await thanhPhanHoSoTTHCRepository.getFileBlobForUse(
                         md.thanhPhanHoSoTTHCID
                     );
-                }
+
                 if (!cancelled) {
                     if (url) setPreviewFromUrl(url, md.tenFile || 'template.docx');
                     else if (blob)
@@ -1137,6 +1239,7 @@ function TemplateFillerComponent() {
         setPreviewFromUrl
     ]);
 
+    // Load đối tượng thực hiện dictionary
     useEffect(() => {
         (async () => {
             const items = await doiTuongThucHienRepository.getAll();
@@ -1155,10 +1258,7 @@ function TemplateFillerComponent() {
         if (thuTucHcList.length > 0 && linhVucList.length > 0) {
             const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
             const linhVucOptions = createLinhVucFilterOptions(linhVucList);
-            return {
-                ...options,
-                linhVuc: linhVucOptions
-            };
+            return { ...options, linhVuc: linhVucOptions };
         }
         return { linhVuc: [], doiTuong: [], capThucHien: [], thuTucByLinhVuc: {} };
     }, [thuTucHcList, linhVucList]);
@@ -1167,19 +1267,22 @@ function TemplateFillerComponent() {
         setFilterOptions(memoizedFilterOptions);
     }, [memoizedFilterOptions]);
 
-    const filtersInitial: FilterState = {
-        searchText: '',
-        linhVuc: '',
-        doiTuong: '',
-        capThucHien: '',
-        availability: 'all'
-    };
+    const filtersInitial: FilterState = useMemo(
+        () => ({
+            searchText: '',
+            linhVuc: '',
+            doiTuong: '',
+            capThucHien: '',
+            availability: 'all'
+        }),
+        []
+    );
     const [filters, setFilters] = useState<FilterState>(filtersInitial);
 
     const handleFilterChange = useCallback((key: keyof FilterState, value: string) => {
         setFilters(prev => ({ ...prev, [key]: value }));
     }, []);
-    const handleClearFilters = useCallback(() => setFilters(filtersInitial), []);
+    const handleClearFilters = useCallback(() => setFilters(filtersInitial), [filtersInitial]);
 
     const memoizedFilteredData = useMemo(
         () => filterThuTucHanhChinh(thuTucHcList, filters, linhVucList),
@@ -1306,6 +1409,7 @@ function TemplateFillerComponent() {
         []
     );
 
+    // SOCKET: nhận data
     useEffect(() => {
         const handleDataReceived = (payload: any) => {
             if (socketStatus !== 'connected') {
@@ -1352,16 +1456,9 @@ function TemplateFillerComponent() {
         return () => {
             off('data_received', handleDataReceived);
         };
-    }, [
-        on,
-        off,
-        socketStatus,
-        templateSelectionModal.open,
-        setSnackbar,
-        setScanInput,
-        setQueuedProcessingData
-    ]);
+    }, [on, off, socketStatus, templateSelectionModal.open]);
 
+    // Auto-fill khi modal/preview sẵn sàng
     useEffect(() => {
         if (!templateSelectionModal.open) return;
         if (!queuedProcessingData) return;
@@ -1374,9 +1471,7 @@ function TemplateFillerComponent() {
                 successMessage: 'Đã chèn dữ liệu từ NTS DocumentAI',
                 onFilled: () => setQueuedProcessingData(null)
             });
-            if (success) {
-                setQueuedProcessingData(null);
-            }
+            if (success) setQueuedProcessingData(null);
         })();
     }, [
         templateSelectionModal.open,
@@ -1388,6 +1483,7 @@ function TemplateFillerComponent() {
         fillDocumentWithProcessingData
     ]);
 
+    // pipe '|' -> object socket style
     const pipeToSocketJson = (s: string) => {
         const [
             a = '',
@@ -1406,7 +1502,6 @@ function TemplateFillerComponent() {
         const cccd = is12(b) ? b : is12(a) ? a : b;
 
         const payload = { cccd, cmnd, hoTen, ngaySinh, gioiTinh, diaChi, ngayCap };
-
         return {
             ...payload,
             ho_ten: hoTen,
@@ -1421,7 +1516,6 @@ function TemplateFillerComponent() {
 
     const fillFromHandheldScan = useCallback(
         async (raw: string | Record<string, any>) => {
-            // Nếu raw là chuỗi có dấu "|" => convert sang object "kiểu socket"
             const source: string | Record<string, any> =
                 typeof raw === 'string' && raw.includes('|') ? pipeToSocketJson(raw) : raw;
 
@@ -1435,7 +1529,6 @@ function TemplateFillerComponent() {
                 return false;
             }
 
-            // Nếu modal/template chưa sẵn sàng, cứ queue (bạn đã có queuedProcessingData)
             if (
                 !templateSelectionModal.open ||
                 previewState.loading ||
@@ -1455,48 +1548,22 @@ function TemplateFillerComponent() {
             });
         },
         [
-            buildProcessingPayload,
             fillDocumentWithProcessingData,
             previewState.blob,
             previewState.url,
             previewState.loading,
-            templateSelectionModal.open,
-            setSnackbar,
-            setQueuedProcessingData
+            templateSelectionModal.open
         ]
     );
-    // const handleAnalyzeAndFill = useCallback(async () => {
-    //     if (!scanInput.trim()) {
-    //         setSnackbar({
-    //             open: true,
-    //             message: 'Vui lòng nhập dữ liệu cần phân tích',
-    //             severity: 'warning'
-    //         });
-    //         return;
-    //     }
 
-    //     const { processingData } = buildProcessingPayload(scanInput);
-    //     if (!processingData) {
-    //         setSnackbar({
-    //             open: true,
-    //             message: 'Không thể phân tích dữ liệu đầu vào',
-    //             severity: 'error'
-    //         });
-    //         return;
-    //     }
-
-    //     await fillDocumentWithProcessingData(processingData, {
-    //         onFilled: () => setScanInput('')
-    //     });
-    // }, [scanInput, fillDocumentWithProcessingData, setSnackbar, setScanInput]);
-    // Thay thế hàm cũ
+    // Phân tích & fill từ ô nhập (hoặc normalized từ modal con)
     const handleAnalyzeAndFill = useCallback(
         async (args: {
             normalized: string;
             placeholderIndex: PlaceholderIndexChoice;
-            record: any /* hoặc EnhancedTTHCRecord | null nếu bạn đã export type ở file này */;
+            record: any;
         }) => {
-            const source = args?.normalized ?? scanInput; // Ưu tiên normalized truyền xuống
+            const source = args?.normalized ?? scanInput;
             if (!source || (typeof source === 'string' && !source.trim())) {
                 setSnackbar({
                     open: true,
@@ -1517,11 +1584,12 @@ function TemplateFillerComponent() {
             }
 
             await fillDocumentWithProcessingData(processingData, {
-                onFilled: () => setScanInput('') // có thể giữ để clear ô nhập
+                onFilled: () => setScanInput('')
             });
         },
-        [scanInput, fillDocumentWithProcessingData, setSnackbar, setScanInput]
+        [scanInput, fillDocumentWithProcessingData]
     );
+
     const closePdfPreview = useCallback(() => {
         if (pdfPreviewUrlRef.current) {
             try {
@@ -1547,7 +1615,7 @@ function TemplateFillerComponent() {
         await fillDocumentWithProcessingData(Utils.convertScannedInfoToProcessingData(sample), {
             successMessage: 'Đã chèn thử địa chỉ vào {noi_cu_tru}'
         });
-    }, [fillDocumentWithProcessingData, setScanInput]);
+    }, [fillDocumentWithProcessingData]);
 
     const [changeTemplateModal, setChangeTemplateModal] = useState<{
         open: boolean;
@@ -1587,7 +1655,7 @@ function TemplateFillerComponent() {
                 error: 'Không thể tải danh sách mẫu'
             });
         }
-    }, [templateSelectionModal.record, setSnackbar]);
+    }, [templateSelectionModal.record]);
 
     const handlePrintPdfPreview = useCallback(() => {
         if (!pdfPreviewState.url || !pdfIframeRef.current) {
@@ -1609,7 +1677,7 @@ function TemplateFillerComponent() {
                 severity: 'error'
             });
         }
-    }, [pdfPreviewState.url, setSnackbar]);
+    }, [pdfPreviewState.url]);
 
     const handleTemplateChangeSelect = useCallback(
         async (template: ThanhPhanHoSoTTHC) => {
@@ -1632,11 +1700,7 @@ function TemplateFillerComponent() {
                 if (!prev.record) return prev;
                 return {
                     ...prev,
-                    record: {
-                        ...prev.record,
-                        danhSachMauDon: [selectedMauDon],
-                        selectedMauDon
-                    }
+                    record: { ...prev.record, danhSachMauDon: [selectedMauDon], selectedMauDon }
                 };
             });
 
@@ -1676,18 +1740,13 @@ function TemplateFillerComponent() {
                 });
             }
         },
-        [
-            resetPlaceholderSelectionState,
-            setPreviewFromBlob,
-            setPreviewFromUrl,
-            setSnackbar,
-            templateSelectionModal.record
-        ]
+        [resetPlaceholderSelectionState, setPreviewFromBlob, setPreviewFromUrl]
     );
 
-    const handleCloseChangeTemplateModal = useCallback(() => {
-        setChangeTemplateModal(prev => ({ ...prev, open: false }));
-    }, []);
+    const handleCloseChangeTemplateModal = useCallback(
+        () => setChangeTemplateModal(prev => ({ ...prev, open: false })),
+        []
+    );
 
     const handlePrintDocument = useCallback(async () => {
         if (isGeneratingPrint) return;
@@ -1708,7 +1767,6 @@ function TemplateFillerComponent() {
         try {
             const pdfBlob = await thanhPhanHoSoTTHCRepository.renderPdfFromBlob(workingBlob);
             if (!pdfBlob) throw new Error('Không nhận được PDF từ máy chủ');
-            console.log('📄 Generated PDF blob', { size: pdfBlob.size, type: pdfBlob.type });
             const pdfUrl = URL.createObjectURL(pdfBlob);
             if (pdfPreviewUrlRef.current) {
                 try {
@@ -1734,7 +1792,11 @@ function TemplateFillerComponent() {
         } finally {
             setIsGeneratingPrint(false);
         }
-    }, [ensureWorkingBlob, isGeneratingPrint, setSnackbar]);
+    }, [ensureWorkingBlob, isGeneratingPrint]);
+
+    /* =========================
+     Render
+     ========================= */
 
     return (
         <>
@@ -2025,7 +2087,6 @@ function TemplateFillerComponent() {
                             templateSelectionModal.record.maTTHC
                         )}
                         onPreviewWorkingDoc={wd => {
-                            console.log('wd', wd.blob);
                             resetPlaceholderSelectionState();
                             setPreviewFromBlob(wd.blob, wd.fileName || 'working.docx', {
                                 isTemplate: true
@@ -2076,6 +2137,7 @@ function TemplateFillerComponent() {
                     />
                 )}
 
+                {/* Dialog chọn đối tượng (khi có biến thể _1, _2, ...) */}
                 <Dialog
                     open={placeholderSelectionDialogOpen}
                     onClose={() => {
@@ -2099,7 +2161,7 @@ function TemplateFillerComponent() {
                                 onClick={() => handlePlaceholderSelectionChoice('default')}
                                 sx={{ justifyContent: 'flex-start' }}
                             >
-                                Đối tượng
+                                Đối tượng (Mặc định)
                             </Button>
                             {availablePlaceholderIndexes.map(index => (
                                 <Button
@@ -2151,6 +2213,7 @@ function TemplateFillerComponent() {
                     </DialogActions>
                 </Dialog>
 
+                {/* Snackbar & PDF preview */}
                 <Snackbar
                     open={snackbar.open}
                     autoHideDuration={4000}
@@ -2207,6 +2270,7 @@ function TemplateFillerComponent() {
                     </DialogActions>
                 </Dialog>
 
+                {/* Modal đổi mẫu */}
                 <Dialog
                     open={changeTemplateModal.open}
                     onClose={handleCloseChangeTemplateModal}

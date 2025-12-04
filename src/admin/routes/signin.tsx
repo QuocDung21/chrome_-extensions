@@ -80,7 +80,7 @@ function SignIn(): ReactElement {
                 backgroundColor: '#0b1120'
             }}
         >
-            <Container component="main" maxWidth="md">
+            <Container component="main" maxWidth="md" style={{ paddingTop: 50 }}>
                 <Box sx={{ textAlign: 'center', marginTop: 4 }}>
                     <Typography
                         variant="h6"
