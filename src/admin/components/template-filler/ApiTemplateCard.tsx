@@ -53,7 +53,6 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
     ({
         record,
         linhVucList,
-        onSelect,
         onTemplateSelect,
         hasWorkingDocuments = false,
         workingDocumentsCount = 0,
@@ -67,7 +66,6 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
             //     linhVucObject: record.linhVuc,
             //     linhVucListLength: linhVucList.length
             // });
-
             // Ưu tiên sử dụng linhVuc object từ API mới
             if (record.linhVuc && record.linhVuc.tenLinhVuc) {
                 return record.linhVuc.tenLinhVuc;
@@ -105,10 +103,8 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
 
             try {
                 let templates: ThanhPhanHoSoTTHC[] = [];
-
                 // Kiểm tra xem dữ liệu đã được đồng bộ chưa
                 const isDataSynced = await dataSyncService.isDataSynced();
-
                 if (isDataSynced) {
                     // Sử dụng dữ liệu từ IndexedDB - tìm theo thuTucHanhChinhID
                     console.log('✅ Using offline data from IndexedDB');
@@ -127,9 +123,7 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                         record.maThuTucHanhChinh
                     );
                 }
-
                 console.log('✅ Loaded templates:', templates.length, 'items');
-
                 // Check offline status for each template
                 const offlineStatusMap: { [key: string]: boolean } = {};
                 for (const template of templates) {
@@ -143,7 +137,6 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                     );
                 }
                 setOfflineStatus(offlineStatusMap);
-
                 setModalState({
                     open: true,
                     loading: false,
@@ -209,23 +202,23 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                 <Card
                     variant="outlined"
                     sx={{
-                        mb: 2,
-                        borderRadius: 2,
-                        borderColor: 'grey.300',
-                        transition: 'box-shadow 0.3s, border-color 0.3s',
+                        mb: 1,
+                        borderRadius: 1,
+                        borderColor: 'grey.200',
+                        // transition: 'box-shadow 0.2s, border-color 0.2s',
                         '&:hover': {
-                            boxShadow: '0 4px 20px rgba(0,0,0,0.08)',
-                            borderColor: 'primary.main'
+                            boxShadow: '0 3px 10px rgba(0,0,0,0.06)',
+                            borderColor: 'primary.light'
                         }
                     }}
                 >
-                    <CardContent>
+                    <CardContent sx={{ p: 1.25 }}>
                         <Box
                             sx={{
                                 display: 'flex',
                                 alignItems: 'center',
                                 justifyContent: 'space-between',
-                                mb: 1.5,
+                                mb: 1,
                                 gap: 1
                             }}
                         >
@@ -244,27 +237,20 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                 onClick={handleOpenModal}
                                 startIcon={<EditIcon />}
                                 sx={{
-                                    borderRadius: 1,
+                                    borderRadius: 0.75,
                                     textTransform: 'none',
-                                    fontWeight: 600,
-                                    background: 'linear-gradient(45deg, #1976d2, #42a5f5)',
-                                    '&:hover': {
-                                        background: 'linear-gradient(45deg, #1565c0, #1976d2)',
-                                        transform: 'translateY(-2px)',
-                                        boxShadow: '0 4px 12px rgba(25,118,210,0.3)'
-                                    },
-                                    transition: 'all 0.3s ease'
+                                    fontWeight: 600
                                 }}
                             >
                                 Chọn mẫu
                             </Button>
                         </Box>
-                        <Divider sx={{ my: 1.5 }} />
-                        <Stack spacing={1.5} sx={{ my: 2 }}>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
+                        <Divider sx={{ my: 1 }} />
+                        <Stack spacing={1} sx={{ my: 0.5 }}>
+                            <Box sx={{ display: 'flex', gap: 1.25 }}>
                                 <Typography
                                     variant="body2"
-                                    sx={{ width: 150, color: 'text.secondary', flexShrink: 0 }}
+                                    sx={{ width: 130, color: 'text.secondary', flexShrink: 0 }}
                                 >
                                     Tên thủ tục:
                                 </Typography>
@@ -275,10 +261,10 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                     {record.tenThuTucHanhChinh}
                                 </Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Box sx={{ display: 'flex', gap: 1.25 }}>
                                 <Typography
                                     variant="body2"
-                                    sx={{ width: 150, color: 'text.secondary', flexShrink: 0 }}
+                                    sx={{ width: 130, color: 'text.secondary', flexShrink: 0 }}
                                 >
                                     Lĩnh vực:
                                 </Typography>
@@ -286,10 +272,10 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                     {linhVucName}
                                 </Typography>
                             </Box>
-                            <Box sx={{ display: 'flex', gap: 2 }}>
+                            <Box sx={{ display: 'flex', gap: 1.25 }}>
                                 <Typography
                                     variant="body2"
-                                    sx={{ width: 150, color: 'text.secondary', flexShrink: 0 }}
+                                    sx={{ width: 130, color: 'text.secondary', flexShrink: 0 }}
                                 >
                                     Đối tượng:
                                 </Typography>
@@ -312,10 +298,10 @@ export const ApiTemplateCard = React.memo<ApiTemplateCardProps>(
                                 </Typography>
                             </Box>
                             {hasWorkingDocuments && (
-                                <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
+                                <Box sx={{ display: 'flex', gap: 1.25, alignItems: 'center' }}>
                                     <Typography
                                         variant="body2"
-                                        sx={{ width: 150, color: 'text.secondary', flexShrink: 0 }}
+                                        sx={{ width: 130, color: 'text.secondary', flexShrink: 0 }}
                                     >
                                         Mẫu đã thiết lập:
                                     </Typography>

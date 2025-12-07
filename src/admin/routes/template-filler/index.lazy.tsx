@@ -162,16 +162,9 @@ const createFilterOptionsFromIndexDB = (
                 thuTucByLinhVuc[tenLinhVuc].push(tenThuTuc);
         }
 
-        if (thuTucHC.doiTuongThucHien) {
-            thuTucHC.doiTuongThucHien
-                .split(';')
-                .map(dt => dt.trim())
-                .filter(Boolean)
-                .forEach(dt => doiTuongSet.add(dt));
-        }
-        if (thuTucHC.maCapHanhChinh) {
-            capThucHienSet.add(thuTucHC.maCapHanhChinh.trim());
-        }
+        normalizeDoiTuongList(thuTucHC.doiTuongThucHien).forEach(dt => doiTuongSet.add(dt));
+        const capHanhChinh = thuTucHC.maCapHanhChinh ? String(thuTucHC.maCapHanhChinh).trim() : '';
+        if (capHanhChinh) capThucHienSet.add(capHanhChinh);
     });
 
     Object.keys(thuTucByLinhVuc).forEach(lv => thuTucByLinhVuc[lv].sort());
@@ -186,6 +179,24 @@ const createFilterOptionsFromIndexDB = (
 
 const createLinhVucFilterOptions = (linhVucList: LinhVuc[]): string[] =>
     linhVucList.map(lv => lv.tenLinhVuc).sort();
+
+const normalizeDoiTuongList = (raw: string | undefined | null): string[] => {
+    if (!raw) return [];
+    const trimmed = String(raw).trim();
+    if (!trimmed) return [];
+
+    try {
+        const parsed = JSON.parse(trimmed);
+        if (Array.isArray(parsed)) return parsed.map(item => String(item).trim()).filter(Boolean);
+    } catch {
+        /* not a JSON array -> continue fallback */
+    }
+
+    return trimmed
+        .split(/[;,]/)
+        .map(item => item.replace(/^"|"$/g, '').trim())
+        .filter(Boolean);
+};
 
 const filterThuTucHanhChinh = (
     thuTucHcList: ThuTucHanhChinh[],
@@ -209,10 +220,11 @@ const filterThuTucHanhChinh = (
             if (!searchLower.split(' ').every(word => searchableText.includes(word))) return false;
         }
 
-        if (filters.doiTuong) {
-            const raw = thuTucHC.doiTuongThucHien || '';
-            if (!raw.includes(filters.doiTuong)) return false;
-        }
+        if (
+            filters.doiTuong &&
+            !normalizeDoiTuongList(thuTucHC.doiTuongThucHien).includes(filters.doiTuong)
+        )
+            return false;
 
         if (filters.linhVuc) {
             let thuTucLinhVucName = '';
@@ -225,8 +237,10 @@ const filterThuTucHanhChinh = (
             if (thuTucLinhVucName !== filters.linhVuc) return false;
         }
 
-        if (filters.capThucHien && !thuTucHC.maCapHanhChinh.includes(filters.capThucHien))
-            return false;
+        if (filters.capThucHien) {
+            const cap = thuTucHC.maCapHanhChinh ? String(thuTucHC.maCapHanhChinh) : '';
+            if (!cap.includes(filters.capThucHien)) return false;
+        }
 
         return true;
     });
@@ -515,7 +529,7 @@ function TemplateFillerComponent() {
     const [linhVucList, setLinhVucList] = useState<LinhVuc[]>([]);
     const [thuTucHcList, setThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
     const [filteredThuTucHcList, setFilteredThuTucHcList] = useState<ThuTucHanhChinh[]>([]);
-    const [linhVucLoading] = useState(false); // hiện chưa set true ở đâu -> giữ false
+    const [linhVucLoading, setLinhVucLoading] = useState(false);
 
     const [isDataSynced, setIsDataSynced] = useState(false);
     const [showSyncPanel, setShowSyncPanel] = useState(false);
@@ -1129,7 +1143,17 @@ function TemplateFillerComponent() {
     );
     const fillDocumentWithProcessingData = useCallback(
         async (processingData: ProcessingData | null, options?: FillOptions) => {
-            if (!processingData || isProcessingFill) return false;
+            if (!processingData) return false;
+
+            if (isProcessingFill) {
+                setQueuedProcessingData(processingData);
+                setSnackbar({
+                    open: true,
+                    message: 'Đang chèn dữ liệu trước đó, sẽ xử lý tiếp ngay sau khi xong.',
+                    severity: 'info'
+                });
+                return false;
+            }
 
             if (!placeholderSummaryInitialized) {
                 setPendingPlaceholderData({ data: processingData, options });
@@ -1147,30 +1171,87 @@ function TemplateFillerComponent() {
                 return false;
             }
 
-            return performFill(processingData, options);
+            return await performFill(processingData, options);
         },
         [isProcessingFill, placeholderSummaryInitialized, placeholderSummary, performFill]
+    );
+
+    // Khi có lượt quét đang chờ và đã rảnh, mở dialog chọn (nếu cần) thay vì tự chèn
+    useEffect(() => {
+        if (!queuedProcessingData) return;
+        if (isProcessingFill) return;
+        if (pendingPlaceholderData) return;
+        if (placeholderSelectionDialogOpen) return;
+
+        const needsChoice = placeholderSummary.some(group => group.variants.length > 1);
+        if (needsChoice) {
+            setPendingPlaceholderData({ data: queuedProcessingData, options: undefined });
+            setPlaceholderSelectionDialogOpen(true);
+            setSnackbar({
+                open: true,
+                message: 'Chọn đối tượng để chèn dữ liệu',
+                severity: 'info'
+            });
+            return;
+        }
+
+        (async () => {
+            const success = await fillDocumentWithProcessingData(queuedProcessingData, {
+                successMessage: 'Đã chèn dữ liệu từ lượt quét chờ'
+            });
+            if (success) setQueuedProcessingData(null);
+        })();
+    }, [
+        queuedProcessingData,
+        isProcessingFill,
+        pendingPlaceholderData,
+        placeholderSelectionDialogOpen,
+        placeholderSummary,
+        fillDocumentWithProcessingData
+    ]);
+
+    const applyPendingPlaceholderSelection = useCallback(
+        async (selection: PlaceholderIndexChoice) => {
+            if (!pendingPlaceholderData) {
+                setPlaceholderSelectionDialogOpen(false);
+                return;
+            }
+            const { data, options } = pendingPlaceholderData;
+            const success = await performFill(data, options, selection);
+            if (success) {
+                setPendingPlaceholderData(null);
+                setQueuedProcessingData(null);
+                setPlaceholderSelectionDialogOpen(false);
+            }
+        },
+        [pendingPlaceholderData, performFill]
     );
 
     const handlePlaceholderSelectionChoice = useCallback(
         (choice: PlaceholderIndexChoice) => {
             setPlaceholderIndexSelection(choice);
-            setPlaceholderSelectionDialogOpen(false);
-            setPendingPlaceholderData(prev => {
-                if (!prev) return null;
-                void performFill(prev.data, prev.options, choice);
-                return null;
-            });
+            void applyPendingPlaceholderSelection(choice);
         },
-        [performFill]
+        [applyPendingPlaceholderSelection]
     );
+
+    const handlePlaceholderSelectionConfirm = useCallback(async () => {
+        await applyPendingPlaceholderSelection(placeholderIndexSelection);
+    }, [applyPendingPlaceholderSelection, placeholderIndexSelection]);
+
+    const handlePlaceholderSelectionCancel = useCallback(() => {
+        setPendingPlaceholderData(null);
+        setQueuedProcessingData(null);
+        setPlaceholderSelectionDialogOpen(false);
+    }, []);
 
     useEffect(() => {
         if (!pendingPlaceholderData || !placeholderSummaryInitialized) return;
         const needsChoice = placeholderSummary.some(group => group.variants.length > 1);
         if (needsChoice) {
-            if (!placeholderSelectionDialogOpen) {
-                setPlaceholderSelectionDialogOpen(true);
+            const dialogWasClosed = !placeholderSelectionDialogOpen;
+            setPlaceholderSelectionDialogOpen(true);
+            if (dialogWasClosed) {
                 setSnackbar({
                     open: true,
                     message: 'Chọn đối tượng để chèn dữ liệu',
@@ -1182,7 +1263,10 @@ function TemplateFillerComponent() {
         const { data, options } = pendingPlaceholderData;
         setPendingPlaceholderData(null);
         setPlaceholderSelectionDialogOpen(false);
-        void performFill(data, options);
+        (async () => {
+            const success = await performFill(data, options);
+            if (success) setQueuedProcessingData(null);
+        })();
     }, [
         pendingPlaceholderData,
         placeholderSummaryInitialized,
@@ -1254,13 +1338,35 @@ function TemplateFillerComponent() {
         })();
     }, []);
 
-    const memoizedFilterOptions = useMemo(() => {
-        if (thuTucHcList.length > 0 && linhVucList.length > 0) {
-            const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
-            const linhVucOptions = createLinhVucFilterOptions(linhVucList);
-            return { ...options, linhVuc: linhVucOptions };
+    const loadLinhVucList = useCallback(async () => {
+        setLinhVucLoading(true);
+        try {
+            const data = await linhVucRepository.getLinhVucList();
+            setLinhVucList(data);
+        } catch (err) {
+            console.error('Lỗi khi tải lĩnh vực:', err);
+            setSnackbar({
+                open: true,
+                message: 'Không thể tải danh sách lĩnh vực',
+                severity: 'error'
+            });
+        } finally {
+            setLinhVucLoading(false);
         }
-        return { linhVuc: [], doiTuong: [], capThucHien: [], thuTucByLinhVuc: {} };
+    }, []);
+
+    useEffect(() => {
+        loadLinhVucList();
+    }, [loadLinhVucList]);
+
+    const memoizedFilterOptions = useMemo(() => {
+        if (thuTucHcList.length === 0)
+            return { linhVuc: [], doiTuong: [], capThucHien: [], thuTucByLinhVuc: {} };
+
+        const options = createFilterOptionsFromIndexDB(thuTucHcList, linhVucList);
+        const linhVucOptions =
+            linhVucList.length > 0 ? createLinhVucFilterOptions(linhVucList) : options.linhVuc;
+        return { ...options, linhVuc: linhVucOptions };
     }, [thuTucHcList, linhVucList]);
 
     useEffect(() => {
@@ -1351,9 +1457,9 @@ function TemplateFillerComponent() {
     }, [loadThuTucHanhChinh]);
 
     const handleSyncComplete = useCallback(async () => {
-        await loadThuTucHanhChinh();
+        await Promise.all([loadThuTucHanhChinh(), loadLinhVucList()]);
         setShowSyncPanel(false);
-    }, [loadThuTucHanhChinh]);
+    }, [loadThuTucHanhChinh, loadLinhVucList]);
 
     const handleApiTemplateSelect = useCallback(
         async (templateData: { record: ThuTucHanhChinh; template: any }) => {
@@ -1804,30 +1910,31 @@ function TemplateFillerComponent() {
                 sx={{
                     width: '100%',
                     minHeight: '100vh',
-                    background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)',
-                    p: { xs: 1, sm: 1, md: 1 }
+                    background: '#f7f8fa',
+                    p: { xs: 0.75, sm: 0.75, md: 0.75 }
                 }}
             >
                 <Box
                     sx={{
                         display: 'flex',
                         flexWrap: 'wrap',
-                        gap: 1,
-                        p: 2,
+                        gap: 0.5,
+                        p: 1,
                         borderRadius: 1,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        boxShadow: '0 3px 12px rgba(0,0,0,0.05)',
                         backdropFilter: 'blur(10px)',
-                        background: 'rgba(255,255,255,0.95)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        background: 'rgba(255,255,255,0.9)',
+                        border: '1px solid rgba(0,0,0,0.03)',
                         transition: 'all 0.3s ease',
-                        mb: 1
+                        mb: 0.75
                     }}
                 >
                     <Button
+                        size="small"
                         variant={isDataSynced ? 'contained' : 'outlined'}
                         color={isDataSynced ? 'success' : 'primary'}
                         onClick={() => setShowSyncPanel(!showSyncPanel)}
-                        sx={{ ml: 'auto', minWidth: 120 }}
+                        sx={{ ml: 'auto', minWidth: 110 }}
                     >
                         {isDataSynced ? '✅ Đã đồng bộ' : '🔄 Đồng bộ dữ liệu'}
                     </Button>
@@ -1860,7 +1967,7 @@ function TemplateFillerComponent() {
                                 }}
                             />
                         )}
-                        sx={{ minWidth: 220 }}
+                        sx={{ minWidth: 200 }}
                     />
 
                     <Autocomplete
@@ -1868,6 +1975,12 @@ function TemplateFillerComponent() {
                         options={['', ...filterOptions.doiTuong]}
                         value={filters.doiTuong}
                         onChange={(e, newValue) => handleFilterChange('doiTuong', newValue || '')}
+                        getOptionLabel={option =>
+                            option
+                                ? doiTuongDict[option] ||
+                                  option.replace(/^"|"$/g, '').replace(/\[|\]/g, '').trim()
+                                : 'Tất cả'
+                        }
                         renderInput={params => (
                             <TextField
                                 {...params}
@@ -1875,7 +1988,7 @@ function TemplateFillerComponent() {
                                 placeholder="Chọn đối tượng..."
                             />
                         )}
-                        sx={{ minWidth: 220 }}
+                        sx={{ minWidth: 200 }}
                     />
                 </Box>
 
@@ -1884,12 +1997,12 @@ function TemplateFillerComponent() {
                 <Card
                     sx={{
                         borderRadius: 1,
-                        boxShadow: '0 8px 32px rgba(0,0,0,0.1)',
+                        boxShadow: '0 4px 12px rgba(0,0,0,0.06)',
                         backdropFilter: 'blur(10px)',
                         background: 'rgba(255,255,255,0.95)',
-                        border: '1px solid rgba(255,255,255,0.2)',
+                        border: '1px solid rgba(0,0,0,0.03)',
                         transition: 'all 0.3s ease',
-                        height: '90vh'
+                        height: 'calc(100vh - 96px)'
                     }}
                 >
                     <CardHeader
@@ -1910,11 +2023,14 @@ function TemplateFillerComponent() {
                             </Box>
                         }
                         sx={{
-                            pb: 0,
-                            '& .MuiCardHeader-title': { fontSize: '1.1rem', fontWeight: 600 }
+                            py: 0.5,
+                            px: 1.5,
+                            '& .MuiCardHeader-title': { fontSize: '1.05rem', fontWeight: 600 }
                         }}
                     />
-                    <CardContent sx={{ height: 'calc(100% - 40px)', display: 'flex', gap: 2 }}>
+                    <CardContent
+                        sx={{ height: 'calc(100% - 40px)', display: 'flex', gap: 1, px: 1, py: 1 }}
+                    >
                         {dataLoading ? (
                             <Box
                                 sx={{
@@ -1960,7 +2076,7 @@ function TemplateFillerComponent() {
                                 {filteredThuTucHcList.length === 0 && (
                                     <Paper
                                         sx={{
-                                            p: 6,
+                                            p: 4,
                                             textAlign: 'center',
                                             borderRadius: 1,
                                             background:
@@ -2202,13 +2318,13 @@ function TemplateFillerComponent() {
                         </Box>
                     </DialogContent>
                     <DialogActions>
+                        <Button onClick={handlePlaceholderSelectionCancel}>Đóng</Button>
                         <Button
-                            onClick={() => {
-                                setPendingPlaceholderData(null);
-                                setPlaceholderSelectionDialogOpen(false);
-                            }}
+                            variant="contained"
+                            onClick={handlePlaceholderSelectionConfirm}
+                            disabled={!pendingPlaceholderData}
                         >
-                            Đóng
+                            Chèn dữ liệu
                         </Button>
                     </DialogActions>
                 </Dialog>
