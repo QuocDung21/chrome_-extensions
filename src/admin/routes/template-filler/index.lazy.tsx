@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { saveAs } from 'file-saver';
 import { Socket, io } from 'socket.io-client';
 
-import { Download } from '@mui/icons-material';
+import { Close, Download, PictureAsPdf, Print } from '@mui/icons-material';
 import {
     Alert,
     Autocomplete,
@@ -18,6 +18,7 @@ import {
     DialogActions,
     DialogContent,
     DialogTitle,
+    IconButton,
     Paper,
     Snackbar,
     TextField,
@@ -618,17 +619,23 @@ function TemplateFillerComponent() {
         useState<PlaceholderIndexChoice>('default');
     const [placeholderSummary, setPlaceholderSummary] = useState<PlaceholderSummary[]>([]);
     const [placeholderSummaryInitialized, setPlaceholderSummaryInitialized] = useState(false);
+    const [placeholderSummaryLocked, setPlaceholderSummaryLocked] = useState(false);
 
     const handlePlaceholderSummaryChange = useCallback(
         (summary: PlaceholderSummary[]) => {
             setPlaceholderSummaryInitialized(true);
             setPlaceholderSummary(prev => {
+                // If summary is locked (after first fill), don't update
+                if (placeholderSummaryLocked && prev.length > 0) {
+                    return prev;
+                }
+
                 if (!previewState.isTemplate && prev.length > 0 && summary.length === 0)
                     return prev;
                 return arePlaceholderSummariesEqual(prev, summary) ? prev : summary;
             });
         },
-        [previewState.isTemplate]
+        [previewState.isTemplate, placeholderSummaryLocked]
     );
 
     const availablePlaceholderIndexes = useMemo(() => {
@@ -664,6 +671,7 @@ function TemplateFillerComponent() {
         setPlaceholderIndexSelection('default');
         setPlaceholderSummary([]);
         setPlaceholderSummaryInitialized(false);
+        setPlaceholderSummaryLocked(false); // Unlock when resetting
         setPendingPlaceholderData(null);
         setPlaceholderSelectionDialogOpen(false);
         currentFillDataRef.current = {};
@@ -928,43 +936,51 @@ function TemplateFillerComponent() {
         },
         [placeholderIndexSelection, placeholderSummary]
     );
-    const ADDRESS_KEYS = [
-        'diaChi',
-        'dia_chi',
-        'noi_cu_tru',
-        'noiCuTru',
-        'diaChiThuongTru',
-        'thuongTru',
-        'tam_tru',
-        'tamTru',
-        'address'
-    ] as const;
+    const ADDRESS_KEYS = useMemo(
+        () =>
+            [
+                'diaChi',
+                'dia_chi',
+                'noi_cu_tru',
+                'noiCuTru',
+                'diaChiThuongTru',
+                'thuongTru',
+                'tam_tru',
+                'tamTru',
+                'address'
+            ] as const,
+        []
+    );
 
-    const normalizeAddressFields = async (data: ProcessingData): Promise<ProcessingData> => {
-        const out: ProcessingData = { ...data };
+    const normalizeAddressFields = useCallback(
+        async (data: ProcessingData): Promise<ProcessingData> => {
+            const out: ProcessingData = { ...data };
 
-        await Promise.all(
-            ADDRESS_KEYS.map(async key => {
-                const val = out[key as keyof ProcessingData];
-                if (typeof val !== 'string' || !val.trim()) return;
+            await Promise.all(
+                ADDRESS_KEYS.map(async key => {
+                    const val = out[key as keyof ProcessingData];
+                    if (typeof val !== 'string' || !val.trim()) return;
 
-                try {
-                    const resp = await chuyenDoiApiService.chuyenDoiDiaBan(val.trim());
-                    if (resp.success && resp.data?.Succeeded && resp.data.Result) {
-                        out[`${String(key)}_raw`] = val;
-                        out[String(key)] = resp.data.Result;
-                        if (key === 'diaChi' && !out['dia_chi']) out['dia_chi'] = resp.data.Result;
-                        if (key === 'noiCuTru' && !out['noi_cu_tru'])
-                            out['noi_cu_tru'] = resp.data.Result;
+                    try {
+                        const resp = await chuyenDoiApiService.chuyenDoiDiaBan(val.trim());
+                        if (resp.success && resp.data?.Succeeded && resp.data.Result) {
+                            out[`${String(key)}_raw`] = val;
+                            out[String(key)] = resp.data.Result;
+                            if (key === 'diaChi' && !out['dia_chi'])
+                                out['dia_chi'] = resp.data.Result;
+                            if (key === 'noiCuTru' && !out['noi_cu_tru'])
+                                out['noi_cu_tru'] = resp.data.Result;
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ Chuẩn hoá địa chỉ thất bại cho', key, e);
                     }
-                } catch (e) {
-                    console.warn('⚠️ Chuẩn hoá địa chỉ thất bại cho', key, e);
-                }
-            })
-        );
+                })
+            );
 
-        return out;
-    };
+            return out;
+        },
+        [ADDRESS_KEYS]
+    );
     // const performFill = useCallback(
     //     async (
     //         processingData: ProcessingData,
@@ -1117,6 +1133,10 @@ function TemplateFillerComponent() {
                     message: options?.successMessage ?? 'Đã chèn dữ liệu vào tài liệu',
                     severity: 'success'
                 });
+
+                // Lock placeholder summary after first fill to prevent rescanning
+                setPlaceholderSummaryLocked(true);
+
                 options?.onFilled?.();
                 return true;
             } catch (error: any) {
@@ -1135,6 +1155,7 @@ function TemplateFillerComponent() {
             ensureWorkingBlob,
             isProcessingFill,
             applyPlaceholderSelection,
+            normalizeAddressFields,
             previewState.fileName,
             placeholderKeySet,
             setPreviewFromBlob,
@@ -1162,12 +1183,20 @@ function TemplateFillerComponent() {
 
             if (placeholderSummary.some(group => group.variants.length > 1)) {
                 setPendingPlaceholderData({ data: processingData, options });
-                setPlaceholderSelectionDialogOpen(true);
-                setSnackbar({
-                    open: true,
-                    message: 'Chọn đối tượng để chèn dữ liệu',
-                    severity: 'info'
+
+                // Force close dialog first to ensure React re-renders when opening
+                setPlaceholderSelectionDialogOpen(false);
+
+                // Use microtask to open in next tick, ensuring state has updated
+                Promise.resolve().then(() => {
+                    setPlaceholderSelectionDialogOpen(true);
+                    setSnackbar({
+                        open: true,
+                        message: 'Chọn đối tượng để chèn dữ liệu',
+                        severity: 'info'
+                    });
                 });
+
                 return false;
             }
 
@@ -1247,7 +1276,9 @@ function TemplateFillerComponent() {
 
     useEffect(() => {
         if (!pendingPlaceholderData || !placeholderSummaryInitialized) return;
+
         const needsChoice = placeholderSummary.some(group => group.variants.length > 1);
+
         if (needsChoice) {
             const dialogWasClosed = !placeholderSelectionDialogOpen;
             setPlaceholderSelectionDialogOpen(true);
@@ -1260,6 +1291,7 @@ function TemplateFillerComponent() {
             }
             return;
         }
+
         const { data, options } = pendingPlaceholderData;
         setPendingPlaceholderData(null);
         setPlaceholderSelectionDialogOpen(false);
@@ -1846,7 +1878,12 @@ function TemplateFillerComponent() {
                 });
             }
         },
-        [resetPlaceholderSelectionState, setPreviewFromBlob, setPreviewFromUrl]
+        [
+            resetPlaceholderSelectionState,
+            setPreviewFromBlob,
+            setPreviewFromUrl,
+            templateSelectionModal.record
+        ]
     );
 
     const handleCloseChangeTemplateModal = useCallback(
@@ -2349,40 +2386,260 @@ function TemplateFillerComponent() {
                     open={pdfPreviewState.open}
                     onClose={closePdfPreview}
                     fullWidth
-                    maxWidth="xl"
-                    sx={{ zIndex: theme => theme.zIndex.modal + 1 }}
+                    maxWidth={false}
+                    sx={{
+                        zIndex: theme => theme.zIndex.modal + 1,
+                        '& .MuiDialog-paper': {
+                            borderRadius: { xs: 0, sm: 2 },
+                            boxShadow: '0 25px 50px rgba(25, 118, 210, 0.15)',
+                            overflow: 'hidden',
+                            m: { xs: 0, sm: 2 },
+                            width: { xs: '100vw', sm: 'auto' },
+                            height: { xs: '100vh', sm: 'auto' },
+                            maxWidth: { xs: '100vw', sm: '95vw' },
+                            maxHeight: { xs: '100vh', sm: '95vh' }
+                        }
+                    }}
                 >
-                    <DialogTitle>Xem trước</DialogTitle>
-                    <DialogContent dividers sx={{ height: '80vh', p: 0 }}>
+                    <DialogTitle
+                        sx={{
+                            background: 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
+                            color: 'white',
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: { xs: 1, sm: 1.5 },
+                            py: { xs: 1.5, sm: 2 },
+                            px: { xs: 2, sm: 3 },
+                            boxShadow: '0 2px 10px rgba(25, 118, 210, 0.3)',
+                            position: 'relative'
+                        }}
+                    >
+                        <PictureAsPdf sx={{ fontSize: 28 }} />
+                        <Box>
+                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                                Xem trước tài liệu PDF
+                            </Typography>
+                            <Typography variant="body2" sx={{ opacity: 0.9, fontWeight: 400 }}>
+                                Kiểm tra nội dung trước khi in ấn
+                            </Typography>
+                        </Box>
+                        <IconButton
+                            onClick={closePdfPreview}
+                            sx={{
+                                position: 'absolute',
+                                right: 16,
+                                top: '50%',
+                                transform: 'translateY(-50%)',
+                                color: 'white',
+                                backgroundColor: 'rgba(255,255,255,0.1)',
+                                backdropFilter: 'blur(10px)',
+                                '&:hover': {
+                                    backgroundColor: 'rgba(255,255,255,0.2)',
+                                    transform: 'translateY(-50%) scale(1.05)'
+                                },
+                                transition: 'all 0.2s ease'
+                            }}
+                        >
+                            <Close />
+                        </IconButton>
+                    </DialogTitle>
+                    <DialogContent
+                        dividers
+                        sx={{
+                            height: { xs: 'calc(100vh - 140px)', sm: '80vh' },
+                            p: 0,
+                            backgroundColor: '#f8f9fa',
+                            position: 'relative'
+                        }}
+                    >
                         {pdfPreviewState.url ? (
-                            <Box sx={{ height: '100%', width: '100%' }}>
+                            <Box
+                                sx={{
+                                    height: '100%',
+                                    width: '100%',
+                                    position: 'relative',
+                                    backgroundColor: 'white',
+                                    borderRadius: 1,
+                                    overflow: 'hidden',
+                                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
+                                }}
+                            >
                                 <iframe
                                     ref={pdfIframeRef}
                                     src={pdfPreviewState.url}
                                     title="PDF Preview"
-                                    style={{ border: 'none', width: '100%', height: '100%' }}
+                                    style={{
+                                        border: 'none',
+                                        width: '100%',
+                                        height: '100%',
+                                        borderRadius: '4px'
+                                    }}
                                     allow="clipboard-write"
                                 />
+                                {/* Overlay toolbar for additional actions */}
+                                <Box
+                                    sx={{
+                                        position: 'absolute',
+                                        top: 16,
+                                        right: 16,
+                                        display: 'flex',
+                                        gap: 1,
+                                        opacity: 0,
+                                        transition: 'opacity 0.3s ease',
+                                        '&:hover': { opacity: 1 }
+                                    }}
+                                >
+                                    <IconButton
+                                        onClick={handlePrintPdfPreview}
+                                        sx={{
+                                            backgroundColor: 'rgba(255,255,255,0.9)',
+                                            backdropFilter: 'blur(10px)',
+                                            boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+                                            '&:hover': {
+                                                backgroundColor: 'rgba(255,255,255,1)',
+                                                transform: 'scale(1.05)'
+                                            },
+                                            transition: 'all 0.2s ease'
+                                        }}
+                                        size="small"
+                                    >
+                                        <Print />
+                                    </IconButton>
+                                </Box>
                             </Box>
                         ) : (
                             <Box
                                 sx={{
                                     height: '100%',
                                     display: 'flex',
+                                    flexDirection: 'column',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    color: 'text.secondary'
+                                    color: 'text.secondary',
+                                    backgroundColor: 'white',
+                                    borderRadius: 1,
+                                    m: { xs: 1, sm: 2 },
+                                    p: { xs: 2, sm: 0 },
+                                    boxShadow: 'inset 0 0 10px rgba(0,0,0,0.05)'
                                 }}
                             >
-                                Không tìm thấy bản PDF
+                                <PictureAsPdf
+                                    sx={{ fontSize: { xs: 48, sm: 64 }, mb: 2, opacity: 0.5 }}
+                                />
+                                <Typography
+                                    variant="h6"
+                                    sx={{
+                                        mb: 1,
+                                        fontWeight: 500,
+                                        fontSize: { xs: '1.1rem', sm: '1.25rem' },
+                                        textAlign: 'center'
+                                    }}
+                                >
+                                    Không tìm thấy bản PDF
+                                </Typography>
+                                <Typography
+                                    variant="body2"
+                                    sx={{
+                                        textAlign: 'center',
+                                        maxWidth: { xs: 280, sm: 300 },
+                                        px: { xs: 1, sm: 0 },
+                                        fontSize: { xs: '0.875rem', sm: '0.875rem' }
+                                    }}
+                                >
+                                    Tài liệu PDF chưa được tạo hoặc có lỗi trong quá trình xử lý.
+                                    Vui lòng thử lại hoặc kiểm tra kết nối mạng.
+                                </Typography>
                             </Box>
                         )}
                     </DialogContent>
-                    <DialogActions>
-                        <Button onClick={handlePrintPdfPreview} disabled={!pdfPreviewState.url}>
-                            In
-                        </Button>
-                        <Button onClick={closePdfPreview}>Đóng</Button>
+                    <DialogActions
+                        sx={{
+                            px: { xs: 2, sm: 3 },
+                            py: { xs: 1.5, sm: 2 },
+                            backgroundColor: '#f8f9fa',
+                            borderTop: '1px solid rgba(0,0,0,0.08)',
+                            gap: 1,
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            alignItems: { xs: 'stretch', sm: 'center' }
+                        }}
+                    >
+                        <Box sx={{ flex: 1, mb: { xs: 1, sm: 0 }, order: { xs: 2, sm: 1 } }}>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: { xs: 'none', sm: 'block' } }}
+                            >
+                                💡 Mẹo: Sử dụng Ctrl+P (Cmd+P trên Mac) để in nhanh
+                            </Typography>
+                            <Typography
+                                variant="caption"
+                                color="text.secondary"
+                                sx={{ display: { xs: 'block', sm: 'none' }, textAlign: 'center' }}
+                            >
+                                💡 Sử dụng nút In để in tài liệu
+                            </Typography>
+                        </Box>
+                        <Box
+                            sx={{
+                                display: 'flex',
+                                gap: 1,
+                                order: { xs: 1, sm: 2 },
+                                flexDirection: { xs: 'column', sm: 'row' },
+                                width: { xs: '100%', sm: 'auto' }
+                            }}
+                        >
+                            <Button
+                                onClick={handlePrintPdfPreview}
+                                disabled={!pdfPreviewState.url}
+                                variant="contained"
+                                startIcon={<Print />}
+                                sx={{
+                                    borderRadius: 2,
+                                    px: 3,
+                                    py: 1.5,
+                                    fontWeight: 600,
+                                    textTransform: 'none',
+                                    background: 'linear-gradient(135deg, #1976D2 0%, #1565C0 100%)',
+                                    boxShadow: '0 4px 15px rgba(25, 118, 210, 0.3)',
+                                    '&:hover': {
+                                        background:
+                                            'linear-gradient(135deg, #1565C0 0%, #0D47A1 100%)',
+                                        transform: 'translateY(-1px)',
+                                        boxShadow: '0 6px 20px rgba(25, 118, 210, 0.4)'
+                                    },
+                                    '&:disabled': {
+                                        background: '#e0e0e0',
+                                        color: '#9e9e9e'
+                                    },
+                                    transition: 'all 0.2s ease',
+                                    minHeight: { xs: 48, sm: 'auto' }
+                                }}
+                            >
+                                In tài liệu
+                            </Button>
+                            <Button
+                                onClick={closePdfPreview}
+                                variant="outlined"
+                                startIcon={<Close />}
+                                sx={{
+                                    borderRadius: 2,
+                                    px: 3,
+                                    py: 1.5,
+                                    fontWeight: 600,
+                                    textTransform: 'none',
+                                    borderColor: 'rgba(0,0,0,0.23)',
+                                    '&:hover': {
+                                        borderColor: 'rgba(0,0,0,0.5)',
+                                        backgroundColor: 'rgba(0,0,0,0.04)',
+                                        transform: 'translateY(-1px)'
+                                    },
+                                    transition: 'all 0.2s ease',
+                                    minHeight: { xs: 48, sm: 'auto' }
+                                }}
+                            >
+                                Đóng
+                            </Button>
+                        </Box>
                     </DialogActions>
                 </Dialog>
 

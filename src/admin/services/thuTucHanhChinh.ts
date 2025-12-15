@@ -107,11 +107,11 @@ class ThuTucHanhChinhApiService {
                         maLinhVuc: item.LinhVuc?.MaLinhVuc || item.MaLinhVuc,
                         linhVuc: item.LinhVuc
                             ? {
-                                  maLinhVuc: item.LinhVuc.MaLinhVuc,
-                                  tenLinhVuc: item.LinhVuc.TenLinhVuc,
-                                  maNganh: item.LinhVuc.MaNganh,
-                                  moTa: item.LinhVuc.MoTa
-                              }
+                                maLinhVuc: item.LinhVuc.MaLinhVuc,
+                                tenLinhVuc: item.LinhVuc.TenLinhVuc,
+                                maNganh: item.LinhVuc.MaNganh,
+                                moTa: item.LinhVuc.MoTa
+                            }
                             : undefined,
                         trinhTuThucHien: item.TrinhTuThucHien,
                         cachThucHien: item.CachThucHien,
