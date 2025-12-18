@@ -111,31 +111,20 @@ const softwareSteps = [
     { step: '3.5', description: '' }
 ];
 
-// Helper functions for input analysis
 function findLabel(element: Element): string {
-    // Try to find label by for attribute
     if (element.id) {
         const label = element.ownerDocument?.querySelector(`label[for="${element.id}"]`);
         if (label) return label.textContent?.trim() || '';
     }
-
-    // Try to find parent label
     const parentLabel = element.closest('label');
     if (parentLabel) return parentLabel.textContent?.trim() || '';
-
-    // Try to find aria-label
     const ariaLabel = element.getAttribute('aria-label');
     if (ariaLabel) return ariaLabel;
-
-    // Try to find aria-labelledby
     const ariaLabelledBy = element.getAttribute('aria-labelledby');
     if (ariaLabelledBy) {
         const labelElement = element.ownerDocument?.getElementById(ariaLabelledBy);
         if (labelElement) return labelElement.textContent?.trim() || '';
     }
-
-    // Vue.js specific label patterns
-    // Try to find label in Vue component wrapper
     const vueWrapper = element.closest('.v-input, .v-text-field, .el-form-item, .ant-form-item');
     if (vueWrapper) {
         const vueLabel = vueWrapper.querySelector(

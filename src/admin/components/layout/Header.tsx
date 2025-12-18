@@ -59,9 +59,9 @@ export default function Header({
     const isMenuOpen = Boolean(anchorEl);
     const isNotificationOpen = Boolean(notificationAnchor);
 
-    const handleGoToInfo = () => {
+    const handleGoToSettings = () => {
         handleProfileMenuClose();
-        navigate({ to: '/info' });
+        navigate({ to: '/settings' });
     };
 
     const handleLogout = () => {
@@ -156,7 +156,7 @@ export default function Header({
                     <AccountCircleIcon sx={{ mr: 2 }} />
                     Cá nhân
                 </MenuItem>
-                <MenuItem onClick={handleGoToInfo}>
+                <MenuItem onClick={handleGoToSettings}>
                     <SettingsIcon sx={{ mr: 2 }} />
                     Cài đặt
                 </MenuItem>

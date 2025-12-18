@@ -47,6 +47,11 @@ import authService from '@/admin/services/authService';
 import { chuyenDoiApiService } from '@/admin/services/chuyenDoiService';
 import { dataSyncService } from '@/admin/services/dataSyncService';
 import { LinhVuc } from '@/admin/services/linhVucService';
+import {
+    TEMPLATE_SPECIAL_FIELDS_EVENT,
+    TEMPLATE_SPECIAL_FIELDS_STORAGE_KEY,
+    templateSpecialFieldsService
+} from '@/admin/services/templateSpecialFieldsService';
 import { ThanhPhanHoSoTTHC } from '@/admin/services/thanhPhanHoSoService';
 import { ThuTucHanhChinh } from '@/admin/services/thuTucHanhChinh';
 import { formatDDMMYYYY } from '@/admin/utils/formatDate';
@@ -559,6 +564,35 @@ function TemplateFillerComponent() {
         open: false,
         url: null
     });
+    const [specialFieldOverrides, setSpecialFieldOverrides] = useState<Record<string, string>>({});
+
+    const refreshSpecialFieldOverrides = useCallback(() => {
+        const stored = templateSpecialFieldsService.load();
+        const map: Record<string, string> = {};
+        stored.forEach(field => {
+            if (!field.placeholder) return;
+            map[field.placeholder] = field.value;
+        });
+        setSpecialFieldOverrides(map);
+    }, []);
+
+    useEffect(() => {
+        refreshSpecialFieldOverrides();
+        const handleStorage = (event: StorageEvent) => {
+            if (event.key === TEMPLATE_SPECIAL_FIELDS_STORAGE_KEY) {
+                refreshSpecialFieldOverrides();
+            }
+        };
+        const handleCustomUpdate = () => refreshSpecialFieldOverrides();
+
+        window.addEventListener('storage', handleStorage);
+        window.addEventListener(TEMPLATE_SPECIAL_FIELDS_EVENT, handleCustomUpdate);
+
+        return () => {
+            window.removeEventListener('storage', handleStorage);
+            window.removeEventListener(TEMPLATE_SPECIAL_FIELDS_EVENT, handleCustomUpdate);
+        };
+    }, [refreshSpecialFieldOverrides]);
 
     // Working documents
     const [workingDocsState, setWorkingDocsState] = useState({
@@ -981,6 +1015,27 @@ function TemplateFillerComponent() {
         },
         [ADDRESS_KEYS]
     );
+
+    const applySpecialFieldOverrides = useCallback(
+        (data: ProcessingData): ProcessingData => {
+            if (!Object.keys(specialFieldOverrides).length) return data;
+            const out: ProcessingData = { ...data };
+            Object.entries(specialFieldOverrides).forEach(([rawKey, value]) => {
+                const key = rawKey.trim();
+                if (!key) return;
+                const existing = out[key];
+                if (typeof existing === 'undefined' || existing === null) {
+                    out[key] = value;
+                    return;
+                }
+                if (typeof existing === 'string' && existing.trim() === '') {
+                    out[key] = value;
+                }
+            });
+            return out;
+        },
+        [specialFieldOverrides]
+    );
     // const performFill = useCallback(
     //     async (
     //         processingData: ProcessingData,
@@ -1091,7 +1146,8 @@ function TemplateFillerComponent() {
                     return false;
                 }
 
-                const withNormalizedAddr = await normalizeAddressFields(processingData);
+                const withSpecialFields = applySpecialFieldOverrides(processingData);
+                const withNormalizedAddr = await normalizeAddressFields(withSpecialFields);
                 const adjusted = applyPlaceholderSelection(withNormalizedAddr, selectionOverride);
                 const prepared = prepareTemplateData(adjusted);
                 const scopedUpdates = applyPlaceholderSelection(prepared, selectionOverride, {
@@ -1155,6 +1211,7 @@ function TemplateFillerComponent() {
             ensureWorkingBlob,
             isProcessingFill,
             applyPlaceholderSelection,
+            applySpecialFieldOverrides,
             normalizeAddressFields,
             previewState.fileName,
             placeholderKeySet,

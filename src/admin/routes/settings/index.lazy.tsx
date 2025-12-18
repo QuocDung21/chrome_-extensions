@@ -1,227 +1,350 @@
-import { ReactElement, useState } from 'react';
+import { ReactElement, useEffect, useMemo, useState } from 'react';
 
+import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
+import DeleteIcon from '@mui/icons-material/Delete';
 import {
     Alert,
     Box,
     Button,
     Card,
     CardContent,
-    Divider,
-    FormControl,
-    FormControlLabel,
-    InputLabel,
-    MenuItem,
-    Select,
-    Switch,
+    CardHeader,
+    IconButton,
     TextField,
     Typography
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { createLazyFileRoute } from '@tanstack/react-router';
 
+import {
+    TemplateSpecialFieldSetting,
+    templateSpecialFieldsService
+} from '@/admin/services/templateSpecialFieldsService';
+
+interface SpecialFieldFormRow {
+    id: string;
+    placeholder: string;
+    value: string;
+    note: string;
+}
+
+const DEFAULT_SPECIAL_FIELDS: Array<Omit<SpecialFieldFormRow, 'id'>> = [
+    { placeholder: 'ten_don_vi', value: '', note: 'Tên đơn vị' },
+    { placeholder: 'noi_dang_ky', value: '', note: 'Nơi đăng ký' },
+    { placeholder: 'dan_toc', value: '', note: 'Dân tộc' },
+    { placeholder: 'quoc_tich', value: '', note: 'Quốc tịch' }
+];
+
+const genId = () => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) return `sf-${crypto.randomUUID()}`;
+    return `sf-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
+};
+
+const normalizePlaceholder = (raw: string) => {
+    let s = raw.trim();
+    // cho phép user paste "{key}" -> tự loại bỏ ngoặc
+    if (s.startsWith('{') && s.endsWith('}')) s = s.slice(1, -1).trim();
+    return s;
+};
+
+const createSpecialFieldRow = (
+    initial?: Partial<Omit<SpecialFieldFormRow, 'id'>>
+): SpecialFieldFormRow => ({
+    id: genId(),
+    placeholder: initial?.placeholder ?? '',
+    value: initial?.value ?? '',
+    note: initial?.note ?? ''
+});
+
+const mergeWithDefaults = (stored: TemplateSpecialFieldSetting[]) => {
+    const map = new Map<string, TemplateSpecialFieldSetting>();
+
+    // defaults trước
+    for (const d of DEFAULT_SPECIAL_FIELDS) {
+        const key = normalizePlaceholder(d.placeholder);
+        if (!key) continue;
+        map.set(key, {
+            placeholder: key,
+            value: d.value ?? '',
+            note: d.note?.trim()
+        });
+    }
+
+    // stored đè lên defaults
+    for (const s of stored) {
+        const key = normalizePlaceholder(s.placeholder);
+        if (!key) continue;
+        map.set(key, {
+            placeholder: key,
+            value: s.value ?? '',
+            note: s.note?.trim()
+        });
+    }
+
+    return Array.from(map.values());
+};
+
 function Settings(): ReactElement {
-    const [settings, setSettings] = useState({
-        notifications: true,
-        autoSync: false,
-        darkMode: false,
-        language: 'en',
-        syncInterval: '5',
-        maxRetries: '3'
-    });
+    const [specialFields, setSpecialFields] = useState<SpecialFieldFormRow[]>([
+        createSpecialFieldRow()
+    ]);
+    const [specialFieldsDirty, setSpecialFieldsDirty] = useState(false);
+    const [specialFieldsSaved, setSpecialFieldsSaved] = useState(false);
 
-    const [saved, setSaved] = useState(false);
+    useEffect(() => {
+        const stored = templateSpecialFieldsService.load();
+        const merged = mergeWithDefaults(stored);
 
-    const handleSettingChange = (key: string, value: unknown) => {
-        setSettings(prev => ({
-            ...prev,
-            [key]: value
-        }));
-        setSaved(false);
+        setSpecialFields(
+            merged.length > 0
+                ? merged.map(f =>
+                    createSpecialFieldRow({
+                        placeholder: f.placeholder,
+                        value: f.value,
+                        note: f.note ?? ''
+                    })
+                )
+                : DEFAULT_SPECIAL_FIELDS.length > 0
+                    ? DEFAULT_SPECIAL_FIELDS.map(d =>
+                        createSpecialFieldRow({
+                            placeholder: normalizePlaceholder(d.placeholder),
+                            value: d.value,
+                            note: d.note
+                        })
+                    )
+                    : [createSpecialFieldRow()]
+        );
+
+        setSpecialFieldsDirty(false);
+        setSpecialFieldsSaved(false);
+    }, []);
+
+    const markSpecialFieldsDirty = () => {
+        setSpecialFieldsDirty(true);
+        setSpecialFieldsSaved(false);
     };
 
-    const handleSave = () => {
-        // Save settings logic here
-        console.log('Saving settings:', settings);
-        setSaved(true);
-        setTimeout(() => setSaved(false), 3000);
+    const handleSpecialFieldChange = (
+        id: string,
+        key: keyof Omit<SpecialFieldFormRow, 'id'>,
+        value: string
+    ) => {
+        setSpecialFields(prev =>
+            prev.map(field =>
+                field.id === id
+                    ? {
+                        ...field,
+                        [key]: key === 'placeholder' ? value : value
+                    }
+                    : field
+            )
+        );
+        markSpecialFieldsDirty();
+    };
+
+    const handleAddSpecialField = () => {
+        setSpecialFields(prev => [...prev, createSpecialFieldRow()]);
+        markSpecialFieldsDirty();
+    };
+
+    const handleRemoveSpecialField = (id: string) => {
+        setSpecialFields(prev => {
+            const next = prev.filter(field => field.id !== id);
+            return next.length > 0 ? next : [createSpecialFieldRow()];
+        });
+        markSpecialFieldsDirty();
+    };
+
+    const hasInvalidPlaceholder = useMemo(() => {
+        return specialFields.some(f => !normalizePlaceholder(f.placeholder));
+    }, [specialFields]);
+
+    const handleSaveSpecialFields = () => {
+        const payload: TemplateSpecialFieldSetting[] = specialFields
+            .map(field => ({
+                placeholder: normalizePlaceholder(field.placeholder),
+                value: field.value,
+                note: field.note.trim()
+            }))
+            .filter(field => field.placeholder.length > 0)
+            .map(field =>
+                field.note
+                    ? { placeholder: field.placeholder, value: field.value, note: field.note }
+                    : { placeholder: field.placeholder, value: field.value }
+            );
+
+        templateSpecialFieldsService.save(payload);
+        setSpecialFieldsDirty(false);
+        setSpecialFieldsSaved(true);
+        window.setTimeout(() => setSpecialFieldsSaved(false), 3000);
+    };
+
+    const cardBaseSx = {
+        boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
+        backdropFilter: 'blur(8px)',
+        background: 'rgba(255,255,255,0.97)',
+        border: '1px solid rgba(15,23,42,0.06)'
     };
 
     return (
-        <Box>
-            <Typography variant="h4" sx={{ fontWeight: 600, mb: 3 }}>
-                Settings
-            </Typography>
+        <Box
+            sx={{
+                width: '100%',
+                minHeight: '100vh',
+                background: 'linear-gradient(135deg, #eef2ff 0%, #f8fbff 35%, #ffffff 100%)'
+            }}
+        >
+            <Box
+                sx={{
+                    maxWidth: '100%',
+                    mx: 'auto',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: 2.5
+                }}
+            >
+                <Grid spacing={2}>
+                    <Grid>
+                        <Card sx={cardBaseSx}>
+                            <CardHeader
+                                title="Trường đặc biệt trong mẫu"
+                                subheader="Hệ thống sẽ tự bổ sung các giá trị này vào placeholder tương ứng"
+                                sx={{
+                                    '& .MuiCardHeader-title': { fontSize: 20, fontWeight: 500 },
+                                    '& .MuiCardHeader-subheader': { fontSize: 14 }
+                                }}
+                            />
+                            <CardContent sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                {specialFieldsSaved && (
+                                    <Alert severity="success" sx={{ borderRadius: 1 }}>
+                                        Đã lưu thiết lập trường đặc biệt.
+                                    </Alert>
+                                )}
 
-            {saved && (
-                <Alert severity="success" sx={{ mb: 3 }}>
-                    Settings saved successfully!
-                </Alert>
-            )}
+                                {specialFieldsDirty && hasInvalidPlaceholder && (
+                                    <Alert severity="warning" sx={{ borderRadius: 1 }}>
+                                        Có placeholder đang để trống. Vui lòng nhập đầy đủ trước khi
+                                        lưu.
+                                    </Alert>
+                                )}
 
-            <Grid container spacing={3}>
-                {/* General Settings */}
-                <Grid>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                                General Settings
-                            </Typography>
+                                {specialFields.map(field => {
+                                    const placeholderError =
+                                        specialFieldsDirty &&
+                                        !normalizePlaceholder(field.placeholder);
 
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.notifications}
-                                            onChange={e =>
-                                                handleSettingChange(
-                                                    'notifications',
-                                                    e.target.checked
-                                                )
-                                            }
-                                        />
-                                    }
-                                    label="Enable Notifications"
-                                />
+                                    return (
+                                        <Box
+                                            key={field.id}
+                                            sx={{
+                                                border: '1px dashed rgba(15,23,42,0.1)',
+                                                borderRadius: 1.5,
+                                                p: 2,
+                                                display: 'flex',
+                                                flexDirection: { xs: 'column', md: 'row' },
+                                                gap: 1.5,
+                                                backgroundColor: 'rgba(248,250,252,0.8)'
+                                            }}
+                                        >
+                                            <TextField
+                                                label="Tên placeholder"
+                                                placeholder="Ví dụ: co_quan_giai_quyet"
+                                                value={field.placeholder}
+                                                onChange={e =>
+                                                    handleSpecialFieldChange(
+                                                        field.id,
+                                                        'placeholder',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                required
+                                                error={placeholderError}
+                                                helperText={
+                                                    placeholderError
+                                                        ? 'Nhập tên placeholder (không có dấu ngoặc nhọn)'
+                                                        : undefined
+                                                }
+                                                sx={{ flex: 1 }}
+                                            />
 
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.autoSync}
-                                            onChange={e =>
-                                                handleSettingChange('autoSync', e.target.checked)
-                                            }
-                                        />
-                                    }
-                                    label="Auto Sync Data"
-                                />
+                                            <TextField
+                                                label="Giá trị mặc định"
+                                                placeholder="Nhập nội dung sẽ chèn vào mẫu"
+                                                multiline
+                                                minRows={1}
+                                                value={field.value}
+                                                onChange={e =>
+                                                    handleSpecialFieldChange(
+                                                        field.id,
+                                                        'value',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                sx={{ flex: 1 }}
+                                            />
 
-                                <FormControlLabel
-                                    control={
-                                        <Switch
-                                            checked={settings.darkMode}
-                                            onChange={e =>
-                                                handleSettingChange('darkMode', e.target.checked)
-                                            }
-                                        />
-                                    }
-                                    label="Dark Mode"
-                                />
+                                            <TextField
+                                                label="Ghi chú (tuỳ chọn)"
+                                                placeholder="Mô tả ngắn để dễ nhớ"
+                                                value={field.note}
+                                                onChange={e =>
+                                                    handleSpecialFieldChange(
+                                                        field.id,
+                                                        'note',
+                                                        e.target.value
+                                                    )
+                                                }
+                                                sx={{ flex: 1 }}
+                                            />
 
-                                <FormControl fullWidth>
-                                    <InputLabel>Language</InputLabel>
-                                    <Select
-                                        value={settings.language}
-                                        label="Language"
-                                        onChange={e =>
-                                            handleSettingChange('language', e.target.value)
-                                        }
+                                            <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                                <IconButton
+                                                    aria-label="Xoá trường"
+                                                    onClick={() =>
+                                                        handleRemoveSpecialField(field.id)
+                                                    }
+                                                >
+                                                    <DeleteIcon />
+                                                </IconButton>
+                                            </Box>
+                                        </Box>
+                                    );
+                                })}
+
+                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<AddCircleOutlineIcon />}
+                                        onClick={handleAddSpecialField}
                                     >
-                                        <MenuItem value="en">English</MenuItem>
-                                        <MenuItem value="vi">Tiếng Việt</MenuItem>
-                                        <MenuItem value="fr">Français</MenuItem>
-                                        <MenuItem value="de">Deutsch</MenuItem>
-                                    </Select>
-                                </FormControl>
-                            </Box>
-                        </CardContent>
-                    </Card>
+                                        Thêm trường
+                                    </Button>
+
+                                    <Box sx={{ flexGrow: 1 }} />
+
+                                    <Button
+                                        variant="contained"
+                                        onClick={handleSaveSpecialFields}
+                                        disabled={!specialFieldsDirty || hasInvalidPlaceholder}
+                                    >
+                                        Lưu trường đặc biệt
+                                    </Button>
+                                </Box>
+
+                                <Typography
+                                    variant="caption"
+                                    color="text.secondary"
+                                    sx={{ mt: -1 }}
+                                >
+                                    Gợi ý: nhập tên placeholder giống trong file Word (ví dụ:{' '}
+                                    {' {co_quan_giai_quyet} '} ➝ điền{' '}
+                                    <code>co_quan_giai_quyet</code>). Bạn có thể paste cả{' '}
+                                    <code>{'{key}'}</code>, hệ thống sẽ tự bỏ ngoặc.
+                                </Typography>
+                            </CardContent>
+                        </Card>
+                    </Grid>
                 </Grid>
-
-                {/* Advanced Settings */}
-                <Grid>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                                Advanced Settings
-                            </Typography>
-
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                <TextField
-                                    label="Sync Interval (minutes)"
-                                    type="number"
-                                    value={settings.syncInterval}
-                                    onChange={e =>
-                                        handleSettingChange('syncInterval', e.target.value)
-                                    }
-                                    fullWidth
-                                    inputProps={{ min: 1, max: 60 }}
-                                />
-
-                                <TextField
-                                    label="Max Retry Attempts"
-                                    type="number"
-                                    value={settings.maxRetries}
-                                    onChange={e =>
-                                        handleSettingChange('maxRetries', e.target.value)
-                                    }
-                                    fullWidth
-                                    inputProps={{ min: 1, max: 10 }}
-                                />
-
-                                <TextField
-                                    label="API Endpoint"
-                                    placeholder="https://api.example.com"
-                                    fullWidth
-                                />
-
-                                <TextField
-                                    label="API Key"
-                                    type="password"
-                                    placeholder="Enter your API key"
-                                    fullWidth
-                                />
-                            </Box>
-                        </CardContent>
-                    </Card>
-                </Grid>
-
-                {/* Data Management */}
-                <Grid>
-                    <Card>
-                        <CardContent>
-                            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                                Data Management
-                            </Typography>
-
-                            <Grid container spacing={2}>
-                                <Grid>
-                                    <Button variant="outlined" fullWidth>
-                                        Export Data
-                                    </Button>
-                                </Grid>
-                                <Grid>
-                                    <Button variant="outlined" fullWidth>
-                                        Import Data
-                                    </Button>
-                                </Grid>
-                                <Grid>
-                                    <Button variant="outlined" fullWidth>
-                                        Backup Settings
-                                    </Button>
-                                </Grid>
-                                <Grid>
-                                    <Button variant="outlined" color="error" fullWidth>
-                                        Clear All Data
-                                    </Button>
-                                </Grid>
-                            </Grid>
-                        </CardContent>
-                    </Card>
-                </Grid>
-            </Grid>
-
-            <Divider sx={{ my: 3 }} />
-
-            {/* Save Button */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <Button
-                    variant="contained"
-                    size="large"
-                    onClick={handleSave}
-                    sx={{ minWidth: 120 }}
-                >
-                    Save Settings
-                </Button>
             </Box>
         </Box>
     );

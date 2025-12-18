@@ -14,7 +14,7 @@ import {
     QrCode as QRIcon,
     AppRegistration as RegisterIcon,
     RoomService as ServiceIcon,
-    Settings,
+    Settings as SettingsIcon,
     DriveFileRenameOutline as TemplateFillerIcon,
     CloudUpload as UploadIcon,
     EditNote as WordMapperIcon,
@@ -113,23 +113,17 @@ const documentsItems: NavigationItem[] = [
 ];
 
 const systemItems: NavigationItem[] = [
-    // {
-    //     id: 'register',
-    //     label: 'Đăng ký sử dụng',
-    //     icon: <RegisterIcon />,
-    //     path: '/register'
-    // },
-    // {
-    //     id: 'services',
-    //     label: 'Gói dịch vụ',
-    //     icon: <ServiceIcon />,
-    //     path: '/services'
-    // },
     {
         id: 'info',
-        label: 'Thông tin / Thiết lập',
-        icon: <Settings />,
+        label: 'Thông tin',
+        icon: <InfoIcon />,
         path: '/info'
+    },
+    {
+        id: 'settings',
+        label: 'Cài đặt điền mẫu',
+        icon: <SettingsIcon />,
+        path: '/settings'
     }
 ];
 
