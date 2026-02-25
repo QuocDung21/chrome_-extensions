@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "name": "NTSoft DocumentAI",
     "short_name": "NTSoft DocumentAI",
-    "version": "1.0.4",
+    "version": "1.0.5",
     "description": "Biến tài liệu giấy thành dữ liệu có cấu trúc để tìm kiếm, trích xuất và in ấn.",
     "icons": {
         "16": "assets/icons/logo_optimized_16.png",

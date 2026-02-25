@@ -1,6 +1,8 @@
-import { saveAs } from 'file-saver';
 import Docxtemplater from 'docxtemplater';
+import { saveAs } from 'file-saver';
 import PizZip from 'pizzip';
+
+import { templateSpecialFieldsService } from '@/admin/services/templateSpecialFieldsService';
 
 export interface TemplateFile {
     label: string;
@@ -100,7 +102,9 @@ export const loadTemplateFromUrl = async (templatePath: string): Promise<ArrayBu
         return await response.arrayBuffer();
     } catch (error) {
         console.error('Error loading template:', error);
-        throw new Error(`Lỗi tải template: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        throw new Error(
+            `Lỗi tải template: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
     }
 };
 
@@ -110,7 +114,29 @@ export const loadTemplateFromUrl = async (templatePath: string): Promise<ArrayBu
 export const prepareTemplateData = (rawData: ProcessingData): ProcessingData => {
     const preparedData = { ...rawData };
 
-    // Add current date/time
+    // 1. Load special fields from Settings (defaults)
+    // These are lowest priority, so we load them first, then overwrite with rawData if needed?
+    // OR: If rawData has a value (even empty string) from user input, should it override Settings?
+    // Usually Settings are "Default Values". So if data is missing, use Settings.
+    try {
+        const specialFields = templateSpecialFieldsService.load();
+        specialFields.forEach(field => {
+            // If field value is empty, default to dots for manual filling
+            const valueToUse = !field.value || !field.value.trim() ? '..........' : field.value;
+
+            if (
+                typeof preparedData[field.placeholder] === 'undefined' ||
+                preparedData[field.placeholder] === null ||
+                preparedData[field.placeholder] === ''
+            ) {
+                preparedData[field.placeholder] = valueToUse;
+            }
+        });
+    } catch (e) {
+        console.warn('Failed to inject special fields:', e);
+    }
+
+    // 2. Add current date/time (Highest priority system overrides? Or just standalones?)
     const now = new Date();
     preparedData.current_date = now.toLocaleDateString('vi-VN');
     preparedData.current_time = now.toLocaleTimeString('vi-VN');
@@ -118,6 +144,11 @@ export const prepareTemplateData = (rawData: ProcessingData): ProcessingData => 
     preparedData.current_year = now.getFullYear().toString();
     preparedData.current_month = (now.getMonth() + 1).toString().padStart(2, '0');
     preparedData.current_day = now.getDate().toString().padStart(2, '0');
+
+    // Add Vietnamese specific date fields
+    preparedData.ngay_ht = preparedData.current_day;
+    preparedData.thang_ht = preparedData.current_month;
+    preparedData.nam_ht = preparedData.current_year;
 
     // Process date fields
     if (preparedData.ngay_sinh && typeof preparedData.ngay_sinh === 'string') {
@@ -201,7 +232,9 @@ export const validateTemplateFile = (file: File): boolean => {
 /**
  * Extract template placeholders
  */
-export const extractTemplatePlaceholders = async (templateArrayBuffer: ArrayBuffer): Promise<string[]> => {
+export const extractTemplatePlaceholders = async (
+    templateArrayBuffer: ArrayBuffer
+): Promise<string[]> => {
     try {
         const zip = new PizZip(templateArrayBuffer);
         const documentXml = zip.files['word/document.xml']?.asText();
@@ -271,7 +304,10 @@ export const generateDocumentWithProgress = async (
 /**
  * Create print-friendly window
  */
-export const createPrintWindow = (content: string, title: string = 'In tài liệu'): Window | null => {
+export const createPrintWindow = (
+    content: string,
+    title: string = 'In tài liệu'
+): Window | null => {
     const printWindow = window.open('', '_blank');
 
     if (printWindow) {
@@ -333,4 +369,4 @@ export const printDocument = (content: string, title?: string): void => {
             printWindow.close();
         }, 250);
     }
-}; 
+};

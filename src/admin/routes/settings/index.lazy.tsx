@@ -30,7 +30,7 @@ interface SpecialFieldFormRow {
 
 const DEFAULT_SPECIAL_FIELDS: Array<Omit<SpecialFieldFormRow, 'id'>> = [
     { placeholder: 'ten_don_vi', value: '', note: 'Tên đơn vị' },
-    { placeholder: 'noi_dang_ky', value: '', note: 'Nơi đăng ký' },
+    { placeholder: 'noi_dang_ky', value: '....................', note: 'Nơi đăng ký' },
     { placeholder: 'dan_toc', value: '', note: 'Dân tộc' },
     { placeholder: 'quoc_tich', value: '', note: 'Quốc tịch' }
 ];
@@ -98,21 +98,21 @@ function Settings(): ReactElement {
         setSpecialFields(
             merged.length > 0
                 ? merged.map(f =>
-                    createSpecialFieldRow({
-                        placeholder: f.placeholder,
-                        value: f.value,
-                        note: f.note ?? ''
-                    })
-                )
+                      createSpecialFieldRow({
+                          placeholder: f.placeholder,
+                          value: f.value,
+                          note: f.note ?? ''
+                      })
+                  )
                 : DEFAULT_SPECIAL_FIELDS.length > 0
-                    ? DEFAULT_SPECIAL_FIELDS.map(d =>
+                  ? DEFAULT_SPECIAL_FIELDS.map(d =>
                         createSpecialFieldRow({
                             placeholder: normalizePlaceholder(d.placeholder),
                             value: d.value,
                             note: d.note
                         })
                     )
-                    : [createSpecialFieldRow()]
+                  : [createSpecialFieldRow()]
         );
 
         setSpecialFieldsDirty(false);
@@ -133,9 +133,9 @@ function Settings(): ReactElement {
             prev.map(field =>
                 field.id === id
                     ? {
-                        ...field,
-                        [key]: key === 'placeholder' ? value : value
-                    }
+                          ...field,
+                          [key]: key === 'placeholder' ? value : value
+                      }
                     : field
             )
         );
