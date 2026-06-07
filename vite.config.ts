@@ -119,8 +119,7 @@ export default defineConfig(({ mode }) => {
             alias: {
                 '@': path.join(__dirname, './src'),
                 '@admin': path.join(__dirname, './src/admin'),
-                '@popup': path.join(__dirname, './src/popup'),
-                '@shared': path.join(__dirname, './src/shared')
+                '@popup': path.join(__dirname, './src/popup')
             }
         },
         base: './',
