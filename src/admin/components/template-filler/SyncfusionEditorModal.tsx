@@ -33,7 +33,6 @@ import {
 
 import { WorkingDocument } from '@/admin/db/db';
 import { LinhVuc } from '@/admin/services/linhVucService';
-import { thanhPhanHoSoTTHCRepository } from '@/admin/repository/ThanhPhanHoSoTTHCRepository';
 
 /* =========================
    Types & constants
@@ -206,7 +205,6 @@ const DocxPreviewArea: React.FC<{
     const containerRef = React.useRef<HTMLDivElement | null>(null);
     const [loading, setLoading] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
-    const [pdfUrl, setPdfUrl] = React.useState<string | null>(null);
 
     React.useEffect(() => {
         let cancelled = false;
@@ -215,7 +213,6 @@ const DocxPreviewArea: React.FC<{
             if (!containerRef.current) return;
             const container = containerRef.current;
             container.innerHTML = '';
-            setPdfUrl(null);
 
             if (!url && !blob) {
                 setError(null);
@@ -227,38 +224,18 @@ const DocxPreviewArea: React.FC<{
             setError(null);
 
             try {
-                let docxBlob: Blob | null = null;
+                let arrayBuffer: ArrayBuffer | null = null;
 
                 if (blob) {
-                    docxBlob = blob;
+                    arrayBuffer = await blob.arrayBuffer();
                 } else if (url) {
                     const response = await fetch(url);
                     if (!response.ok)
                         throw new Error(`Không thể tải tài liệu (${response.status})`);
-                    docxBlob = await response.blob();
+                    arrayBuffer = await response.arrayBuffer();
                 }
 
-                if (cancelled || !docxBlob) return;
-
-                // Cố gắng chuyển sang PDF thông qua Server (Giải pháp 1)
-                try {
-                    console.log('🔄 Đang gửi tài liệu lên server để chuyển sang PDF...');
-                    const pdfBlob = await thanhPhanHoSoTTHCRepository.renderPdfFromBlob(docxBlob);
-                    if (pdfBlob && !cancelled) {
-                        const localPdfUrl = URL.createObjectURL(pdfBlob);
-                        setPdfUrl(localPdfUrl);
-                        setLoading(false);
-                        return; // Đã render PDF thành công, thoát
-                    }
-                } catch (pdfErr) {
-                    console.warn('⚠️ Lỗi chuyển đổi PDF trên server, đang dùng docx-preview làm fallback:', pdfErr);
-                }
-
-                // Nếu chuyển PDF thất bại (hoặc offline), fallback về docx-preview client-side
-                if (cancelled) return;
-                console.log('🔄 Đang render bản preview HTML offline bằng docx-preview...');
-                const arrayBuffer = await docxBlob.arrayBuffer();
-                if (cancelled) return;
+                if (cancelled || !arrayBuffer) return;
 
                 container.innerHTML = '';
                 await renderAsync(arrayBuffer, container, undefined, {
@@ -270,7 +247,7 @@ const DocxPreviewArea: React.FC<{
                 if (!cancelled) {
                     console.error('❌ Unable to render docx preview:', err);
                     setError(
-                        'Không thể hiển thị tài liệu. Vui lòng tải xuống tệp tin.'
+                        'Không thể hiển thị tệp DOCX. Bạn có thể tải xuống hoặc mở bản in PDF.'
                     );
                 }
             } finally {
@@ -285,21 +262,8 @@ const DocxPreviewArea: React.FC<{
         };
     }, [url, blob, fileName]);
 
-    // Hủy Object URL của PDF khi unmount hoặc đổi tài liệu
-    React.useEffect(() => {
-        return () => {
-            if (pdfUrl) {
-                try {
-                    URL.revokeObjectURL(pdfUrl);
-                } catch {
-                    /* noop */
-                }
-            }
-        };
-    }, [pdfUrl]);
-
     return (
-        <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'hidden' }}>
+        <Box sx={{ position: 'relative', width: '100%', height: '100%', overflow: 'auto' }}>
             {loading && (
                 <Box
                     sx={{
@@ -335,39 +299,18 @@ const DocxPreviewArea: React.FC<{
                 </Box>
             )}
 
-            {pdfUrl ? (
-                <iframe
-                    src={pdfUrl}
-                    style={{
+            <Box
+                ref={containerRef}
+                sx={{
+                    minHeight: '100%',
+                    '& .docx-preview': {
                         width: '100%',
-                        height: '100%',
-                        border: 'none',
-                        display: 'block'
-                    }}
-                    title="Document PDF Preview"
-                />
-            ) : (
-                <Box
-                    sx={{
-                        width: '100%',
-                        height: '100%',
-                        overflow: 'auto'
-                    }}
-                >
-                    <Box
-                        ref={containerRef}
-                        sx={{
-                            minHeight: '100%',
-                            '& .docx-preview': {
-                                width: '100%',
-                                maxWidth: '100%',
-                                margin: '0 auto'
-                            }
-                        }}
-                        data-filename={fileName}
-                    />
-                </Box>
-            )}
+                        maxWidth: '100%',
+                        margin: '0 auto'
+                    }
+                }}
+                data-filename={fileName}
+            />
         </Box>
     );
 };

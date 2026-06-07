@@ -2478,10 +2478,10 @@ function TemplateFillerComponent() {
                             boxShadow: '0 25px 50px rgba(25, 118, 210, 0.15)',
                             overflow: 'hidden',
                             m: { xs: 0, sm: 2 },
-                            width: { xs: '100vw', sm: 'auto' },
-                            height: { xs: '100vh', sm: 'auto' },
-                            maxWidth: { xs: '100vw', sm: '95vw' },
-                            maxHeight: { xs: '100vh', sm: '95vh' }
+                            width: { xs: '100vw', sm: '96vw' },
+                            height: { xs: '100vh', sm: '92vh' },
+                            maxWidth: { xs: '100vw', sm: '96vw' },
+                            maxHeight: { xs: '100vh', sm: '92vh' }
                         }
                     }}
                 >
@@ -2530,7 +2530,7 @@ function TemplateFillerComponent() {
                     <DialogContent
                         dividers
                         sx={{
-                            height: { xs: 'calc(100vh - 140px)', sm: '80vh' },
+                            height: { xs: 'calc(100vh - 140px)', sm: 'calc(92vh - 80px)' },
                             p: 0,
                             backgroundColor: '#f8f9fa',
                             position: 'relative'
