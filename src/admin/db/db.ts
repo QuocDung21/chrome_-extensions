@@ -14,6 +14,11 @@ export interface DoiTuongThucHien {
     tenDoiTuongThucHien: string;
 }
 
+export interface DirectoryHandleEntry {
+    key: string;
+    handle: FileSystemDirectoryHandle;
+}
+
 
 
 // Định nghĩa interface cho tài liệu làm việc được lưu theo Mã TTHC
@@ -94,6 +99,7 @@ export class AppDatabase extends Dexie {
     thanhPhanHoSoTTHC!: Table<ThanhPhanHoSoTTHC, string>;
     thanhPhanHoSoTTHCLocal!: Table<ThanhPhanHoSoTTHCLocal, number>;
     doiTuongThucHien!: Table<DoiTuongThucHien, string>;
+    directoryHandles!: Table<DirectoryHandleEntry, string>;
     constructor() {
         super('DocumentAI_DB');
         this.version(1).stores({
@@ -150,9 +156,42 @@ export class AppDatabase extends Dexie {
         this.version(8).stores({
             doiTuongThucHien: 'maDoiTuongThucHien, tenDoiTuongThucHien'
         });
+
+        this.version(9).stores({
+            directoryHandles: 'key'
+        });
     }
 }
 
 // Khởi tạo và export một instance của database để dùng trong toàn bộ ứng dụng
 export const db = new AppDatabase();
+
+const MANUAL_LOADER_KEY = 'lastDirectoryHandle';
+
+export const storeDirectoryHandle = async (handle: FileSystemDirectoryHandle): Promise<void> => {
+    await db.directoryHandles.put({ key: MANUAL_LOADER_KEY, handle });
+};
+
+export const getDirectoryHandle = async (): Promise<FileSystemDirectoryHandle | undefined> => {
+    const entry = await db.directoryHandles.get(MANUAL_LOADER_KEY);
+    return entry?.handle;
+};
+
+export const clearDirectoryHandle = async (): Promise<void> => {
+    await db.directoryHandles.delete(MANUAL_LOADER_KEY);
+};
+
+export const verifyAndRequestPermission = async (
+    handle: FileSystemDirectoryHandle
+): Promise<boolean> => {
+    const options = { mode: 'readwrite' as const };
+    if ((await handle.queryPermission(options)) === 'granted') {
+        return true;
+    }
+    if ((await handle.requestPermission(options)) === 'granted') {
+        return true;
+    }
+    console.error('❌ Permission denied by user.');
+    return false;
+};
 //

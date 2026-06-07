@@ -32,7 +32,7 @@ import {
     getDirectoryHandle,
     storeDirectoryHandle,
     verifyAndRequestPermission
-} from '../../db/db_local';
+} from '../../db/db';
 
 interface WordFile {
     name: string;

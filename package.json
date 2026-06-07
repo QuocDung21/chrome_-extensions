@@ -25,7 +25,6 @@
         "docx-preview": "^0.3.5",
         "docxtemplater": "^3.65.2",
         "file-saver": "^2.0.5",
-        "idb": "^8.0.3",
         "notistack": "^3.0.2",
         "pizzip": "^3.2.0",
         "react": "^19.1.0",
