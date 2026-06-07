@@ -1,5 +1,7 @@
 import { ReactElement, useEffect, useMemo, useState } from 'react';
 
+import { useSnackbar } from 'notistack';
+
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
 import DownloadIcon from '@mui/icons-material/Download';
@@ -17,7 +19,6 @@ import {
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { createLazyFileRoute } from '@tanstack/react-router';
-import { useSnackbar } from 'notistack';
 
 import {
     TemplateSpecialFieldSetting,
@@ -189,7 +190,7 @@ function Settings(): ReactElement {
         if (!file) return;
 
         const reader = new FileReader();
-        reader.onload = (event) => {
+        reader.onload = event => {
             try {
                 const parsed = JSON.parse(event.target?.result as string);
                 if (!Array.isArray(parsed)) {
@@ -199,7 +200,9 @@ function Settings(): ReactElement {
                 const newRows: SpecialFieldFormRow[] = [];
                 for (const item of parsed) {
                     if (typeof item === 'object' && item !== null) {
-                        const placeholder = normalizePlaceholder(item.placeholder || item.key || '');
+                        const placeholder = normalizePlaceholder(
+                            item.placeholder || item.key || ''
+                        );
                         if (placeholder) {
                             newRows.push(
                                 createSpecialFieldRow({
@@ -223,7 +226,9 @@ function Settings(): ReactElement {
                     const merged = [...prev];
                     newRows.forEach(newRow => {
                         const existingIdx = merged.findIndex(
-                            r => normalizePlaceholder(r.placeholder) === normalizePlaceholder(newRow.placeholder)
+                            r =>
+                                normalizePlaceholder(r.placeholder) ===
+                                normalizePlaceholder(newRow.placeholder)
                         );
                         if (existingIdx >= 0) {
                             merged[existingIdx] = {
@@ -237,7 +242,11 @@ function Settings(): ReactElement {
                     });
 
                     // Remove initial empty row if it's untouched
-                    if (merged.length > 1 && merged[0].placeholder === '' && merged[0].value === '') {
+                    if (
+                        merged.length > 1 &&
+                        merged[0].placeholder === '' &&
+                        merged[0].value === ''
+                    ) {
                         merged.shift();
                     }
                     return merged;
@@ -272,7 +281,8 @@ function Settings(): ReactElement {
             return;
         }
 
-        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
+        const dataStr =
+            'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
         const downloadAnchor = document.createElement('a');
         downloadAnchor.setAttribute('href', dataStr);
         downloadAnchor.setAttribute('download', 'truong_dac_biet.json');
@@ -429,7 +439,7 @@ function Settings(): ReactElement {
                                         component="label"
                                         startIcon={<UploadIcon />}
                                     >
-                                        Nhập từ JSON (Import)
+                                        Nhập
                                         <input
                                             type="file"
                                             accept=".json"
@@ -443,7 +453,7 @@ function Settings(): ReactElement {
                                         startIcon={<DownloadIcon />}
                                         onClick={handleExportJSON}
                                     >
-                                        Xuất ra JSON (Export)
+                                        Xuất
                                     </Button>
 
                                     <Box sx={{ flexGrow: 1 }} />
