@@ -2239,8 +2239,33 @@ function TemplateFillerComponent() {
                         onPlaceholderIndexChange={value => setPlaceholderIndexSelection(value)}
                         onPlaceholderSummaryChange={handlePlaceholderSummaryChange}
                         onDownloadCurrent={async () => {
-                            const fileName = previewState.fileName;
-                            if (!fileName) return;
+                            const md = templateSelectionModal.record?.danhSachMauDon?.[0] as any;
+                            if (md?.thanhPhanHoSoTTHCID) {
+                                try {
+                                    setSnackbar({
+                                        open: true,
+                                        message: 'Đang tải tệp tin gốc...',
+                                        severity: 'info'
+                                    });
+                                    const blob = await thanhPhanHoSoTTHCRepository.getFileBlobForUse(
+                                        md.thanhPhanHoSoTTHCID
+                                    );
+                                    if (blob) {
+                                        saveAs(blob, md.tenFile || 'template.docx');
+                                        setSnackbar({
+                                            open: true,
+                                            message: 'Tải tệp tin gốc thành công',
+                                            severity: 'success'
+                                        });
+                                        return;
+                                    }
+                                } catch (error) {
+                                    console.error('❌ Failed to download original template:', error);
+                                }
+                            }
+
+                            // Fallback to current preview if original template fetch fails
+                            const fileName = previewState.fileName || 'document.docx';
                             if (previewState.blob) {
                                 saveAs(previewState.blob, fileName);
                                 return;
@@ -2255,7 +2280,7 @@ function TemplateFillerComponent() {
                                     console.error('❌ Failed to download current preview:', error);
                                     setSnackbar({
                                         open: true,
-                                        message: 'Không thể tải xuống tài liệu hiện tại',
+                                        message: 'Không thể tải xuống tài liệu',
                                         severity: 'error'
                                     });
                                 }

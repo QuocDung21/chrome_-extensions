@@ -526,10 +526,10 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                 const arrayBuffer = preview.blob
                     ? await preview.blob.arrayBuffer()
                     : await (async () => {
-                        const response = await fetch(preview.url as string);
-                        if (!response.ok) throw new Error('Failed to download template for scan');
-                        return response.arrayBuffer();
-                    })();
+                          const response = await fetch(preview.url as string);
+                          if (!response.ok) throw new Error('Failed to download template for scan');
+                          return response.arrayBuffer();
+                      })();
 
                 if (cancelled || placeholderScanRequestRef.current !== requestId) return;
 
@@ -918,7 +918,7 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                             fontWeight: 600
                                         }}
                                     >
-                                        Tải xuống
+                                        Tải file gốc
                                     </Button>
 
                                     {onPrintDocument && (
@@ -1076,10 +1076,10 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                                     socketStatus === 'connected'
                                                         ? 'Đã kết nối'
                                                         : socketStatus === 'disabled'
-                                                            ? 'Tắt kết nối'
-                                                            : socketStatus === 'connecting'
-                                                                ? 'Đang kết nối...'
-                                                                : 'Mất kết nối'
+                                                          ? 'Tắt kết nối'
+                                                          : socketStatus === 'connecting'
+                                                            ? 'Đang kết nối...'
+                                                            : 'Mất kết nối'
                                                 }
                                                 variant="filled"
                                                 sx={{
@@ -1087,10 +1087,10 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                                         socketStatus === 'connected'
                                                             ? 'success.main'
                                                             : socketStatus === 'disabled'
-                                                                ? 'grey.500'
-                                                                : socketStatus === 'connecting'
-                                                                    ? 'warning.main'
-                                                                    : 'error.main',
+                                                              ? 'grey.500'
+                                                              : socketStatus === 'connecting'
+                                                                ? 'warning.main'
+                                                                : 'error.main',
                                                     color: 'white',
                                                     fontWeight: 600
                                                 }}
@@ -1315,12 +1315,12 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
                                                     sx={{
                                                         color:
                                                             field.value &&
-                                                                field.value !== '— Chưa chọn mẫu —'
+                                                            field.value !== '— Chưa chọn mẫu —'
                                                                 ? 'text.primary'
                                                                 : 'text.disabled',
                                                         fontStyle:
                                                             field.value &&
-                                                                field.value !== '— Chưa chọn mẫu —'
+                                                            field.value !== '— Chưa chọn mẫu —'
                                                                 ? 'normal'
                                                                 : 'italic'
                                                     }}
@@ -1404,7 +1404,7 @@ export const SyncfusionEditorModal: React.FC<SyncfusionEditorModalProps> = ({
             </Dialog>
 
             {/* Dialog “chọn index” placeholder – hiện tắt (open=false) nhưng giữ lại nếu sau này muốn bật lại */}
-            <Dialog open={false} onClose={() => { }} maxWidth="xs" fullWidth>
+            <Dialog open={false} onClose={() => {}} maxWidth="xs" fullWidth>
                 <DialogTitle>Chọn nhóm placeholder</DialogTitle>
                 <DialogContent>
                     <Typography variant="body2">
