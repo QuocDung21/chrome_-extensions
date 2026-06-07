@@ -33,18 +33,3 @@ export function getCurrentDateParts() {
     return { day, month, year };
 }
 
-// --- Cách sử dụng ---
-const { day, month, year } = getCurrentDateParts();
-console.log('Ngày:', day); // 20
-console.log('Tháng:', month); // 8
-console.log('Năm:', year); // 2025
-
-// --- Cách sử dụng ---
-const inputDate = '02091968';
-const formattedDate = formatDDMMYYYY(inputDate);
-
-console.log(formattedDate); // Kết quả: "02/09/1968"
-
-// Ví dụ với đầu vào không hợp lệ
-const invalidInput = '12345';
-console.log(formatDDMMYYYY(invalidInput)); // Kết quả: "" và log lỗi ra console
