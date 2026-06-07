@@ -19,7 +19,6 @@ export interface DirectoryHandleEntry {
     handle: FileSystemDirectoryHandle;
 }
 
-// Định nghĩa interface cho tài liệu làm việc được lưu theo Mã TTHC
 export interface WorkingDocument {
     id?: number; // primary key (auto)
     maTTHC: string; // code key for grouping

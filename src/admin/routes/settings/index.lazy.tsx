@@ -2,6 +2,8 @@ import { ReactElement, useEffect, useMemo, useState } from 'react';
 
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 import DeleteIcon from '@mui/icons-material/Delete';
+import DownloadIcon from '@mui/icons-material/Download';
+import UploadIcon from '@mui/icons-material/Upload';
 import {
     Alert,
     Box,
@@ -15,6 +17,7 @@ import {
 } from '@mui/material';
 import Grid from '@mui/material/Grid';
 import { createLazyFileRoute } from '@tanstack/react-router';
+import { useSnackbar } from 'notistack';
 
 import {
     TemplateSpecialFieldSetting,
@@ -179,6 +182,107 @@ function Settings(): ReactElement {
         window.setTimeout(() => setSpecialFieldsSaved(false), 3000);
     };
 
+    const { enqueueSnackbar } = useSnackbar();
+
+    const handleImportJSON = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (event) => {
+            try {
+                const parsed = JSON.parse(event.target?.result as string);
+                if (!Array.isArray(parsed)) {
+                    throw new Error('Định dạng tệp không hợp lệ. Phải là một mảng JSON.');
+                }
+
+                const newRows: SpecialFieldFormRow[] = [];
+                for (const item of parsed) {
+                    if (typeof item === 'object' && item !== null) {
+                        const placeholder = normalizePlaceholder(item.placeholder || item.key || '');
+                        if (placeholder) {
+                            newRows.push(
+                                createSpecialFieldRow({
+                                    placeholder,
+                                    value: String(item.value ?? ''),
+                                    note: String(item.note ?? '')
+                                })
+                            );
+                        }
+                    }
+                }
+
+                if (newRows.length === 0) {
+                    enqueueSnackbar('Không tìm thấy trường đặc biệt hợp lệ nào trong tệp.', {
+                        variant: 'warning'
+                    });
+                    return;
+                }
+
+                setSpecialFields(prev => {
+                    const merged = [...prev];
+                    newRows.forEach(newRow => {
+                        const existingIdx = merged.findIndex(
+                            r => normalizePlaceholder(r.placeholder) === normalizePlaceholder(newRow.placeholder)
+                        );
+                        if (existingIdx >= 0) {
+                            merged[existingIdx] = {
+                                ...merged[existingIdx],
+                                value: newRow.value,
+                                note: newRow.note || merged[existingIdx].note
+                            };
+                        } else {
+                            merged.push(newRow);
+                        }
+                    });
+
+                    // Remove initial empty row if it's untouched
+                    if (merged.length > 1 && merged[0].placeholder === '' && merged[0].value === '') {
+                        merged.shift();
+                    }
+                    return merged;
+                });
+
+                enqueueSnackbar(`Đã nhập thành công ${newRows.length} trường đặc biệt.`, {
+                    variant: 'success'
+                });
+                setSpecialFieldsDirty(true);
+            } catch (err: any) {
+                enqueueSnackbar(err?.message || 'Có lỗi xảy ra khi đọc tệp JSON.', {
+                    variant: 'error'
+                });
+            } finally {
+                e.target.value = '';
+            }
+        };
+        reader.readAsText(file);
+    };
+
+    const handleExportJSON = () => {
+        const payload = specialFields
+            .map(field => ({
+                placeholder: normalizePlaceholder(field.placeholder),
+                value: field.value,
+                note: field.note.trim()
+            }))
+            .filter(field => field.placeholder.length > 0);
+
+        if (payload.length === 0) {
+            enqueueSnackbar('Không có trường đặc biệt nào để xuất.', { variant: 'warning' });
+            return;
+        }
+
+        const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(payload, null, 2));
+        const downloadAnchor = document.createElement('a');
+        downloadAnchor.setAttribute('href', dataStr);
+        downloadAnchor.setAttribute('download', 'truong_dac_biet.json');
+        document.body.appendChild(downloadAnchor);
+        downloadAnchor.click();
+        downloadAnchor.remove();
+
+        enqueueSnackbar('Đã xuất thành công tệp JSON.', { variant: 'success' });
+    };
+
     const cardBaseSx = {
         boxShadow: '0 12px 32px rgba(15, 23, 42, 0.12)',
         backdropFilter: 'blur(8px)',
@@ -311,13 +415,35 @@ function Settings(): ReactElement {
                                     );
                                 })}
 
-                                <Box sx={{ display: 'flex', gap: 1 }}>
+                                <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
                                     <Button
                                         variant="outlined"
                                         startIcon={<AddCircleOutlineIcon />}
                                         onClick={handleAddSpecialField}
                                     >
                                         Thêm trường
+                                    </Button>
+
+                                    <Button
+                                        variant="outlined"
+                                        component="label"
+                                        startIcon={<UploadIcon />}
+                                    >
+                                        Nhập từ JSON (Import)
+                                        <input
+                                            type="file"
+                                            accept=".json"
+                                            hidden
+                                            onChange={handleImportJSON}
+                                        />
+                                    </Button>
+
+                                    <Button
+                                        variant="outlined"
+                                        startIcon={<DownloadIcon />}
+                                        onClick={handleExportJSON}
+                                    >
+                                        Xuất ra JSON (Export)
                                     </Button>
 
                                     <Box sx={{ flexGrow: 1 }} />
