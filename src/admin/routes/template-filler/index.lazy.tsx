@@ -183,8 +183,10 @@ const createFilterOptionsFromIndexDB = (
     };
 };
 
-const createLinhVucFilterOptions = (linhVucList: LinhVuc[]): string[] =>
-    linhVucList.map(lv => lv.tenLinhVuc).sort();
+const createLinhVucFilterOptions = (linhVucList: LinhVuc[]): string[] => {
+    const names = linhVucList.map(lv => lv.tenLinhVuc).filter(Boolean);
+    return Array.from(new Set(names)).sort();
+};
 
 const normalizeDoiTuongList = (raw: string | undefined | null): string[] => {
     if (!raw) return [];

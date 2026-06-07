@@ -10,7 +10,7 @@ export interface LinhVuc {
 }
 
 export interface DoiTuongThucHien {
-    maDoiTuongThucHien: string;   // primary key
+    maDoiTuongThucHien: string; // primary key
     tenDoiTuongThucHien: string;
 }
 
@@ -18,8 +18,6 @@ export interface DirectoryHandleEntry {
     key: string;
     handle: FileSystemDirectoryHandle;
 }
-
-
 
 // Định nghĩa interface cho tài liệu làm việc được lưu theo Mã TTHC
 export interface WorkingDocument {
@@ -138,7 +136,7 @@ export class AppDatabase extends Dexie {
                             updatedAt: d.updatedAt
                         });
                     }
-                } catch { }
+                } catch {}
             });
 
         this.version(5).stores({
