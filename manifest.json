@@ -16,5 +16,9 @@
         "default_popup": "src/popup/index.html"
     },
     "homepage_url": "http://laptrinhid.qlns.vn/*",
-    "host_permissions": ["http://laptrinhid.qlns.vn/*", "http://103.162.21.146:5003/*"]
+    "host_permissions": [
+        "http://laptrinhid.qlns.vn/*",
+        "http://103.162.21.146:5003/*",
+        "http://id.nhattamsoft.vn/*"
+    ]
 }
